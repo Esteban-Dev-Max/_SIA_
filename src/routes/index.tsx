@@ -1,24 +1,35 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { getUser } from "@/lib/api";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const u = getUser();
+    if (u) throw redirect({ to: `/${u.rol}` as "/admin" | "/profesor" | "/estudiante" });
+  },
+  component: Home,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Home() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-background p-6">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-foreground">Sistema Académico</h1>
+        <p className="mt-2 text-muted-foreground">
+          Gestión de estudiantes, profesores, notas y asistencia.
+        </p>
+      </div>
+      <Link
+        to="/login"
+        className="inline-flex items-center rounded-md bg-primary px-6 py-3 text-primary-foreground hover:bg-primary/90"
+      >
+        Iniciar sesión
+      </Link>
+      <p className="text-xs text-muted-foreground max-w-md text-center">
+        Requiere que el backend Express esté corriendo en{" "}
+        <code className="rounded bg-muted px-1">http://localhost:3001</code>. Consulta{" "}
+        <code>server/README.md</code>.
+      </p>
     </div>
   );
 }
