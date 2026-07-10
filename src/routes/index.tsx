@@ -86,7 +86,7 @@ function Home() {
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary animate-in">
                 <Sparkles className="h-3.5 w-3.5" />
-                SIA — Sistema Integral Académico y Profesional
+                SIA — Sistema Integral Académico
               </div>
               <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl font-display animate-in-up stagger-1">
                 Gestiona tu institución{" "}
@@ -189,21 +189,19 @@ function Home() {
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
               {[
-                { rol: "Administrador", email: "admin@demo.com", pass: "admin123", color: "from-violet-500 to-purple-600" },
-                { rol: "Profesor", email: "profe@demo.com", pass: "profe123", color: "from-emerald-500 to-teal-600" },
-                { rol: "Estudiante", email: "alumno@demo.com", pass: "alumno123", color: "from-amber-500 to-orange-600" },
+                { rol: "Administrador", desc: "Gestiona usuarios, carreras y matrículas.", color: "from-violet-500 to-purple-600" },
+                { rol: "Profesor", desc: "Registra notas y controla asistencia.", color: "from-emerald-500 to-teal-600" },
+                { rol: "Estudiante", desc: "Consulta notas, promedio y asistencia.", color: "from-amber-500 to-orange-600" },
               ].map((d) => (
-                <div key={d.email} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
+                <div key={d.rol} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
                   <div className={cn("mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white", d.color)}>
                     {d.rol}
                   </div>
-                  <div className="space-y-1.5 text-sm">
-                    <p><span className="text-muted-foreground">Email:</span> <span className="font-mono font-medium">{d.email}</span></p>
-                    <p><span className="text-muted-foreground">Clave:</span> <span className="font-mono font-medium">{d.pass}</span></p>
-                  </div>
+                  <p className="text-sm text-muted-foreground">{d.desc}</p>
                 </div>
               ))}
             </div>
+
             <div className="mt-8 text-center">
               <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6">
                 <Link to="/login">
@@ -228,7 +226,7 @@ function Home() {
                   ¿Listo para empezar con SIA?
                 </h2>
                 <p className="mx-auto mt-3 max-w-lg text-primary-foreground/80">
-                  Únete al Sistema Integral Académico y Profesional. Sin configuraciones complejas, solo resultados.
+                  Únete al Sistema Integral Académico. Sin configuraciones complejas, solo resultados.
                 </p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                   <Button size="lg" asChild className="gap-2 rounded-xl bg-white text-primary hover:bg-white/90 shadow-xl h-12 px-6">
@@ -261,7 +259,7 @@ function Home() {
               <span className="text-sm font-bold font-display">SIA</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} SIA — Sistema Integral Académico y Profesional. Todos los derechos reservados.
+              © {new Date().getFullYear()} SIA — Sistema Integral Académico. Todos los derechos reservados.
             </p>
           </div>
         </div>
