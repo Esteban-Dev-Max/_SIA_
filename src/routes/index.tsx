@@ -54,9 +54,7 @@ function Home() {
       <header className="sticky top-0 z-50 border-b border-border/40 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
-              <GraduationCap className="h-5 w-5" />
-            </div>
+            <img src="/logo.png" alt="SIA" className="h-9 w-auto object-contain" />
             <div className="flex flex-col leading-tight">
               <span className="text-lg font-bold font-display">SIA</span>
               <span className="hidden sm:inline text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -253,9 +251,7 @@ function Home() {
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 text-white">
-                <GraduationCap className="h-4 w-4" />
-              </div>
+              <img src="/logo.png" alt="SIA" className="h-8 w-auto object-contain" />
               <span className="text-sm font-bold font-display">SIA</span>
             </div>
             <p className="text-xs text-muted-foreground">

@@ -47,9 +47,7 @@ export function PanelShell({ title, children }: { title: string; children: React
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
-                <GraduationCap className="h-5 w-5" />
-              </div>
+              <img src="/logo.png" alt="SIA" className="h-10 w-auto object-contain" />
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   SIA

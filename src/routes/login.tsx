@@ -50,9 +50,7 @@ function LoginPage() {
         <div className="mesh-bg-intense absolute inset-0" />
         <div className="relative flex flex-1 flex-col justify-between p-10">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
-              <GraduationCap className="h-6 w-6" />
-            </div>
+            <img src="/logo.png" alt="SIA" className="h-10 w-auto object-contain" />
             <span className="text-xl font-bold font-display">SIA</span>
           </Link>
 
@@ -95,8 +93,8 @@ function LoginPage() {
           <Card className="w-full border-border/50 shadow-xl rounded-2xl overflow-hidden">
             <div className="h-1.5 bg-gradient-to-r from-primary via-violet-500 to-purple-600" />
             <CardHeader className="space-y-1 pb-4 pt-6">
-              <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-violet-500/10 shadow-sm lg:hidden">
-                <GraduationCap className="h-5 w-5 text-primary" />
+              <div className="mb-2 flex h-11 w-11 items-center justify-center lg:hidden">
+                <img src="/logo.png" alt="SIA" className="h-11 w-auto object-contain" />
               </div>
               <CardTitle className="text-2xl font-display">Iniciar sesión</CardTitle>
               <CardDescription>
