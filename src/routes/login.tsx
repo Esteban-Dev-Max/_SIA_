@@ -53,7 +53,7 @@ function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
               <GraduationCap className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold font-display">Academic Hub</span>
+            <span className="text-xl font-bold font-display">SIA</span>
           </Link>
 
           <div className="mx-auto max-w-md">
@@ -79,7 +79,7 @@ function LoginPage() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Academic Hub
+            © {new Date().getFullYear()} SIA
           </p>
         </div>
       </div>
