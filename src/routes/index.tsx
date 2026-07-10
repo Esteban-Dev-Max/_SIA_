@@ -57,7 +57,12 @@ function Home() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold font-display">Academic Hub</span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg font-bold font-display">SIA</span>
+              <span className="hidden sm:inline text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Sistema Integral Académico
+              </span>
+            </div>
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild className="hidden sm:flex rounded-xl">
