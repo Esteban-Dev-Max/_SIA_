@@ -258,10 +258,10 @@ function Home() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 text-white">
                 <GraduationCap className="h-4 w-4" />
               </div>
-              <span className="text-sm font-bold font-display">Academic Hub</span>
+              <span className="text-sm font-bold font-display">SIA</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Academic Hub. Todos los derechos reservados.
+              © {new Date().getFullYear()} SIA — Sistema Integral Académico y Profesional. Todos los derechos reservados.
             </p>
           </div>
         </div>
