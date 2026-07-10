@@ -1,8 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { requireRole } from "@/lib/guard";
 import { PanelShell } from "@/components/PanelShell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { BookOpen, CheckCircle2, Inbox, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/profesor")({
   beforeLoad: () => requireRole("profesor"),
@@ -51,82 +67,119 @@ function ProfesorPanel() {
       method: "POST",
       body: JSON.stringify({ matricula_id: a.matricula_id, fecha, presente }),
     });
-    alert(`Asistencia (${fecha}) registrada para ${a.nombre}: ${presente ? "Presente" : "Ausente"}`);
+    toast.success(
+      `${a.nombre}: ${presente ? "Presente" : "Ausente"} (${fecha})`,
+    );
   }
+
+  const materiaActual = materias.find((m) => m.id === sel);
 
   return (
     <PanelShell title="Panel Profesor">
-      <div className="mb-4 flex items-center gap-2">
-        <label className="text-sm font-medium">Materia:</label>
-        <select
-          value={sel ?? ""}
-          onChange={(e) => setSel(Number(e.target.value))}
-          className="rounded-md border bg-background px-3 py-2 text-sm"
-        >
-          {materias.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.nombre}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="overflow-x-auto rounded-lg border bg-card">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="px-4 py-2 text-left">Alumno</th>
-              <th className="px-4 py-2 text-left">Parcial</th>
-              <th className="px-4 py-2 text-left">Medio</th>
-              <th className="px-4 py-2 text-left">Final</th>
-              <th className="px-4 py-2 text-left">Asistencia hoy</th>
-            </tr>
-          </thead>
-          <tbody>
-            {alumnos.map((a) => (
-              <tr key={a.matricula_id} className="border-t">
-                <td className="px-4 py-2">
-                  <div>{a.nombre}</div>
+      {/* Subject Selector */}
+      <Card className="mb-6 border-border/50 shadow-sm rounded-xl overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="h-5 w-5 text-emerald-600" />
+            Seleccionar materia
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-3">
+            <Label htmlFor="materia" className="sr-only">
+              Materia
+            </Label>
+            <select
+              id="materia"
+              value={sel ?? ""}
+              onChange={(e) => setSel(Number(e.target.value))}
+              className="input-field max-w-sm"
+            >
+              {materias.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                </option>
+              ))}
+            </select>
+            {materiaActual && (
+              <Badge variant="secondary" className="rounded-full px-3 py-0.5 text-xs font-medium">
+                {alumnos.length} alumnos
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Grades & Attendance Table */}
+      <Card className="overflow-hidden border-border/50 shadow-sm rounded-xl">
+        <div className="h-1 bg-gradient-to-r from-primary to-violet-500" />
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gradient-to-r from-muted/60 to-muted/30 hover:from-muted/60 hover:to-muted/30">
+              <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Alumno</TableHead>
+              <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Parcial</TableHead>
+              <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Medio</TableHead>
+              <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Final</TableHead>
+              <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Asistencia hoy</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {alumnos.map((a, i) => (
+              <TableRow key={a.matricula_id} className={cn("transition-colors hover:bg-muted/30", i % 2 === 0 ? "bg-white" : "bg-muted/10")}>
+                <TableCell className="px-4 py-3">
+                  <div className="font-medium">{a.nombre}</div>
                   <div className="text-xs text-muted-foreground">{a.email}</div>
-                </td>
+                </TableCell>
                 {(["parcial", "medio", "final"] as const).map((c) => (
-                  <td key={c} className="px-4 py-2">
-                    <input
+                  <TableCell key={c} className="px-4 py-3">
+                    <Input
                       type="number"
                       step="0.01"
                       defaultValue={a[c] ?? ""}
                       onBlur={(e) => saveNota(a, c, e.target.value)}
-                      className="w-20 rounded-md border bg-background px-2 py-1 text-sm"
+                      className="w-20 h-9 rounded-lg border-border/60 text-center text-sm font-medium focus-visible:ring-primary/30"
                     />
-                  </td>
+                  </TableCell>
                 ))}
-                <td className="px-4 py-2">
-                  <div className="flex gap-2">
-                    <button
+                <TableCell className="px-4 py-3">
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
                       onClick={() => marcarAsistencia(a, true)}
-                      className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
+                      className="gap-1 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                     >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                       Presente
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => marcarAsistencia(a, false)}
-                      className="rounded-md border px-2 py-1 text-xs"
+                      className="gap-1 h-8 rounded-lg border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                     >
+                      <XCircle className="h-3.5 w-3.5" />
                       Ausente
-                    </button>
+                    </Button>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {alumnos.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                  Sin alumnos matriculados en esta materia.
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={5} className="h-40 text-center">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+                      <Inbox className="h-6 w-6 opacity-40" />
+                    </div>
+                    <span className="text-sm font-medium">Sin alumnos matriculados en esta materia.</span>
+                  </div>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </PanelShell>
   );
 }

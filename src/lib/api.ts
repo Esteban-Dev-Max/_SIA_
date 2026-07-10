@@ -1,4 +1,12 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+/** Usa el mismo host que la UI (localhost o IP LAN) para que fetch no apunte a localhost desde otra máquina. */
+function resolveApiUrl(): string {
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  }
+  return import.meta.env.VITE_API_URL || "http://localhost:3001";
+}
+
+const API_URL = resolveApiUrl();
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;

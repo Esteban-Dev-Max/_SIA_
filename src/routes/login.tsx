@@ -1,10 +1,22 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, setSession, type AuthUser } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { GraduationCap, Loader2, Mail, Lock, ArrowLeft, Sparkles, User, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
+
+const demoAccounts = [
+  { rol: "Admin", email: "admin@demo.com", pass: "admin123", icon: ShieldCheck, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10" },
+  { rol: "Profesor", email: "profe@demo.com", pass: "profe123", icon: User, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+  { rol: "Estudiante", email: "alumno@demo.com", pass: "alumno123", icon: GraduationCap, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-500/10" },
+];
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -32,44 +44,161 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border bg-card p-6 shadow-sm"
-      >
-        <h1 className="text-2xl font-bold text-card-foreground">Iniciar sesión</h1>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Email</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
+    <div className="flex min-h-screen">
+      {/* Left Panel - Branding */}
+      <div className="relative hidden w-1/2 flex-col overflow-hidden lg:flex">
+        <div className="mesh-bg-intense absolute inset-0" />
+        <div className="relative flex flex-1 flex-col justify-between p-10">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <span className="text-xl font-bold font-display">Academic Hub</span>
+          </Link>
+
+          <div className="mx-auto max-w-md">
+            <div className="glass-card rounded-3xl p-8 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-violet-500/10 shadow-sm">
+                <Sparkles className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="mt-5 text-2xl font-bold font-display">
+                Tu plataforma académica
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                Centralizada, segura y diseñada para simplificar la gestión educativa. 
+                Accede según tu rol y comienza a trabajar.
+              </p>
+              <div className="mt-6 grid grid-cols-3 gap-3">
+                {["Admin", "Profesor", "Estudiante"].map((role) => (
+                  <div key={role} className="rounded-xl bg-muted/30 p-3 text-center">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{role}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            © {new Date().getFullYear()} Academic Hub
+          </p>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Contraseña</label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
+      </div>
+
+      {/* Right Panel - Login Form */}
+      <div className="mesh-bg flex flex-1 items-center justify-center p-4 sm:p-8">
+        <div className="w-full max-w-md animate-in">
+          <Link to="/" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            Volver al inicio
+          </Link>
+
+          <Card className="w-full border-border/50 shadow-xl rounded-2xl overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-primary via-violet-500 to-purple-600" />
+            <CardHeader className="space-y-1 pb-4 pt-6">
+              <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-violet-500/10 shadow-sm lg:hidden">
+                <GraduationCap className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-2xl font-display">Iniciar sesión</CardTitle>
+              <CardDescription>
+                Ingresa tus credenciales para acceder al sistema
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-6">
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10 h-11 rounded-xl border-border/60 focus-visible:ring-primary/30"
+                      placeholder="tu@email.com"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium">Contraseña</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10 h-11 rounded-xl border-border/60 focus-visible:ring-primary/30"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                {error && (
+                  <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive border border-destructive/10">
+                    {error}
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full gap-2 h-11 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading ? "Entrando..." : "Entrar"}
+                </Button>
+              </form>
+
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border/60" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-3 text-muted-foreground font-semibold tracking-wider">
+                      Cuentas demo
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-2">
+                  {demoAccounts.map((d) => (
+                    <button
+                      key={d.email}
+                      type="button"
+                      onClick={() => {
+                        setEmail(d.email);
+                        setPassword(d.pass);
+                      }}
+                      className={cn(
+                        "group flex w-full items-center gap-3 rounded-xl border border-border/40 p-3 text-left transition-all duration-200 hover:border-primary/20 hover:shadow-sm hover:bg-accent/30",
+                        email === d.email && password === d.pass && "border-primary/30 bg-primary/5"
+                      )}
+                    >
+                      <div className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-xl border shadow-sm transition-transform group-hover:scale-105",
+                        d.bg, d.color
+                      )}>
+                        <d.icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{d.rol}</p>
+                        <p className="text-xs text-muted-foreground truncate">{d.email}</p>
+                      </div>
+                      <div className={cn(
+                        "h-2 w-2 rounded-full transition-colors",
+                        email === d.email && password === d.pass
+                          ? "bg-primary"
+                          : "bg-border group-hover:bg-muted-foreground/30"
+                      )} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-        <p className="text-xs text-muted-foreground">
-          Demo: admin@demo.com / admin123 · profe@demo.com / profe123 · alumno@demo.com / alumno123
-        </p>
-      </form>
+      </div>
     </div>
   );
 }

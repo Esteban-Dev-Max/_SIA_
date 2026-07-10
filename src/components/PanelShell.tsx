@@ -1,6 +1,36 @@
-import { useNavigate } from "@tanstack/react-router";
-import { clearSession, getUser } from "@/lib/api";
+import { useNavigate, Link } from "@tanstack/react-router";
+import { clearSession, getUser, type Rol } from "@/lib/api";
 import type { ReactNode } from "react";
+import { GraduationCap, LogOut, LayoutDashboard, User, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const rolLabels: Record<Rol, string> = {
+  admin: "Administrador",
+  profesor: "Profesor",
+  estudiante: "Estudiante",
+};
+
+const rolColors: Record<Rol, string> = {
+  admin: "bg-violet-500/10 text-violet-700 border-violet-200",
+  profesor: "bg-emerald-500/10 text-emerald-700 border-emerald-200",
+  estudiante: "bg-primary/10 text-primary border-primary/20",
+};
+
+const rolIcons: Record<Rol, ReactNode> = {
+  admin: <LayoutDashboard className="h-4 w-4" />,
+  profesor: <User className="h-4 w-4" />,
+  estudiante: <GraduationCap className="h-4 w-4" />,
+};
 
 export function PanelShell({ title, children }: { title: string; children: ReactNode }) {
   const navigate = useNavigate();
@@ -12,24 +42,61 @@ export function PanelShell({ title, children }: { title: string; children: React
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-semibold text-card-foreground">{title}</h1>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">
-              {user?.nombre} · <span className="capitalize">{user?.rol}</span>
-            </span>
-            <button
-              onClick={logout}
-              className="rounded-md border px-3 py-1.5 hover:bg-accent"
-            >
-              Salir
-            </button>
+    <div className="min-h-screen mesh-bg">
+      <header className="sticky top-0 z-40 border-b border-border/50 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
+                <GraduationCap className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Academic Hub
+                </p>
+                <h1 className="text-sm font-bold leading-tight sm:text-base">{title}</h1>
+              </div>
+            </Link>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 rounded-xl px-3 py-2 hover:bg-accent/50">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-violet-500/10 text-primary">
+                    {user?.rol && rolIcons[user.rol]}
+                  </div>
+                  <div className="hidden text-left sm:block">
+                    <p className="text-sm font-semibold leading-tight">{user?.nombre}</p>
+                    {user?.rol && (
+                      <Badge
+                        variant="outline"
+                        className={cn("mt-0.5 text-[10px] font-normal px-1.5 py-0", rolColors[user.rol])}
+                      >
+                        {rolLabels[user.rol]}
+                      </Badge>
+                    )}
+                  </div>
+                  <ChevronDown className="hidden h-4 w-4 text-muted-foreground sm:block" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl border-border/60 p-1.5">
+                <DropdownMenuLabel className="text-xs font-medium text-muted-foreground px-2 py-1.5">
+                  {user?.email}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="gap-2.5 rounded-lg px-2 py-2 text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Cerrar sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-6">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 animate-in">{children}</main>
     </div>
   );
 }
