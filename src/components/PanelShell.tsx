@@ -52,7 +52,7 @@ export function PanelShell({ title, children }: { title: string; children: React
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Academic Hub
+                  SIA
                 </p>
                 <h1 className="text-sm font-bold leading-tight sm:text-base">{title}</h1>
               </div>

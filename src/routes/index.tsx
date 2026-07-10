@@ -57,7 +57,12 @@ function Home() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 text-white shadow-lg shadow-primary/20">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold font-display">Academic Hub</span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg font-bold font-display">SIA</span>
+              <span className="hidden sm:inline text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Sistema Integral Académico
+              </span>
+            </div>
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild className="hidden sm:flex rounded-xl">
@@ -81,17 +86,17 @@ function Home() {
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary animate-in">
                 <Sparkles className="h-3.5 w-3.5" />
-                Sistema académico integral
+                SIA — Sistema Integral Académico y Profesional
               </div>
               <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl font-display animate-in-up stagger-1">
                 Gestiona tu institución{" "}
                 <span className="gradient-text">
-                  de forma simple
+                  académica y profesional
                 </span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground animate-in-up stagger-2">
-                Una plataforma moderna y elegante para gestionar estudiantes, profesores, 
-                calificaciones y asistencia. Todo en un solo lugar, sin complicaciones.
+                SIA centraliza estudiantes, profesores, materias, notas y asistencia
+                en una sola plataforma moderna y fácil de usar.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3 animate-in-up stagger-3">
                 <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 h-12 px-6">
@@ -101,10 +106,10 @@ function Home() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild className="rounded-xl h-12 px-6 border-border/60">
-                  <Link to="/login">
+                  <a href="#demo">
                     Ver demo
                     <ChevronRight className="h-4 w-4 ml-1" />
-                  </Link>
+                  </a>
                 </Button>
               </div>
             </div>
@@ -167,6 +172,49 @@ function Home() {
           </div>
         </section>
 
+        {/* Demo Section */}
+        <section id="demo" className="relative border-t border-border/40 scroll-mt-20">
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="text-center">
+              <Badge variant="outline" className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary">
+                <Shield className="h-3 w-3 mr-1" />
+                Cuentas demo
+              </Badge>
+              <h2 className="text-3xl font-bold font-display sm:text-4xl">
+                Prueba SIA <span className="gradient-text-simple">gratis ahora</span>
+              </h2>
+              <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+                Usa cualquiera de las siguientes cuentas de demostración para explorar los tres roles.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              {[
+                { rol: "Administrador", email: "admin@demo.com", pass: "admin123", color: "from-violet-500 to-purple-600" },
+                { rol: "Profesor", email: "profe@demo.com", pass: "profe123", color: "from-emerald-500 to-teal-600" },
+                { rol: "Estudiante", email: "alumno@demo.com", pass: "alumno123", color: "from-amber-500 to-orange-600" },
+              ].map((d) => (
+                <div key={d.email} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
+                  <div className={cn("mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white", d.color)}>
+                    {d.rol}
+                  </div>
+                  <div className="space-y-1.5 text-sm">
+                    <p><span className="text-muted-foreground">Email:</span> <span className="font-mono font-medium">{d.email}</span></p>
+                    <p><span className="text-muted-foreground">Clave:</span> <span className="font-mono font-medium">{d.pass}</span></p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 text-center">
+              <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6">
+                <Link to="/login">
+                  Entrar con cuenta demo
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="relative border-t border-border/40">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
@@ -177,11 +225,10 @@ function Home() {
                   <Star className="h-7 w-7 text-white" />
                 </div>
                 <h2 className="mt-5 text-3xl font-bold text-white font-display sm:text-4xl">
-                  ¿Listo para empezar?
+                  ¿Listo para empezar con SIA?
                 </h2>
                 <p className="mx-auto mt-3 max-w-lg text-primary-foreground/80">
-                  Únete a la plataforma que está transformando la gestión académica. 
-                  Sin configuraciones complejas, solo resultados.
+                  Únete al Sistema Integral Académico y Profesional. Sin configuraciones complejas, solo resultados.
                 </p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                   <Button size="lg" asChild className="gap-2 rounded-xl bg-white text-primary hover:bg-white/90 shadow-xl h-12 px-6">
@@ -190,11 +237,11 @@ function Home() {
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild className="rounded-xl border-white/20 text-white hover:bg-white/10 hover:text-white h-12 px-6">
-                    <Link to="/login">
+                  <Button size="lg" asChild className="gap-2 rounded-xl bg-white/10 text-white border border-white/30 hover:bg-white/20 hover:text-white backdrop-blur-sm h-12 px-6">
+                    <a href="#demo">
                       <Shield className="h-4 w-4 mr-1.5" />
                       Demo gratuita
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>
@@ -211,10 +258,10 @@ function Home() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 text-white">
                 <GraduationCap className="h-4 w-4" />
               </div>
-              <span className="text-sm font-bold font-display">Academic Hub</span>
+              <span className="text-sm font-bold font-display">SIA</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Academic Hub. Todos los derechos reservados.
+              © {new Date().getFullYear()} SIA — Sistema Integral Académico y Profesional. Todos los derechos reservados.
             </p>
           </div>
         </div>
