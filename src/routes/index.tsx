@@ -86,17 +86,17 @@ function Home() {
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary animate-in">
                 <Sparkles className="h-3.5 w-3.5" />
-                Sistema académico integral
+                SIA — Sistema Integral Académico y Profesional
               </div>
               <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl font-display animate-in-up stagger-1">
                 Gestiona tu institución{" "}
                 <span className="gradient-text">
-                  de forma simple
+                  académica y profesional
                 </span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground animate-in-up stagger-2">
-                Una plataforma moderna y elegante para gestionar estudiantes, profesores, 
-                calificaciones y asistencia. Todo en un solo lugar, sin complicaciones.
+                SIA centraliza estudiantes, profesores, materias, notas y asistencia
+                en una sola plataforma moderna y fácil de usar.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3 animate-in-up stagger-3">
                 <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 h-12 px-6">
@@ -106,10 +106,10 @@ function Home() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild className="rounded-xl h-12 px-6 border-border/60">
-                  <Link to="/login">
+                  <a href="#demo">
                     Ver demo
                     <ChevronRight className="h-4 w-4 ml-1" />
-                  </Link>
+                  </a>
                 </Button>
               </div>
             </div>
