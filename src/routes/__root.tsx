@@ -72,9 +72,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SIA — Sistema Integral Académico y Profesional" },
+      { title: "SIA — Sistema Integral Académico" },
       { name: "description", content: "SIA: plataforma integral para gestionar estudiantes, profesores, notas y asistencia en instituciones académicas y profesionales." },
-      { property: "og:title", content: "SIA — Sistema Integral Académico y Profesional" },
+      { property: "og:title", content: "SIA — Sistema Integral Académico" },
       { property: "og:description", content: "SIA: plataforma integral para gestionar estudiantes, profesores, notas y asistencia en instituciones académicas y profesionales." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
