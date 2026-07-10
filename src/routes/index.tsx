@@ -189,21 +189,19 @@ function Home() {
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
               {[
-                { rol: "Administrador", email: "admin@demo.com", pass: "admin123", color: "from-violet-500 to-purple-600" },
-                { rol: "Profesor", email: "profe@demo.com", pass: "profe123", color: "from-emerald-500 to-teal-600" },
-                { rol: "Estudiante", email: "alumno@demo.com", pass: "alumno123", color: "from-amber-500 to-orange-600" },
+                { rol: "Administrador", desc: "Gestiona usuarios, carreras y matrículas.", color: "from-violet-500 to-purple-600" },
+                { rol: "Profesor", desc: "Registra notas y controla asistencia.", color: "from-emerald-500 to-teal-600" },
+                { rol: "Estudiante", desc: "Consulta notas, promedio y asistencia.", color: "from-amber-500 to-orange-600" },
               ].map((d) => (
-                <div key={d.email} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
+                <div key={d.rol} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
                   <div className={cn("mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white", d.color)}>
                     {d.rol}
                   </div>
-                  <div className="space-y-1.5 text-sm">
-                    <p><span className="text-muted-foreground">Email:</span> <span className="font-mono font-medium">{d.email}</span></p>
-                    <p><span className="text-muted-foreground">Clave:</span> <span className="font-mono font-medium">{d.pass}</span></p>
-                  </div>
+                  <p className="text-sm text-muted-foreground">{d.desc}</p>
                 </div>
               ))}
             </div>
+
             <div className="mt-8 text-center">
               <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6">
                 <Link to="/login">
