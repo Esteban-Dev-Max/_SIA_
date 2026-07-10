@@ -172,6 +172,49 @@ function Home() {
           </div>
         </section>
 
+        {/* Demo Section */}
+        <section id="demo" className="relative border-t border-border/40 scroll-mt-20">
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="text-center">
+              <Badge variant="outline" className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary">
+                <Shield className="h-3 w-3 mr-1" />
+                Cuentas demo
+              </Badge>
+              <h2 className="text-3xl font-bold font-display sm:text-4xl">
+                Prueba SIA <span className="gradient-text-simple">gratis ahora</span>
+              </h2>
+              <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+                Usa cualquiera de las siguientes cuentas de demostración para explorar los tres roles.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              {[
+                { rol: "Administrador", email: "admin@demo.com", pass: "admin123", color: "from-violet-500 to-purple-600" },
+                { rol: "Profesor", email: "profe@demo.com", pass: "profe123", color: "from-emerald-500 to-teal-600" },
+                { rol: "Estudiante", email: "alumno@demo.com", pass: "alumno123", color: "from-amber-500 to-orange-600" },
+              ].map((d) => (
+                <div key={d.email} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
+                  <div className={cn("mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white", d.color)}>
+                    {d.rol}
+                  </div>
+                  <div className="space-y-1.5 text-sm">
+                    <p><span className="text-muted-foreground">Email:</span> <span className="font-mono font-medium">{d.email}</span></p>
+                    <p><span className="text-muted-foreground">Clave:</span> <span className="font-mono font-medium">{d.pass}</span></p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 text-center">
+              <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6">
+                <Link to="/login">
+                  Entrar con cuenta demo
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="relative border-t border-border/40">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
@@ -182,11 +225,10 @@ function Home() {
                   <Star className="h-7 w-7 text-white" />
                 </div>
                 <h2 className="mt-5 text-3xl font-bold text-white font-display sm:text-4xl">
-                  ¿Listo para empezar?
+                  ¿Listo para empezar con SIA?
                 </h2>
                 <p className="mx-auto mt-3 max-w-lg text-primary-foreground/80">
-                  Únete a la plataforma que está transformando la gestión académica. 
-                  Sin configuraciones complejas, solo resultados.
+                  Únete al Sistema Integral Académico y Profesional. Sin configuraciones complejas, solo resultados.
                 </p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                   <Button size="lg" asChild className="gap-2 rounded-xl bg-white text-primary hover:bg-white/90 shadow-xl h-12 px-6">
@@ -195,11 +237,11 @@ function Home() {
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild className="rounded-xl border-white/20 text-white hover:bg-white/10 hover:text-white h-12 px-6">
-                    <Link to="/login">
+                  <Button size="lg" asChild className="gap-2 rounded-xl bg-white/10 text-white border border-white/30 hover:bg-white/20 hover:text-white backdrop-blur-sm h-12 px-6">
+                    <a href="#demo">
                       <Shield className="h-4 w-4 mr-1.5" />
                       Demo gratuita
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>
