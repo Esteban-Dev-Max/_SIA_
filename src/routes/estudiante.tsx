@@ -95,7 +95,7 @@ function EstudiantePanel() {
               "font-semibold",
               (n.promedio ?? 0) >= 3 ? "text-emerald-600" : (n.promedio ?? 0) >= 2 ? "text-amber-600" : "text-rose-600"
             )}>
-              {n.promedio?.toFixed(2) ?? "—"}
+              {n.promedio != null ? Number(n.promedio).toFixed(2) : "—"}
             </span>,
           ])}
           emptyMessage="Aún no tienes materias matriculadas."
