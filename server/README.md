@@ -2,6 +2,24 @@
 
 Servidor Node.js/Express con MySQL local. **Debe ejecutarse en tu máquina**, no en Lovable.
 
+## Acceso desde el celular (misma red)
+
+Para que el profe use la app desde su celular mientras tú la corres en la PC:
+
+1. PC y celular en la **misma red**: WiFi del SENA, hotspot del celular (PC conectada al hotspot), o hotspot de la PC.
+2. Levanta backend y frontend como siempre (dos terminales).
+3. Al arrancar el backend verás URLs tipo `http://192.168.x.x:8080` — **esa es la que abre el profe en el navegador del celular**.
+4. En Vite también aparece la línea `Network: http://192.168.x.x:8080/` al hacer `npm run dev`.
+
+**Firewall (Windows, una sola vez):** si el celular no carga la página, ejecuta PowerShell como administrador:
+
+```powershell
+netsh advfirewall firewall add rule name="Academico Frontend" dir=in action=allow protocol=TCP localport=8080
+netsh advfirewall firewall add rule name="Academico API" dir=in action=allow protocol=TCP localport=3001
+```
+
+**Importante:** esto funciona en la red local (WiFi/hotspot). No expone la app a internet público.
+
 ## Requisitos
 - Node.js 18+
 - MySQL 8+ corriendo en `localhost:3306`
