@@ -3,9 +3,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { pool } from "../db.js";
 
+import { asyncHandler } from "../middleware/asyncHandler.js";
+
 const r = Router();
 
-r.post("/login", async (req, res) => {
+r.post(
+  "/login",
+  asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: "Faltan datos" });
   const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [email]);
@@ -19,6 +23,7 @@ r.post("/login", async (req, res) => {
     { expiresIn: "8h" },
   );
   res.json({ token, user: { id: u.id, nombre: u.nombre, email: u.email, rol: u.rol } });
-});
+  }),
+);
 
 export default r;

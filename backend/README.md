@@ -1,6 +1,6 @@
 # Backend Académico (Express + MySQL)
 
-Servidor Node.js/Express con MySQL local. **Debe ejecutarse en tu máquina**, no en Lovable.
+Servidor Node.js/Express con MySQL local.
 
 ## Acceso desde el celular (misma red)
 
@@ -26,7 +26,7 @@ netsh advfirewall firewall add rule name="Academico API" dir=in action=allow pro
 
 ## Instalación
 ```bash
-cd server
+cd backend
 cp .env.example .env      # edita credenciales de tu MySQL
 npm install
 npm run migrate           # crea la BD `academico` y las tablas
@@ -72,7 +72,7 @@ Crea una base de datos vacía ejecutando:
 SQL
 CREATE DATABASE academic_hub;
 Paso 3: Configurar las Variables de Entorno (.env)
-Ve a la carpeta server/.
+Ve a la carpeta `backend/`.
 
 Si no existe el archivo .env, crea uno nuevo (o copia el .env.example y cámbiale el nombre a .env).
 
@@ -88,7 +88,7 @@ Paso 4: Levantar el Backend (Servidor)
 Abre una terminal en VS Code y muévete a la carpeta del servidor:
 
 Bash
-cd server
+cd backend
 npm install
 npm run migrate
 npm run seed

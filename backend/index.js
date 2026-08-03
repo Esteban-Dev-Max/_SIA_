@@ -6,6 +6,7 @@ import adminRoutes from "./routes/admin.js";
 import profesorRoutes from "./routes/profesor.js";
 import estudianteRoutes from "./routes/estudiante.js";
 import { isLanOrigin } from "./lib/lan.js";
+import { pool } from "./db.js";
 
 dotenv.config();
 
@@ -44,6 +45,15 @@ app.use((err, _req, res, _next) => {
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = "0.0.0.0";
 
-app.listen(PORT, HOST, () => {
+app.listen(PORT, HOST, async () => {
   console.log(`Server listening on port ${PORT}`);
+  try {
+    await pool.query("SELECT 1");
+    console.log("MySQL conectado correctamente");
+  } catch (err) {
+    console.error(
+      "No se pudo conectar a MySQL. Inicia MySQL en XAMPP y reinicia el backend.",
+    );
+    console.error(err.message);
+  }
 });

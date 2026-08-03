@@ -1,5 +1,5 @@
 -- Ejecuta este script en tu MySQL para crear la base y las tablas.
--- Alternativamente: `npm run migrate` desde la carpeta server/.
+-- Alternativamente: `npm run migrate` desde la carpeta backend/.
 
 CREATE DATABASE IF NOT EXISTS academico
   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
