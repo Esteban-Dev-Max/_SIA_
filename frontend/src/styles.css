@@ -63,33 +63,65 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.6); }
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+  }
 }
 
 :root {
@@ -183,7 +215,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
   }
 
@@ -258,13 +295,20 @@
   }
 
   .gradient-border::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, oklch(0.55 0.22 270), oklch(0.65 0.18 160), oklch(0.7 0.18 45));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    background: linear-gradient(
+      135deg,
+      oklch(0.55 0.22 270),
+      oklch(0.65 0.18 160),
+      oklch(0.7 0.18 45)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
@@ -282,11 +326,21 @@
     animation: scale-in 0.3s ease-out forwards;
   }
 
-  .stagger-1 { animation-delay: 0.1s; }
-  .stagger-2 { animation-delay: 0.2s; }
-  .stagger-3 { animation-delay: 0.3s; }
-  .stagger-4 { animation-delay: 0.4s; }
-  .stagger-5 { animation-delay: 0.5s; }
+  .stagger-1 {
+    animation-delay: 0.1s;
+  }
+  .stagger-2 {
+    animation-delay: 0.2s;
+  }
+  .stagger-3 {
+    animation-delay: 0.3s;
+  }
+  .stagger-4 {
+    animation-delay: 0.4s;
+  }
+  .stagger-5 {
+    animation-delay: 0.5s;
+  }
 
   .scrollbar-thin {
     scrollbar-width: thin;

@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { pool } from "../db.js";
-import { auth, requireRole } from "../middleware/auth.js";
+import { verifyToken, requireRole } from "../middleware/auth.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
 const r = Router();
-r.use(auth, requireRole("estudiante"));
+r.use(verifyToken, requireRole("estudiante"));
 
-r.get("/notas", async (req, res) => {
+r.get("/notas", asyncHandler(async (req, res) => {
   const [rows] = await pool.query(
     `SELECT mat.id AS matricula_id, mat.periodo, m.nombre AS materia,
             n.parcial, n.medio, n.final,
@@ -22,9 +23,9 @@ r.get("/notas", async (req, res) => {
       ? rows.reduce((s, x) => s + Number(x.promedio || 0), 0) / rows.length
       : 0;
   res.json({ materias: rows, promedio_general: Number(promedioGeneral.toFixed(2)) });
-});
+}));
 
-r.get("/asistencia", async (req, res) => {
+r.get("/asistencia", asyncHandler(async (req, res) => {
   const [rows] = await pool.query(
     `SELECT a.fecha, a.presente, m.nombre AS materia
      FROM asistencia a
@@ -35,6 +36,6 @@ r.get("/asistencia", async (req, res) => {
     [req.user.id],
   );
   res.json(rows);
-});
+}));
 
 export default r;

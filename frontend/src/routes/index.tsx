@@ -1,15 +1,28 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { getUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Users, BookOpen, ClipboardCheck, ArrowRight, Sparkles, Shield, Zap, Star, ChevronRight } from "lucide-react";
+import {
+  Users,
+  BookOpen,
+  ClipboardCheck,
+  ArrowRight,
+  Sparkles,
+  Shield,
+  Zap,
+  Star,
+  ChevronRight,
+} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
     if (typeof window === "undefined") return;
     const u = getUser();
-    if (u) throw redirect({ to: `/${u.rol}` as "/admin" | "/profesor" | "/estudiante" });
+    if (u)
+      throw redirect({ to: `/${u.rol}` as "/admin" | "/profesor" | "/estudiante" | "/acudiente" });
   },
   component: Home,
 });
@@ -48,6 +61,15 @@ const stats = [
 ];
 
 function Home() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const u = getUser();
+    if (u) {
+      navigate({ to: `/${u.rol}` as "/admin" | "/profesor" | "/estudiante" | "/acudiente" });
+    }
+  }, [navigate]);
+
   return (
     <div className="min-h-screen">
       {/* Navbar */}
@@ -66,7 +88,11 @@ function Home() {
             <Button variant="ghost" size="sm" asChild className="hidden sm:flex rounded-xl">
               <Link to="/login">Iniciar sesión</Link>
             </Button>
-            <Button size="sm" asChild className="rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300">
+            <Button
+              size="sm"
+              asChild
+              className="rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300"
+            >
               <Link to="/login" className="gap-1.5">
                 Comenzar
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -88,22 +114,29 @@ function Home() {
               </div>
               <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl font-display animate-in-up stagger-1">
                 Gestiona tu institución{" "}
-                <span className="gradient-text">
-                  académica y profesional
-                </span>
+                <span className="gradient-text">académica y profesional</span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground animate-in-up stagger-2">
-                SIA centraliza estudiantes, profesores, materias, notas y asistencia
-                en una sola plataforma moderna y fácil de usar.
+                SIA centraliza estudiantes, profesores, materias, notas y asistencia en una sola
+                plataforma moderna y fácil de usar.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3 animate-in-up stagger-3">
-                <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 h-12 px-6">
+                <Button
+                  size="lg"
+                  asChild
+                  className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 h-12 px-6"
+                >
                   <Link to="/login">
                     Comenzar ahora
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild className="rounded-xl h-12 px-6 border-border/60">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
+                  className="rounded-xl h-12 px-6 border-border/60"
+                >
                   <a href="#demo">
                     Ver demo
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -129,7 +162,10 @@ function Home() {
         <section className="relative border-t border-border/40 bg-muted/20">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
             <div className="text-center">
-              <Badge variant="outline" className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary">
+              <Badge
+                variant="outline"
+                className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary"
+              >
                 <Zap className="h-3 w-3 mr-1" />
                 Todo lo que necesitas
               </Badge>
@@ -143,27 +179,34 @@ function Home() {
             </div>
 
             <div className="mt-12 grid gap-6 sm:grid-cols-3">
-              {features.map(({ icon: Icon, title, desc, accent, color, bg }, i) => (
+              {features.map(({ icon: Icon, title, desc, accent, color, bg }) => (
                 <div
                   key={title}
                   className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
                 >
-                  <div className={cn(
-                    "absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100",
-                    "bg-gradient-to-br from-transparent via-transparent to-muted/10"
-                  )} />
-                  <div className={cn(
-                    "mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm",
-                    bg, color
-                  )}>
+                  <div
+                    className={cn(
+                      "absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100",
+                      "bg-gradient-to-br from-transparent via-transparent to-muted/10",
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm",
+                      bg,
+                      color,
+                    )}
+                  >
                     <Icon className="h-6 w-6" />
                   </div>
                   <h3 className="text-lg font-semibold font-display">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
-                  <div className={cn(
-                    "absolute -bottom-6 -right-6 h-20 w-20 rounded-full opacity-0 transition-all duration-500 group-hover:scale-150 group-hover:opacity-10",
-                    `bg-gradient-to-br ${accent}`
-                  )} />
+                  <div
+                    className={cn(
+                      "absolute -bottom-6 -right-6 h-20 w-20 rounded-full opacity-0 transition-all duration-500 group-hover:scale-150 group-hover:opacity-10",
+                      `bg-gradient-to-br ${accent}`,
+                    )}
+                  />
                 </div>
               ))}
             </div>
@@ -174,7 +217,10 @@ function Home() {
         <section id="demo" className="relative border-t border-border/40 scroll-mt-20">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
             <div className="text-center">
-              <Badge variant="outline" className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary">
+              <Badge
+                variant="outline"
+                className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary"
+              >
                 <Shield className="h-3 w-3 mr-1" />
                 Cuentas demo
               </Badge>
@@ -182,17 +228,38 @@ function Home() {
                 Prueba SIA <span className="gradient-text-simple">gratis ahora</span>
               </h2>
               <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-                Usa cualquiera de las siguientes cuentas de demostración para explorar los tres roles.
+                Usa cualquiera de las siguientes cuentas de demostración para explorar los tres
+                roles.
               </p>
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
               {[
-                { rol: "Administrador", desc: "Gestiona usuarios, carreras y matrículas.", color: "from-violet-500 to-purple-600" },
-                { rol: "Profesor", desc: "Registra notas y controla asistencia.", color: "from-emerald-500 to-teal-600" },
-                { rol: "Estudiante", desc: "Consulta notas, promedio y asistencia.", color: "from-amber-500 to-orange-600" },
+                {
+                  rol: "Administrador",
+                  desc: "Gestiona usuarios, carreras y matrículas.",
+                  color: "from-violet-500 to-purple-600",
+                },
+                {
+                  rol: "Profesor",
+                  desc: "Registra notas y controla asistencia.",
+                  color: "from-emerald-500 to-teal-600",
+                },
+                {
+                  rol: "Estudiante",
+                  desc: "Consulta notas, promedio y asistencia.",
+                  color: "from-amber-500 to-orange-600",
+                },
               ].map((d) => (
-                <div key={d.rol} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
-                  <div className={cn("mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white", d.color)}>
+                <div
+                  key={d.rol}
+                  className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm"
+                >
+                  <div
+                    className={cn(
+                      "mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white",
+                      d.color,
+                    )}
+                  >
                     {d.rol}
                   </div>
                   <p className="text-sm text-muted-foreground">{d.desc}</p>
@@ -201,7 +268,11 @@ function Home() {
             </div>
 
             <div className="mt-8 text-center">
-              <Button size="lg" asChild className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6">
+              <Button
+                size="lg"
+                asChild
+                className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6"
+              >
                 <Link to="/login">
                   Entrar con cuenta demo
                   <ArrowRight className="h-4 w-4" />
@@ -224,16 +295,25 @@ function Home() {
                   ¿Listo para empezar con SIA?
                 </h2>
                 <p className="mx-auto mt-3 max-w-lg text-primary-foreground/80">
-                  Únete al Sistema Integral Académico. Sin configuraciones complejas, solo resultados.
+                  Únete al Sistema Integral Académico. Sin configuraciones complejas, solo
+                  resultados.
                 </p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                  <Button size="lg" asChild className="gap-2 rounded-xl bg-white text-primary hover:bg-white/90 shadow-xl h-12 px-6">
+                  <Button
+                    size="lg"
+                    asChild
+                    className="gap-2 rounded-xl bg-white text-primary hover:bg-white/90 shadow-xl h-12 px-6"
+                  >
                     <Link to="/login">
                       Acceder ahora
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="lg" asChild className="gap-2 rounded-xl bg-white/10 text-white border border-white/30 hover:bg-white/20 hover:text-white backdrop-blur-sm h-12 px-6">
+                  <Button
+                    size="lg"
+                    asChild
+                    className="gap-2 rounded-xl bg-white/10 text-white border border-white/30 hover:bg-white/20 hover:text-white backdrop-blur-sm h-12 px-6"
+                  >
                     <a href="#demo">
                       <Shield className="h-4 w-4 mr-1.5" />
                       Demo gratuita
@@ -255,7 +335,8 @@ function Home() {
               <span className="text-sm font-bold font-display">SIA</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} SIA — Sistema Integral Académico. Todos los derechos reservados.
+              © {new Date().getFullYear()} SIA — Sistema Integral Académico. Todos los derechos
+              reservados.
             </p>
           </div>
         </div>

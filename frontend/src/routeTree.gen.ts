@@ -9,15 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProfesorRouteImport } from './routes/profesor'
+import { Route as MensajesRouteImport } from './routes/mensajes'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as EstudianteRouteImport } from './routes/estudiante'
-import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CalendarioRouteImport } from './routes/calendario'
+import { Route as ProfesorRouteRouteImport } from './routes/profesor/route'
+import { Route as EstudianteRouteRouteImport } from './routes/estudiante/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as AcudienteRouteRouteImport } from './routes/acudiente/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfesorIndexRouteImport } from './routes/profesor/index'
+import { Route as EstudianteIndexRouteImport } from './routes/estudiante/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AcudienteIndexRouteImport } from './routes/acudiente/index'
+import { Route as ProfesorTareasRouteImport } from './routes/profesor/tareas'
+import { Route as EstudianteTareasRouteImport } from './routes/estudiante/tareas'
+import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
+import { Route as AdminAcademicoRouteImport } from './routes/admin/academico'
 
-const ProfesorRoute = ProfesorRouteImport.update({
-  id: '/profesor',
-  path: '/profesor',
+const MensajesRoute = MensajesRouteImport.update({
+  id: '/mensajes',
+  path: '/mensajes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -25,14 +36,29 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EstudianteRoute = EstudianteRouteImport.update({
+const CalendarioRoute = CalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfesorRouteRoute = ProfesorRouteRouteImport.update({
+  id: '/profesor',
+  path: '/profesor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EstudianteRouteRoute = EstudianteRouteRouteImport.update({
   id: '/estudiante',
   path: '/estudiante',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
+const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcudienteRouteRoute = AcudienteRouteRouteImport.update({
+  id: '/acudiente',
+  path: '/acudiente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -40,52 +66,169 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfesorIndexRoute = ProfesorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProfesorRouteRoute,
+} as any)
+const EstudianteIndexRoute = EstudianteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EstudianteRouteRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AcudienteIndexRoute = AcudienteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AcudienteRouteRoute,
+} as any)
+const ProfesorTareasRoute = ProfesorTareasRouteImport.update({
+  id: '/tareas',
+  path: '/tareas',
+  getParentRoute: () => ProfesorRouteRoute,
+} as any)
+const EstudianteTareasRoute = EstudianteTareasRouteImport.update({
+  id: '/tareas',
+  path: '/tareas',
+  getParentRoute: () => EstudianteRouteRoute,
+} as any)
+const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAcademicoRoute = AdminAcademicoRouteImport.update({
+  id: '/academico',
+  path: '/academico',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/estudiante': typeof EstudianteRoute
+  '/acudiente': typeof AcudienteRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/estudiante': typeof EstudianteRouteRouteWithChildren
+  '/profesor': typeof ProfesorRouteRouteWithChildren
+  '/calendario': typeof CalendarioRoute
   '/login': typeof LoginRoute
-  '/profesor': typeof ProfesorRoute
+  '/mensajes': typeof MensajesRoute
+  '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/estudiante/tareas': typeof EstudianteTareasRoute
+  '/profesor/tareas': typeof ProfesorTareasRoute
+  '/acudiente/': typeof AcudienteIndexRoute
+  '/admin/': typeof AdminIndexRoute
+  '/estudiante/': typeof EstudianteIndexRoute
+  '/profesor/': typeof ProfesorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/estudiante': typeof EstudianteRoute
+  '/calendario': typeof CalendarioRoute
   '/login': typeof LoginRoute
-  '/profesor': typeof ProfesorRoute
+  '/mensajes': typeof MensajesRoute
+  '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/estudiante/tareas': typeof EstudianteTareasRoute
+  '/profesor/tareas': typeof ProfesorTareasRoute
+  '/acudiente': typeof AcudienteIndexRoute
+  '/admin': typeof AdminIndexRoute
+  '/estudiante': typeof EstudianteIndexRoute
+  '/profesor': typeof ProfesorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/estudiante': typeof EstudianteRoute
+  '/acudiente': typeof AcudienteRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/estudiante': typeof EstudianteRouteRouteWithChildren
+  '/profesor': typeof ProfesorRouteRouteWithChildren
+  '/calendario': typeof CalendarioRoute
   '/login': typeof LoginRoute
-  '/profesor': typeof ProfesorRoute
+  '/mensajes': typeof MensajesRoute
+  '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/estudiante/tareas': typeof EstudianteTareasRoute
+  '/profesor/tareas': typeof ProfesorTareasRoute
+  '/acudiente/': typeof AcudienteIndexRoute
+  '/admin/': typeof AdminIndexRoute
+  '/estudiante/': typeof EstudianteIndexRoute
+  '/profesor/': typeof ProfesorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/estudiante' | '/login' | '/profesor'
+  fullPaths:
+    | '/'
+    | '/acudiente'
+    | '/admin'
+    | '/estudiante'
+    | '/profesor'
+    | '/calendario'
+    | '/login'
+    | '/mensajes'
+    | '/admin/academico'
+    | '/admin/usuarios'
+    | '/estudiante/tareas'
+    | '/profesor/tareas'
+    | '/acudiente/'
+    | '/admin/'
+    | '/estudiante/'
+    | '/profesor/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/estudiante' | '/login' | '/profesor'
-  id: '__root__' | '/' | '/admin' | '/estudiante' | '/login' | '/profesor'
+  to:
+    | '/'
+    | '/calendario'
+    | '/login'
+    | '/mensajes'
+    | '/admin/academico'
+    | '/admin/usuarios'
+    | '/estudiante/tareas'
+    | '/profesor/tareas'
+    | '/acudiente'
+    | '/admin'
+    | '/estudiante'
+    | '/profesor'
+  id:
+    | '__root__'
+    | '/'
+    | '/acudiente'
+    | '/admin'
+    | '/estudiante'
+    | '/profesor'
+    | '/calendario'
+    | '/login'
+    | '/mensajes'
+    | '/admin/academico'
+    | '/admin/usuarios'
+    | '/estudiante/tareas'
+    | '/profesor/tareas'
+    | '/acudiente/'
+    | '/admin/'
+    | '/estudiante/'
+    | '/profesor/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
-  EstudianteRoute: typeof EstudianteRoute
+  AcudienteRouteRoute: typeof AcudienteRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  EstudianteRouteRoute: typeof EstudianteRouteRouteWithChildren
+  ProfesorRouteRoute: typeof ProfesorRouteRouteWithChildren
+  CalendarioRoute: typeof CalendarioRoute
   LoginRoute: typeof LoginRoute
-  ProfesorRoute: typeof ProfesorRoute
+  MensajesRoute: typeof MensajesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/profesor': {
-      id: '/profesor'
-      path: '/profesor'
-      fullPath: '/profesor'
-      preLoaderRoute: typeof ProfesorRouteImport
+    '/mensajes': {
+      id: '/mensajes'
+      path: '/mensajes'
+      fullPath: '/mensajes'
+      preLoaderRoute: typeof MensajesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -95,18 +238,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendario': {
+      id: '/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof CalendarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profesor': {
+      id: '/profesor'
+      path: '/profesor'
+      fullPath: '/profesor'
+      preLoaderRoute: typeof ProfesorRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/estudiante': {
       id: '/estudiante'
       path: '/estudiante'
       fullPath: '/estudiante'
-      preLoaderRoute: typeof EstudianteRouteImport
+      preLoaderRoute: typeof EstudianteRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acudiente': {
+      id: '/acudiente'
+      path: '/acudiente'
+      fullPath: '/acudiente'
+      preLoaderRoute: typeof AcudienteRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -116,15 +280,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profesor/': {
+      id: '/profesor/'
+      path: '/'
+      fullPath: '/profesor/'
+      preLoaderRoute: typeof ProfesorIndexRouteImport
+      parentRoute: typeof ProfesorRouteRoute
+    }
+    '/estudiante/': {
+      id: '/estudiante/'
+      path: '/'
+      fullPath: '/estudiante/'
+      preLoaderRoute: typeof EstudianteIndexRouteImport
+      parentRoute: typeof EstudianteRouteRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/acudiente/': {
+      id: '/acudiente/'
+      path: '/'
+      fullPath: '/acudiente/'
+      preLoaderRoute: typeof AcudienteIndexRouteImport
+      parentRoute: typeof AcudienteRouteRoute
+    }
+    '/profesor/tareas': {
+      id: '/profesor/tareas'
+      path: '/tareas'
+      fullPath: '/profesor/tareas'
+      preLoaderRoute: typeof ProfesorTareasRouteImport
+      parentRoute: typeof ProfesorRouteRoute
+    }
+    '/estudiante/tareas': {
+      id: '/estudiante/tareas'
+      path: '/tareas'
+      fullPath: '/estudiante/tareas'
+      preLoaderRoute: typeof EstudianteTareasRouteImport
+      parentRoute: typeof EstudianteRouteRoute
+    }
+    '/admin/usuarios': {
+      id: '/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AdminUsuariosRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/academico': {
+      id: '/admin/academico'
+      path: '/academico'
+      fullPath: '/admin/academico'
+      preLoaderRoute: typeof AdminAcademicoRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
 
+interface AcudienteRouteRouteChildren {
+  AcudienteIndexRoute: typeof AcudienteIndexRoute
+}
+
+const AcudienteRouteRouteChildren: AcudienteRouteRouteChildren = {
+  AcudienteIndexRoute: AcudienteIndexRoute,
+}
+
+const AcudienteRouteRouteWithChildren = AcudienteRouteRoute._addFileChildren(
+  AcudienteRouteRouteChildren,
+)
+
+interface AdminRouteRouteChildren {
+  AdminAcademicoRoute: typeof AdminAcademicoRoute
+  AdminUsuariosRoute: typeof AdminUsuariosRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAcademicoRoute: AdminAcademicoRoute,
+  AdminUsuariosRoute: AdminUsuariosRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
+interface EstudianteRouteRouteChildren {
+  EstudianteTareasRoute: typeof EstudianteTareasRoute
+  EstudianteIndexRoute: typeof EstudianteIndexRoute
+}
+
+const EstudianteRouteRouteChildren: EstudianteRouteRouteChildren = {
+  EstudianteTareasRoute: EstudianteTareasRoute,
+  EstudianteIndexRoute: EstudianteIndexRoute,
+}
+
+const EstudianteRouteRouteWithChildren = EstudianteRouteRoute._addFileChildren(
+  EstudianteRouteRouteChildren,
+)
+
+interface ProfesorRouteRouteChildren {
+  ProfesorTareasRoute: typeof ProfesorTareasRoute
+  ProfesorIndexRoute: typeof ProfesorIndexRoute
+}
+
+const ProfesorRouteRouteChildren: ProfesorRouteRouteChildren = {
+  ProfesorTareasRoute: ProfesorTareasRoute,
+  ProfesorIndexRoute: ProfesorIndexRoute,
+}
+
+const ProfesorRouteRouteWithChildren = ProfesorRouteRoute._addFileChildren(
+  ProfesorRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
-  EstudianteRoute: EstudianteRoute,
+  AcudienteRouteRoute: AcudienteRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  EstudianteRouteRoute: EstudianteRouteRouteWithChildren,
+  ProfesorRouteRoute: ProfesorRouteRouteWithChildren,
+  CalendarioRoute: CalendarioRoute,
   LoginRoute: LoginRoute,
-  ProfesorRoute: ProfesorRoute,
+  MensajesRoute: MensajesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
