@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useHashTab } from "@/hooks/use-hash-tab";
 import { DataTable } from "@/components/DataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,10 @@ type Matricula = {
 };
 type Usuario = { id: number; nombre_completo: string; correo: string; rol: string };
 
+const TABS_ACADEMICO = ["carreras", "materias", "grupos", "matriculas", "acudientes"] as const;
+
 function AdminAcademico() {
+  const [tab, setTab] = useHashTab(TABS_ACADEMICO, "carreras");
   const [cargando, setCargando] = useState(false);
   const [carreras, setCarreras] = useState<Carrera[]>([]);
   const [materias, setMaterias] = useState<Materia[]>([]);
@@ -143,7 +147,11 @@ function AdminAcademico() {
         </p>
       </div>
 
-      <Tabs defaultValue="carreras" className="space-y-6">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as (typeof TABS_ACADEMICO)[number])}
+        className="space-y-6"
+      >
         <TabsList className="h-auto flex-wrap gap-1.5 bg-muted/50 p-1.5 rounded-xl">
           <TabsTrigger value="carreras" className="gap-1.5 px-4 py-2 rounded-lg">
             <School className="h-4 w-4" />

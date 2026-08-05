@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { api, getUser } from "@/lib/api";
+import { api } from "@/lib/api";
 import { requireRole } from "@/lib/guard";
-import { PanelShell, type NavItem } from "@/components/PanelShell";
+import { PanelShell } from "@/components/PanelShell";
 import { AuthGate } from "@/components/AuthGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,15 +24,7 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  LayoutDashboard,
-  ClipboardList,
-  CalendarPlus,
-  MessageSquare,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 
 export const Route = createFileRoute("/calendario")({
   beforeLoad: () => requireRole("admin", "profesor", "estudiante", "acudiente"),
@@ -76,34 +68,6 @@ const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function ymd(d: Date): string {
   return format(d, "yyyy-MM-dd");
-}
-
-function navItems(): NavItem[] {
-  const u = getUser();
-  if (!u) return [];
-  const base: NavItem[] = [];
-  if (u.rol === "profesor") {
-    base.push({ label: "Panel", to: "/profesor", icon: <LayoutDashboard className="h-4 w-4" /> });
-    base.push({
-      label: "Tareas",
-      to: "/profesor/tareas",
-      icon: <ClipboardList className="h-4 w-4" />,
-    });
-  } else if (u.rol === "estudiante") {
-    base.push({ label: "Panel", to: "/estudiante", icon: <LayoutDashboard className="h-4 w-4" /> });
-    base.push({
-      label: "Tareas",
-      to: "/estudiante/tareas",
-      icon: <ClipboardList className="h-4 w-4" />,
-    });
-  } else if (u.rol === "acudiente") {
-    base.push({ label: "Panel", to: "/acudiente", icon: <LayoutDashboard className="h-4 w-4" /> });
-  } else {
-    base.push({ label: "Panel", to: "/admin", icon: <LayoutDashboard className="h-4 w-4" /> });
-  }
-  base.push({ label: "Mensajes", to: "/mensajes", icon: <MessageSquare className="h-4 w-4" /> });
-  base.push({ label: "Calendario", to: "/calendario", icon: <CalendarDays className="h-4 w-4" /> });
-  return base;
 }
 
 function CalendarioView() {
@@ -183,7 +147,7 @@ function CalendarioView() {
 
   return (
     <AuthGate roles={["admin", "profesor", "estudiante", "acudiente"]}>
-      <PanelShell title="Calendario Académico" nav={navItems()}>
+      <PanelShell title="Calendario Académico">
         {/* Encabezado de control */}
         <Card className="mb-6 border-border/50 shadow-sm rounded-xl overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-sky-500 to-indigo-500" />
@@ -225,7 +189,7 @@ function CalendarioView() {
                       className={cn(
                         "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
                         vista === v
-                          ? "bg-white text-foreground shadow-sm"
+                          ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >

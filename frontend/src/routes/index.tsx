@@ -73,7 +73,7 @@ function Home() {
   return (
     <div className="min-h-screen">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-2.5">
             <img src="/logo.png" alt="SIA" className="h-9 w-auto object-contain" />
@@ -182,7 +182,7 @@ function Home() {
               {features.map(({ icon: Icon, title, desc, accent, color, bg }) => (
                 <div
                   key={title}
-                  className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                  className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
                 >
                   <div
                     className={cn(
@@ -252,7 +252,7 @@ function Home() {
               ].map((d) => (
                 <div
                   key={d.rol}
-                  className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm"
+                  className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm"
                 >
                   <div
                     className={cn(

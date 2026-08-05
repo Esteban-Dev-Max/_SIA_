@@ -60,7 +60,7 @@ export function DataTable({
                   key={i}
                   className={cn(
                     "transition-colors hover:bg-muted/30",
-                    i % 2 === 0 ? "bg-white" : "bg-muted/10",
+                    i % 2 === 0 ? "bg-transparent" : "bg-muted/10",
                   )}
                 >
                   {r.map((c, j) => (

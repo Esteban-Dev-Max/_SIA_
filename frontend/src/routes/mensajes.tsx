@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, getUser, type Rol } from "@/lib/api";
 import { requireRole } from "@/lib/guard";
-import { PanelShell, type NavItem } from "@/components/PanelShell";
+import { PanelShell } from "@/components/PanelShell";
 import { AuthGate } from "@/components/AuthGate";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,6 @@ import {
   GraduationCap,
   User,
   HeartHandshake,
-  LayoutDashboard,
-  CalendarDays,
   Plus,
 } from "lucide-react";
 
@@ -32,24 +30,6 @@ export const Route = createFileRoute("/mensajes")({
   beforeLoad: () => requireRole("admin", "profesor", "estudiante", "acudiente"),
   component: MensajesView,
 });
-
-function navItems(): NavItem[] {
-  const u = getUser();
-  if (!u) return [];
-  const base: NavItem[] = [];
-  if (u.rol === "profesor") {
-    base.push({ label: "Panel", to: "/profesor", icon: <LayoutDashboard className="h-4 w-4" /> });
-  } else if (u.rol === "estudiante") {
-    base.push({ label: "Panel", to: "/estudiante", icon: <LayoutDashboard className="h-4 w-4" /> });
-  } else if (u.rol === "acudiente") {
-    base.push({ label: "Panel", to: "/acudiente", icon: <LayoutDashboard className="h-4 w-4" /> });
-  } else {
-    base.push({ label: "Panel", to: "/admin", icon: <LayoutDashboard className="h-4 w-4" /> });
-  }
-  base.push({ label: "Mensajes", to: "/mensajes", icon: <MessageSquare className="h-4 w-4" /> });
-  base.push({ label: "Calendario", to: "/calendario", icon: <CalendarDays className="h-4 w-4" /> });
-  return base;
-}
 
 type Contacto = {
   contacto_id: number;
@@ -220,7 +200,7 @@ function MensajesView() {
 
   return (
     <AuthGate roles={["admin", "profesor", "estudiante", "acudiente"]}>
-      <PanelShell title="Mensajería Interna" nav={navItems()}>
+      <PanelShell title="Mensajería Interna">
         <div className="grid h-[calc(100vh-16rem)] min-h-[480px] grid-cols-1 gap-4 md:grid-cols-[20rem_1fr]">
           {/* Lista de conversaciones */}
           <Card className="flex flex-col overflow-hidden border-border/50 shadow-sm rounded-xl">

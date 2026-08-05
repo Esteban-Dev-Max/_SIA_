@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MensajesRouteImport } from './routes/mensajes'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ProfesorRouteRouteImport } from './routes/profesor/route'
 import { Route as EstudianteRouteRouteImport } from './routes/estudiante/route'
@@ -34,6 +35,11 @@ const MensajesRoute = MensajesRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracionRoute = ConfiguracionRouteImport.update({
+  id: '/configuracion',
+  path: '/configuracion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarioRoute = CalendarioRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/estudiante': typeof EstudianteRouteRouteWithChildren
   '/profesor': typeof ProfesorRouteRouteWithChildren
   '/calendario': typeof CalendarioRoute
+  '/configuracion': typeof ConfiguracionRoute
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
   '/admin/academico': typeof AdminAcademicoRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendario': typeof CalendarioRoute
+  '/configuracion': typeof ConfiguracionRoute
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
   '/admin/academico': typeof AdminAcademicoRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/estudiante': typeof EstudianteRouteRouteWithChildren
   '/profesor': typeof ProfesorRouteRouteWithChildren
   '/calendario': typeof CalendarioRoute
+  '/configuracion': typeof ConfiguracionRoute
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
   '/admin/academico': typeof AdminAcademicoRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/estudiante'
     | '/profesor'
     | '/calendario'
+    | '/configuracion'
     | '/login'
     | '/mensajes'
     | '/admin/academico'
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/calendario'
+    | '/configuracion'
     | '/login'
     | '/mensajes'
     | '/admin/academico'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/estudiante'
     | '/profesor'
     | '/calendario'
+    | '/configuracion'
     | '/login'
     | '/mensajes'
     | '/admin/academico'
@@ -218,6 +230,7 @@ export interface RootRouteChildren {
   EstudianteRouteRoute: typeof EstudianteRouteRouteWithChildren
   ProfesorRouteRoute: typeof ProfesorRouteRouteWithChildren
   CalendarioRoute: typeof CalendarioRoute
+  ConfiguracionRoute: typeof ConfiguracionRoute
   LoginRoute: typeof LoginRoute
   MensajesRoute: typeof MensajesRoute
 }
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracion': {
+      id: '/configuracion'
+      path: '/configuracion'
+      fullPath: '/configuracion'
+      preLoaderRoute: typeof ConfiguracionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendario': {
@@ -402,6 +422,7 @@ const rootRouteChildren: RootRouteChildren = {
   EstudianteRouteRoute: EstudianteRouteRouteWithChildren,
   ProfesorRouteRoute: ProfesorRouteRouteWithChildren,
   CalendarioRoute: CalendarioRoute,
+  ConfiguracionRoute: ConfiguracionRoute,
   LoginRoute: LoginRoute,
   MensajesRoute: MensajesRoute,
 }
