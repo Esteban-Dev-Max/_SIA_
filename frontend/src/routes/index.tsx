@@ -6,15 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  Users,
-  BookOpen,
-  ClipboardCheck,
   ArrowRight,
-  Sparkles,
+  BarChart3,
+  BellRing,
+  Bot,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Crown,
+  GraduationCap,
+  HeartHandshake,
+  BookOpen,
   Shield,
+  Sparkles,
+  Users,
   Zap,
-  Star,
-  ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -29,35 +35,101 @@ export const Route = createFileRoute("/")({
 
 const features = [
   {
-    icon: Users,
-    title: "Gestión de usuarios",
-    desc: "Administra estudiantes, profesores y roles desde un solo lugar con control total.",
-    accent: "from-violet-500 to-purple-600",
+    icon: BarChart3,
+    title: "Calificaciones Automatizadas",
+    desc: "Cálculo automático de definitivas con la ponderación 25/25/20/30 y control de notas en tiempo real.",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    accent: "from-emerald-500 to-teal-600",
+  },
+  {
+    icon: CalendarDays,
+    title: "Calendario Unificado",
+    desc: "Eventos, fechas de entrega y reuniones en un solo lugar, visibles para toda la comunidad.",
+    color: "text-sky-600",
+    bg: "bg-sky-50 dark:bg-sky-500/10",
+    accent: "from-sky-500 to-indigo-600",
+  },
+  {
+    icon: Bot,
+    title: "Asistente IA",
+    desc: "Chatbot integrado que resuelve dudas académicas con respuestas personalizadas por rol.",
     color: "text-violet-600",
     bg: "bg-violet-50 dark:bg-violet-500/10",
+    accent: "from-violet-500 to-purple-600",
+  },
+  {
+    icon: BellRing,
+    title: "Notificaciones en Tiempo Real",
+    desc: "Alertas de sistema, tareas, notas y mensajes al instante para no perderte nada.",
+    color: "text-amber-600",
+    bg: "bg-amber-50 dark:bg-amber-500/10",
+    accent: "from-amber-500 to-orange-600",
+  },
+];
+
+const roles = [
+  {
+    icon: Crown,
+    rol: "Administrador",
+    desc: "Control total de usuarios, matrículas y métricas de la institución.",
+    color: "text-violet-600",
+    bg: "bg-violet-50 dark:bg-violet-500/10",
+    bullets: [
+      "Gestión de usuarios y roles",
+      "Carreras, materias y matrículas",
+      "Estadísticas del dashboard",
+    ],
+  },
+  {
+    icon: GraduationCap,
+    rol: "Profesor",
+    desc: "Gestión rápida de notas, asistencia y revisión de entregas.",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    bullets: ["Planilla de calificaciones", "Asistencia diaria", "Tareas y revisión de entregas"],
   },
   {
     icon: BookOpen,
-    title: "Carreras y materias",
-    desc: "Organiza el plan académico con carreras, materias y matrículas de forma intuitiva.",
-    accent: "from-emerald-500 to-teal-600",
-    color: "text-emerald-600",
-    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    rol: "Estudiante",
+    desc: "Seguimiento de su rendimiento, tareas y calendario académico.",
+    color: "text-sky-600",
+    bg: "bg-sky-50 dark:bg-sky-500/10",
+    bullets: ["Notas, promedio y asistencia", "Entregas de tareas", "Chatbot Asistente SIA"],
   },
   {
-    icon: ClipboardCheck,
-    title: "Notas y asistencia",
-    desc: "Registra calificaciones y control de asistencia en tiempo real con un solo clic.",
-    accent: "from-amber-500 to-orange-600",
+    icon: HeartHandshake,
+    rol: "Acudiente",
+    desc: "Monitoreo en tiempo real del progreso de sus acudidos.",
     color: "text-amber-600",
     bg: "bg-amber-50 dark:bg-amber-500/10",
+    bullets: ["Rendimiento de sus estudiantes", "Alertas de inasistencia", "Boletín imprimible"],
   },
 ];
 
 const stats = [
-  { value: "3", label: "Roles", desc: "Admin, Profesor, Estudiante" },
-  { value: "99%", label: "Uptime", desc: "Siempre disponible" },
-  { value: "0", label: "Configuración", desc: "Zero setup requerido" },
+  {
+    value: "4",
+    label: "Roles y paneles",
+    desc: "Admin, profesor, estudiante y acudiente",
+  },
+  {
+    value: "25/25/20/30",
+    label: "Ponderación de notas",
+    desc: "Definitivas calculadas automáticamente",
+  },
+  {
+    value: "100%",
+    label: "Datos en tiempo real",
+    desc: "Notas, asistencia y mensajes al instante",
+  },
+];
+
+const cuentasDemo = [
+  ["Admin", "admin@sia.edu.co"],
+  ["Profesor", "profesor@sia.edu.co"],
+  ["Estudiante", "estudiante@sia.edu.co"],
+  ["Acudiente", "acudiente@sia.edu.co"],
 ];
 
 function Home() {
@@ -103,7 +175,7 @@ function Home() {
       </header>
 
       <main>
-        {/* Hero Section */}
+        {/* Hero */}
         <section className="relative overflow-hidden">
           <div className="mesh-bg-intense absolute inset-0" />
           <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-16 sm:px-6 sm:pb-28 sm:pt-24 lg:px-8">
@@ -113,12 +185,11 @@ function Home() {
                 SIA — Sistema Integral Académico
               </div>
               <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl font-display animate-in-up stagger-1">
-                Gestiona tu institución{" "}
-                <span className="gradient-text">académica y profesional</span>
+                Sistema <span className="gradient-text">Integral Académico</span> (SIA)
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground animate-in-up stagger-2">
-                SIA centraliza estudiantes, profesores, materias, notas y asistencia en una sola
-                plataforma moderna y fácil de usar.
+                Centraliza la gestión de notas, asistencia, tareas y comunicaciones en una
+                plataforma moderna y accesible para toda la comunidad educativa.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3 animate-in-up stagger-3">
                 <Button
@@ -127,7 +198,7 @@ function Home() {
                   className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 h-12 px-6"
                 >
                   <Link to="/login">
-                    Comenzar ahora
+                    Iniciar Sesión
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -137,9 +208,9 @@ function Home() {
                   asChild
                   className="rounded-xl h-12 px-6 border-border/60"
                 >
-                  <a href="#demo">
-                    Ver demo
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                  <a href="#caracteristicas">
+                    Conoce más
+                    <ChevronDown className="h-4 w-4 ml-1" />
                   </a>
                 </Button>
               </div>
@@ -158,8 +229,11 @@ function Home() {
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="relative border-t border-border/40 bg-muted/20">
+        {/* Features */}
+        <section
+          id="caracteristicas"
+          className="relative scroll-mt-24 border-t border-border/40 bg-muted/20"
+        >
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
             <div className="text-center">
               <Badge
@@ -167,19 +241,19 @@ function Home() {
                 className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary"
               >
                 <Zap className="h-3 w-3 mr-1" />
-                Todo lo que necesitas
+                Funciones estrella
               </Badge>
               <h2 className="text-3xl font-bold font-display sm:text-4xl">
-                Una plataforma,{" "}
-                <span className="gradient-text-simple">infinitas posibilidades</span>
+                Todo lo que tu institución{" "}
+                <span className="gradient-text-simple">necesita en un solo lugar</span>
               </h2>
               <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-                Herramientas diseñadas para cada rol dentro de tu institución educativa.
+                Herramientas modernas diseñadas para automatizar la gestión académica del día a día.
               </p>
             </div>
 
-            <div className="mt-12 grid gap-6 sm:grid-cols-3">
-              {features.map(({ icon: Icon, title, desc, accent, color, bg }) => (
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {features.map(({ icon: Icon, title, desc, color, bg, accent }) => (
                 <div
                   key={title}
                   className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
@@ -199,7 +273,7 @@ function Home() {
                   >
                     <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="text-lg font-semibold font-display">{title}</h3>
+                  <h3 className="text-base font-semibold font-display">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
                   <div
                     className={cn(
@@ -213,83 +287,64 @@ function Home() {
           </div>
         </section>
 
-        {/* Demo Section */}
-        <section id="demo" className="relative border-t border-border/40 scroll-mt-20">
-          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        {/* Roles */}
+        <section className="relative border-t border-border/40">
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
             <div className="text-center">
               <Badge
                 variant="outline"
                 className="mb-4 px-3 py-1 text-xs font-medium border-primary/20 bg-primary/5 text-primary"
               >
-                <Shield className="h-3 w-3 mr-1" />
-                Cuentas demo
+                <Users className="h-3 w-3 mr-1" />
+                Comunidad educativa
               </Badge>
               <h2 className="text-3xl font-bold font-display sm:text-4xl">
-                Prueba SIA <span className="gradient-text-simple">gratis ahora</span>
+                Paneles especializados para <span className="gradient-text-simple">cada rol</span>
               </h2>
               <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-                Usa cualquiera de las siguientes cuentas de demostración para explorar los tres
-                roles.
+                Cada miembro de la comunidad tiene su propio espacio, diseñado para su día a día.
               </p>
             </div>
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              {[
-                {
-                  rol: "Administrador",
-                  desc: "Gestiona usuarios, carreras y matrículas.",
-                  color: "from-violet-500 to-purple-600",
-                },
-                {
-                  rol: "Profesor",
-                  desc: "Registra notas y controla asistencia.",
-                  color: "from-emerald-500 to-teal-600",
-                },
-                {
-                  rol: "Estudiante",
-                  desc: "Consulta notas, promedio y asistencia.",
-                  color: "from-amber-500 to-orange-600",
-                },
-              ].map((d) => (
+
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {roles.map(({ icon: Icon, rol, desc, color, bg, bullets }) => (
                 <div
-                  key={d.rol}
-                  className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm"
+                  key={rol}
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
                 >
                   <div
                     className={cn(
-                      "mb-3 inline-flex rounded-lg bg-gradient-to-br px-3 py-1 text-xs font-semibold text-white",
-                      d.color,
+                      "mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm",
+                      bg,
+                      color,
                     )}
                   >
-                    {d.rol}
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <p className="text-sm text-muted-foreground">{d.desc}</p>
+                  <h3 className="text-lg font-semibold font-display">{rol}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+                  <ul className="mt-4 space-y-2 border-t border-border/40 pt-4">
+                    {bullets.map((b) => (
+                      <li key={b} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Check className={cn("mt-0.5 h-4 w-4 shrink-0", color)} />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-8 text-center">
-              <Button
-                size="lg"
-                asChild
-                className="gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-lg shadow-primary/25 h-12 px-6"
-              >
-                <Link to="/login">
-                  Entrar con cuenta demo
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
+        {/* CTA */}
         <section className="relative border-t border-border/40">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-violet-600 to-purple-700 px-6 py-12 text-center shadow-2xl sm:px-12 sm:py-16">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5kb2QiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
               <div className="relative">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-                  <Star className="h-7 w-7 text-white" />
+                  <Shield className="h-7 w-7 text-white" />
                 </div>
                 <h2 className="mt-5 text-3xl font-bold text-white font-display sm:text-4xl">
                   ¿Listo para empezar con SIA?
@@ -305,7 +360,7 @@ function Home() {
                     className="gap-2 rounded-xl bg-white text-primary hover:bg-white/90 shadow-xl h-12 px-6"
                   >
                     <Link to="/login">
-                      Acceder ahora
+                      Iniciar Sesión
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -314,11 +369,21 @@ function Home() {
                     asChild
                     className="gap-2 rounded-xl bg-white/10 text-white border border-white/30 hover:bg-white/20 hover:text-white backdrop-blur-sm h-12 px-6"
                   >
-                    <a href="#demo">
-                      <Shield className="h-4 w-4 mr-1.5" />
-                      Demo gratuita
+                    <a href="#caracteristicas">
+                      <ChevronDown className="h-4 w-4 mr-1.5" />
+                      Conoce más
                     </a>
                   </Button>
+                </div>
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                  {cuentasDemo.map(([rol, correo]) => (
+                    <span
+                      key={rol}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm"
+                    >
+                      {rol}: {correo}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -335,8 +400,7 @@ function Home() {
               <span className="text-sm font-bold font-display">SIA</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} SIA — Sistema Integral Académico. Todos los derechos
-              reservados.
+              © 2026 SIA — Sistema Integral Académico. Todos los derechos reservados.
             </p>
           </div>
         </div>

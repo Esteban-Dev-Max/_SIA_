@@ -19,36 +19,41 @@ function aDatetime(value) {
 // fechas límite de las tareas de sus grupos (como eventos tipo "entrega").
 r.get("/eventos", asyncHandler(async (req, res) => {
   const { rol, id } = req.user;
-  if (rol === "acudiente") return res.status(403).json({ error: "Prohibido" });
   const desde = req.query.desde || null;
   const hasta = req.query.hasta || null;
 
-  let tareasSql = `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max,
-                          m.nombre AS materia, g.periodo, 'entrega' AS tipo, NULL AS id_evento
-                   FROM tareas t
-                   JOIN grupos g ON g.id = t.grupo_id
-                   JOIN materias m ON m.id = g.materia_id`;
-  const p = [];
-  const conds = [];
-  if (rol === "estudiante") {
-    tareasSql += " JOIN matriculas mat ON mat.grupo_id = g.id";
-    conds.push("mat.estudiante_id = ?");
-    p.push(id);
-  } else if (rol === "profesor") {
-    conds.push("g.profesor_id = ?");
-    p.push(id);
+  // Las tareas como eventos aplican a admin, profesor y estudiante. El acudiente
+  // solo ve los eventos institucionales (no tiene grupos propios).
+  let tareas = [];
+  if (rol !== "acudiente") {
+    let tareasSql = `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max,
+                            m.nombre AS materia, g.periodo, 'entrega' AS tipo, NULL AS id_evento
+                     FROM tareas t
+                     JOIN grupos g ON g.id = t.grupo_id
+                     JOIN materias m ON m.id = g.materia_id`;
+    const p = [];
+    const conds = [];
+    if (rol === "estudiante") {
+      tareasSql += " JOIN matriculas mat ON mat.grupo_id = g.id";
+      conds.push("mat.estudiante_id = ?");
+      p.push(id);
+    } else if (rol === "profesor") {
+      conds.push("g.profesor_id = ?");
+      p.push(id);
+    }
+    if (desde) {
+      conds.push("t.fecha_entrega >= ?");
+      p.push(`${desde} 00:00:00`);
+    }
+    if (hasta) {
+      conds.push("t.fecha_entrega <= ?");
+      p.push(`${hasta} 23:59:59`);
+    }
+    if (conds.length) tareasSql += " WHERE " + conds.join(" AND ");
+    tareasSql += " ORDER BY t.fecha_entrega";
+    const [rows] = await pool.query(tareasSql, p);
+    tareas = rows;
   }
-  if (desde) {
-    conds.push("t.fecha_entrega >= ?");
-    p.push(`${desde} 00:00:00`);
-  }
-  if (hasta) {
-    conds.push("t.fecha_entrega <= ?");
-    p.push(`${hasta} 23:59:59`);
-  }
-  if (conds.length) tareasSql += " WHERE " + conds.join(" AND ");
-  tareasSql += " ORDER BY t.fecha_entrega";
-  const [tareas] = await pool.query(tareasSql, p);
 
   const evConds = [];
   const evParams = [];
