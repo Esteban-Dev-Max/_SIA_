@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { getUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
@@ -157,16 +158,14 @@ function Home() {
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild className="hidden sm:flex rounded-xl">
-              <Link to="/login">Iniciar sesión</Link>
-            </Button>
+            <ThemeToggle />
             <Button
               size="sm"
               asChild
               className="rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300"
             >
               <Link to="/login" className="gap-1.5">
-                Comenzar
+                Iniciar sesión
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>

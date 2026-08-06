@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Bot, Send, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
+import { Bot, Send, Loader2, MessageCircle, Sparkles } from "lucide-react";
 
 type Mensaje = { de: "bot" | "usuario"; texto: string; sugerida?: boolean };
 
@@ -122,9 +122,6 @@ export function ChatbotWidget() {
                 Chatbot de ayuda · en línea
               </DialogDescription>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Cerrar">
-              <X className="h-4 w-4" />
-            </Button>
           </DialogHeader>
 
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">

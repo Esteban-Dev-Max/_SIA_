@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -56,7 +55,6 @@ export type NavItem = {
 const generalNav: NavItem[] = [
   { label: "Calendario", to: "/calendario", icon: <CalendarDays className="h-4 w-4" /> },
   { label: "Mensajes", to: "/mensajes", icon: <MessageSquare className="h-4 w-4" /> },
-  { label: "Configuración", to: "/configuracion", icon: <Settings className="h-4 w-4" /> },
 ];
 
 const roleNav: Record<Rol, { label: string; items: NavItem[] }[]> = {
@@ -211,13 +209,13 @@ export function PanelShell({ title, children }: { title: string; children: React
               <SidebarMenuButton
                 size="lg"
                 asChild
-                className="gap-2.5 px-2 group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-2"
+                className="gap-2.5 px-2 group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center"
               >
-                <Link to="/">
+                <Link to="/" className="min-w-0">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-sm">
                     <img src="/logo.png" alt="SIA" className="h-6 w-6 object-contain" />
                   </div>
-                  <div className="flex flex-col leading-tight">
+                  <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="font-display text-sm font-bold tracking-tight">SIA</span>
                     <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                       Académico
@@ -249,38 +247,6 @@ export function PanelShell({ title, children }: { title: string; children: React
           ))}
         </SidebarContent>
 
-        <SidebarFooter>
-          {user && (
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  size="lg"
-                  asChild
-                  className="gap-2.5 px-2 py-2 group-data-[collapsible=icon]:!p-2"
-                >
-                  <Link to="/configuracion">
-                    <Avatar className="size-8 rounded-lg border border-border/60">
-                      {user.foto_url ? (
-                        <AvatarImage src={user.foto_url} alt={user.nombre} />
-                      ) : (
-                        <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary/15 to-violet-500/15 text-primary text-xs font-bold">
-                          {initials(user.nombre)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <p className="truncate text-sm font-medium">{user.nombre}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {rolLabels[user.rol]}
-                      </p>
-                    </div>
-                    <Settings className="ml-auto size-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          )}
-        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
 
