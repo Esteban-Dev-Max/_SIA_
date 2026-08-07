@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -54,7 +54,6 @@ type FilaNota = {
   examen_final: number | null;
   nota_definitiva: number | null;
   observaciones: string | null;
-  calculada: number | null;
 };
 
 type RegistroAsistencia = {
@@ -241,7 +240,7 @@ function AcudientePanel() {
                   ) : (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       {resumen.notas.map((n) => {
-                        const def = n.calculada ?? n.nota_definitiva;
+                        const def = n.nota_definitiva;
                         return (
                           <div
                             key={`${n.grupo_id}-${n.periodo}`}
@@ -314,7 +313,7 @@ function AcudientePanel() {
                   </TableHeader>
                   <TableBody>
                     {resumen.notas.map((n, i) => {
-                      const def = n.calculada ?? n.nota_definitiva;
+                      const def = n.nota_definitiva;
                       return (
                         <TableRow
                           key={`${n.grupo_id}-${n.periodo}`}

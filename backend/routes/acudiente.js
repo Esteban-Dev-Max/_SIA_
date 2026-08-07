@@ -73,31 +73,18 @@ r.get(
       [estudianteId],
     );
 
-    const ponderado = notas
-      .map((n) => ({
-        ...n,
-        calculada:
-          n.nota_1 != null && n.nota_2 != null && n.nota_3 != null && n.examen_final != null
-            ? Number(n.nota_1) * 0.25 +
-              Number(n.nota_2) * 0.25 +
-              Number(n.nota_3) * 0.2 +
-              Number(n.examen_final) * 0.3
-            : null,
-      }))
-      .map((n) => ({
-        ...n,
-        calculada: n.calculada != null ? Number(n.calculada.toFixed(2)) : null,
-      }));
-
-    const conNota = ponderado.filter((n) => n.calculada != null);
+    // La definitiva ya viene calculada con la ponderación única (lib/notas.js);
+    // aquí solo se agrega el promedio. `n.nota_definitiva` es null mientras la
+    // planilla del profesor esté incompleta.
+    const conNota = notas.filter((n) => n.nota_definitiva != null);
     const promedio =
       conNota.length > 0
-        ? conNota.reduce((acc, n) => acc + n.calculada, 0) / conNota.length
+        ? conNota.reduce((acc, n) => acc + Number(n.nota_definitiva), 0) / conNota.length
         : null;
 
     res.json({
       estudiante: { id: est.id, nombre: est.nombre_completo, correo: est.correo, foto_url: est.foto_url },
-      notas: ponderado,
+      notas,
       asistencia,
       promedio: promedio != null ? Number(promedio.toFixed(2)) : null,
       materias_cursadas: notas.length,

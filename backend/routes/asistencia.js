@@ -95,6 +95,24 @@ r.post("/registrar", asyncHandler(async (req, res) => {
     if (!g) return res.status(403).json({ error: "No autorizado" });
   }
 
+  // Cada matrícula debe pertenecer al grupo (evita inyectar asistencia ajena)
+  // y no puede repetirse dentro de la lista.
+  const ids = registros.map((reg) => Number(reg.matricula_id));
+  const idsValidos = ids.every((n) => Number.isInteger(n) && n > 0);
+  if (!idsValidos || new Set(ids).size !== ids.length) {
+    return res.status(400).json({ error: "Registro inválido" });
+  }
+  const marcadores = ids.map(() => "?").join(", ");
+  const [pertenecientes] = await pool.query(
+    `SELECT id FROM matriculas WHERE grupo_id = ? AND id IN (${marcadores})`,
+    [grupoId, ...ids],
+  );
+  if (pertenecientes.length !== ids.length) {
+    return res.status(400).json({
+      error: "Uno o más estudiantes no pertenecen a este grupo",
+    });
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -122,20 +140,26 @@ r.post("/registrar", asyncHandler(async (req, res) => {
 }));
 
 // Resumen global de asistencia y fallas por materia de un estudiante.
+// Un profesor solo ve las materias que dicta a ese estudiante (sin fuga entre
+// materias/carreras); admin y el propio estudiante ven el histórico completo.
 r.get("/resumen/estudiante/:estudiante_id", asyncHandler(async (req, res) => {
   const estudianteId = parseId(req.params.estudiante_id);
   if (!estudianteId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerEstudiante(req, res, estudianteId))) return;
+  const params = [estudianteId];
+  const filtroProfesor =
+    req.user.rol === "profesor" ? " AND g.profesor_id = ?" : "";
+  if (filtroProfesor) params.push(req.user.id);
   const [rows] = await pool.query(
     `SELECT m.nombre AS materia, COALESCE(a.estado, 'sin_registro') AS estado, COUNT(*) AS total
      FROM matriculas mat
      JOIN grupos g ON g.id = mat.grupo_id
      JOIN materias m ON m.id = g.materia_id
      LEFT JOIN asistencia a ON a.matricula_id = mat.id
-     WHERE mat.estudiante_id = ?
+     WHERE mat.estudiante_id = ?${filtroProfesor}
      GROUP BY m.nombre, a.estado
      ORDER BY m.nombre`,
-    [estudianteId],
+    params,
   );
 
   const map = new Map();

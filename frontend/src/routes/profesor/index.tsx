@@ -93,10 +93,11 @@ function calcDefinitiva(
   c: number | null,
   d: number | null,
 ): number | null {
-  if (a == null && b == null && c == null && d == null) return null;
-  return (
-    Math.round(((a ?? 0) * 0.25 + (b ?? 0) * 0.25 + (c ?? 0) * 0.2 + (d ?? 0) * 0.3) * 100) / 100
-  );
+  // Mismo criterio que el backend (lib/notas.js): la definitiva solo se
+  // muestra/cuenta cuando las 4 notas están completas.
+  if (a == null || b == null || c == null || d == null) return null;
+  // Epsilon para que coincida con lib/notas.js del backend (3.975 -> 3.98).
+  return Math.round((a * 0.25 + b * 0.25 + c * 0.2 + d * 0.3 + 1e-9) * 100) / 100;
 }
 
 function GrupoSelector({

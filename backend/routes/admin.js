@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { pool } from "../db.js";
 import { verifyToken, requireRole } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { hayChoqueHorarios } from "../lib/horario.js";
 
 const r = Router();
 r.use(verifyToken, requireRole("admin"));
@@ -15,21 +16,19 @@ function parseId(value) {
 }
 
 // ---------- Dashboard: métricas globales ----------
+// Una sola consulta (7 subconsultas → 1 round-trip).
 r.get("/stats", asyncHandler(async (_req, res) => {
-  const [[{ estudiantes }]] = await pool.query(
-    "SELECT COUNT(*) AS estudiantes FROM usuarios WHERE rol = 'estudiante'",
+  const [[row]] = await pool.query(
+    `SELECT
+       (SELECT COUNT(*) FROM usuarios WHERE rol = 'estudiante') AS estudiantes,
+       (SELECT COUNT(*) FROM usuarios WHERE rol = 'profesor' AND estado = 'activo') AS profesores,
+       (SELECT COUNT(*) FROM materias) AS materias,
+       (SELECT COUNT(*) FROM grupos) AS grupos,
+       (SELECT COUNT(*) FROM matriculas) AS matriculas,
+       (SELECT COUNT(*) FROM carreras_grados) AS carreras,
+       (SELECT COUNT(*) FROM usuarios WHERE rol = 'acudiente' AND estado = 'activo') AS acudientes`,
   );
-  const [[{ profesores }]] = await pool.query(
-    "SELECT COUNT(*) AS profesores FROM usuarios WHERE rol = 'profesor' AND estado = 'activo'",
-  );
-  const [[{ materias }]] = await pool.query("SELECT COUNT(*) AS materias FROM materias");
-  const [[{ grupos }]] = await pool.query("SELECT COUNT(*) AS grupos FROM grupos");
-  const [[{ matriculas }]] = await pool.query("SELECT COUNT(*) AS matriculas FROM matriculas");
-  const [[{ carreras }]] = await pool.query("SELECT COUNT(*) AS carreras FROM carreras_grados");
-  const [[{ acudientes }]] = await pool.query(
-    "SELECT COUNT(*) AS acudientes FROM usuarios WHERE rol = 'acudiente' AND estado = 'activo'",
-  );
-  res.json({ estudiantes, profesores, materias, grupos, matriculas, carreras, acudientes });
+  res.json(row);
 }));
 
 // ---------- Usuarios ----------
@@ -47,6 +46,32 @@ r.get("/usuarios", asyncHandler(async (req, res) => {
     params.push(term, term);
   }
   const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
+
+  // Paginación opcional (`?page=1&page_size=50`): si se pide, se devuelve el
+  // objeto paginado; sin `page` se conserva el arreglo completo (compatible).
+  const page = Number(req.query.page);
+  if (Number.isInteger(page) && page > 0) {
+    const pageSize = Math.min(Number(req.query.page_size) || 50, 500);
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM usuarios ${where}`,
+      params,
+    );
+    const [rows] = await pool.query(
+      `SELECT id, nombre_completo, correo, rol, estado, foto_url, fecha_creacion
+       FROM usuarios ${where}
+       ORDER BY fecha_creacion DESC, id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pageSize, (page - 1) * pageSize],
+    );
+    return res.json({
+      items: rows,
+      total,
+      page,
+      page_size: pageSize,
+      total_pages: total === 0 ? 1 : Math.ceil(total / pageSize),
+    });
+  }
+
   const [rows] = await pool.query(
     `SELECT id, nombre_completo, correo, rol, estado, foto_url, fecha_creacion
      FROM usuarios ${where}
@@ -250,6 +275,25 @@ r.post("/grupos", asyncHandler(async (req, res) => {
   if (!materiaId || !profesorId || !codigo || !periodo) {
     return res.status(400).json({ error: "Faltan datos (código/ficha del grupo obligatorio)" });
   }
+  const [[mat]] = await pool.query("SELECT id FROM materias WHERE id = ?", [materiaId]);
+  if (!mat) return res.status(400).json({ error: "La materia no existe" });
+  const [[prof]] = await pool.query(
+    "SELECT id FROM usuarios WHERE id = ? AND rol = 'profesor'",
+    [profesorId],
+  );
+  if (!prof) return res.status(400).json({ error: "El profesor no existe" });
+  // Unicidad: no puede haber otro grupo con el mismo código/ficha de la materia
+  // en el mismo periodo (evita secciones duplicadas).
+  const [[dupG]] = await pool.query(
+    `SELECT id FROM grupos
+     WHERE materia_id = ? AND LOWER(codigo_grupo) = LOWER(?) AND periodo = ?`,
+    [materiaId, codigo, String(periodo)],
+  );
+  if (dupG) {
+    return res.status(400).json({
+      error: "Ya existe un grupo con ese código/ficha y periodo para la materia",
+    });
+  }
   const [result] = await pool.query(
     "INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)",
     [materiaId, codigo, profesorId, String(periodo), horario ?? null],
@@ -284,6 +328,42 @@ r.post("/matriculas", asyncHandler(async (req, res) => {
   const estudianteId = parseId(estudiante_id);
   const grupoId = parseId(grupo_id);
   if (!estudianteId || !grupoId) return res.status(400).json({ error: "Faltan datos" });
+  const [[est]] = await pool.query(
+    "SELECT id FROM usuarios WHERE id = ? AND rol = 'estudiante' AND estado = 'activo'",
+    [estudianteId],
+  );
+  if (!est) {
+    return res.status(400).json({ error: "El estudiante no existe o no está activo" });
+  }
+  const [[grp]] = await pool.query(
+    "SELECT id, materia_id, horario FROM grupos WHERE id = ?",
+    [grupoId],
+  );
+  if (!grp) return res.status(400).json({ error: "El grupo no existe" });
+  // Unicidad de materia: no se permite matricular al estudiante en dos secciones
+  // de la misma materia.
+  const [previos] = await pool.query(
+    `SELECT g.id, g.codigo_grupo AS grupo, g.horario, g.materia_id, m.nombre AS materia
+     FROM matriculas mat
+     JOIN grupos g ON g.id = mat.grupo_id
+     JOIN materias m ON m.id = g.materia_id
+     WHERE mat.estudiante_id = ? AND g.id <> ?`,
+    [estudianteId, grupoId],
+  );
+  const duplicada = previos.find((p) => p.materia_id === grp.materia_id);
+  if (duplicada) {
+    return res.status(400).json({
+      error: `El estudiante ya está matriculado en otra sección de ${duplicada.materia} (ficha ${duplicada.grupo})`,
+    });
+  }
+  // Restricción de horario: no puede haber choque con el de otra materia.
+  for (const p of previos) {
+    if (hayChoqueHorarios(grp.horario, p.horario)) {
+      return res.status(400).json({
+        error: `El horario del grupo choca con ${p.materia} (ficha ${p.grupo})`,
+      });
+    }
+  }
   try {
     const [result] = await pool.query(
       `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula) VALUES (?, ?, ?)`,
@@ -313,6 +393,45 @@ r.delete("/matriculas/:id", asyncHandler(async (req, res) => {
 }));
 
 // ---------- Vincular acudiente con estudiante ----------
+// Lista todas las vinculaciones (con nombres), opcionalmente filtradas por
+// acudiente o estudiante.
+r.get("/vincular-acudiente", asyncHandler(async (req, res) => {
+  const conds = [];
+  const params = [];
+  const acudienteId = parseId(req.query.acudiente_id);
+  const estudianteId = parseId(req.query.estudiante_id);
+  if (acudienteId) {
+    conds.push("ae.acudiente_id = ?");
+    params.push(acudienteId);
+  }
+  if (estudianteId) {
+    conds.push("ae.estudiante_id = ?");
+    params.push(estudianteId);
+  }
+  const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
+  const [rows] = await pool.query(
+    `SELECT ae.id, ae.acudiente_id, ua.nombre_completo AS acudiente, ua.correo AS acudiente_correo,
+            ae.estudiante_id, ue.nombre_completo AS estudiante, ue.correo AS estudiante_correo
+     FROM acudiente_estudiante ae
+     JOIN usuarios ua ON ua.id = ae.acudiente_id
+     JOIN usuarios ue ON ue.id = ae.estudiante_id
+     ${where}
+     ORDER BY ua.nombre_completo, ue.nombre_completo`,
+    params,
+  );
+  res.json(rows);
+}));
+
+r.delete("/vincular-acudiente/:id", asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID inválido" });
+  const [result] = await pool.query("DELETE FROM acudiente_estudiante WHERE id = ?", [id]);
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ error: "Vinculación no encontrada" });
+  }
+  res.json({ ok: true });
+}));
+
 r.post("/vincular-acudiente", asyncHandler(async (req, res) => {
   const { acudiente_id, estudiante_id } = req.body;
   if (!acudiente_id || !estudiante_id) return res.status(400).json({ error: "Faltan datos" });

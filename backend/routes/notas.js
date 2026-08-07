@@ -3,6 +3,7 @@ import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { notificar } from "../lib/notificar.js";
+import { calcularDefinitiva, normalizarNumero } from "../lib/notas.js";
 
 const r = Router();
 r.use(verifyToken);
@@ -56,10 +57,16 @@ async function puedeVerGrupo(req, res, grupoId) {
 }
 
 // Desglose de notas de un estudiante por materia.
+// Un profesor solo ve las materias que dicta a ese estudiante (sin fuga entre
+// materias/carreras); admin y el propio estudiante ven el histórico completo.
 r.get("/estudiante/:estudiante_id", asyncHandler(async (req, res) => {
   const estudianteId = parseId(req.params.estudiante_id);
   if (!estudianteId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerEstudiante(req, res, estudianteId))) return;
+  const params = [estudianteId];
+  const filtroProfesor =
+    req.user.rol === "profesor" ? " AND g.profesor_id = ?" : "";
+  if (filtroProfesor) params.push(req.user.id);
   const [rows] = await pool.query(
     `SELECT g.id AS grupo_id, g.periodo, m.nombre AS materia, m.codigo AS materia_codigo,
             mat.id AS matricula_id, n.nota_1, n.nota_2, n.nota_3, n.examen_final,
@@ -68,9 +75,9 @@ r.get("/estudiante/:estudiante_id", asyncHandler(async (req, res) => {
      JOIN grupos g ON g.id = mat.grupo_id
      JOIN materias m ON m.id = g.materia_id
      LEFT JOIN notas n ON n.matricula_id = mat.id
-     WHERE mat.estudiante_id = ?
+     WHERE mat.estudiante_id = ?${filtroProfesor}
      ORDER BY g.periodo DESC, m.nombre`,
-    [estudianteId],
+    params,
   );
   res.json(rows);
 }));
@@ -110,15 +117,21 @@ r.post("/guardar", asyncHandler(async (req, res) => {
     if (!m) return res.status(403).json({ error: "No autorizado" });
   }
 
-  const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
-  const a = num(nota_1);
-  const b = num(nota_2);
-  const c = num(nota_3);
-  const d = num(examen_final);
-  const nota_definitiva =
-    a === null && b === null && c === null && d === null
-      ? null
-      : Math.round(((a ?? 0) * 0.25 + (b ?? 0) * 0.25 + (c ?? 0) * 0.2 + (d ?? 0) * 0.3) * 100) / 100;
+  const a = normalizarNumero(nota_1);
+  const b = normalizarNumero(nota_2);
+  const c = normalizarNumero(nota_3);
+  const d = normalizarNumero(examen_final);
+  const enRango = (v) => v === null || (typeof v === "number" && v >= 0 && v <= 5);
+  if (![a, b, c, d].every(enRango)) {
+    return res.status(400).json({ error: "Las notas deben estar entre 0 y 5" });
+  }
+  // La definitiva solo se calcula con las 4 notas completas (ver lib/notas.js).
+  const nota_definitiva = calcularDefinitiva({
+    nota_1: a,
+    nota_2: b,
+    nota_3: c,
+    examen_final: d,
+  });
 
   await pool.query(
     `INSERT INTO notas (matricula_id, nota_1, nota_2, nota_3, examen_final, nota_definitiva, observaciones)

@@ -55,6 +55,15 @@ type Matricula = {
   periodo: string;
 };
 type Usuario = { id: number; nombre_completo: string; correo: string; rol: string };
+type Vinculo = {
+  id: number;
+  acudiente_id: number;
+  acudiente: string;
+  acudiente_correo: string;
+  estudiante_id: number;
+  estudiante: string;
+  estudiante_correo: string;
+};
 
 const TABS_ACADEMICO = ["carreras", "materias", "grupos", "matriculas", "acudientes"] as const;
 
@@ -68,6 +77,7 @@ function AdminAcademico() {
   const [profesores, setProfesores] = useState<Usuario[]>([]);
   const [estudiantes, setEstudiantes] = useState<Usuario[]>([]);
   const [acudientes, setAcudientes] = useState<Usuario[]>([]);
+  const [vinculos, setVinculos] = useState<Vinculo[]>([]);
 
   // formularios
   const [carreraForm, setCarreraForm] = useState({ nombre: "", codigo: "" });
@@ -93,7 +103,7 @@ function AdminAcademico() {
   const load = useCallback(async () => {
     setCargando(true);
     try {
-      const [c, m, g, ma, p, e, ac] = await Promise.all([
+      const [c, m, g, ma, p, e, ac, vi] = await Promise.all([
         api<Carrera[]>("/api/admin/carreras"),
         api<Materia[]>("/api/admin/materias"),
         api<Grupo[]>("/api/admin/grupos"),
@@ -101,6 +111,7 @@ function AdminAcademico() {
         api<Usuario[]>("/api/admin/usuarios?rol=profesor"),
         api<Usuario[]>("/api/admin/usuarios?rol=estudiante"),
         api<Usuario[]>("/api/admin/usuarios?rol=acudiente"),
+        api<Vinculo[]>("/api/admin/vincular-acudiente"),
       ]);
       setCarreras(c);
       setMaterias(m);
@@ -109,6 +120,7 @@ function AdminAcademico() {
       setProfesores(p);
       setEstudiantes(e);
       setAcudientes(ac);
+      setVinculos(vi);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al cargar datos académicos");
     } finally {
@@ -605,6 +617,47 @@ function AdminAcademico() {
               </p>
             </CardContent>
           </Card>
+          <div className="mb-3 mt-6">
+            <h3 className="font-semibold tracking-tight">Vinculaciones actuales</h3>
+            <p className="text-sm text-muted-foreground">
+              Revisa qué acudientes están asociados a cada estudiante y desvincula si es necesario.
+            </p>
+          </div>
+          <DataTable
+            loading={cargando}
+            headers={[
+              "Acudiente",
+              "Correo del acudiente",
+              "Estudiante",
+              "Correo del estudiante",
+              "",
+            ]}
+            rows={vinculos.map((v) => [
+              <div key="ac">
+                <div className="font-medium">{v.acudiente}</div>
+                <div className="text-xs text-muted-foreground">#{v.acudiente_id}</div>
+              </div>,
+              v.acudiente_correo,
+              <div key="es">
+                <div className="font-medium">{v.estudiante}</div>
+                <div className="text-xs text-muted-foreground">#{v.estudiante_id}</div>
+              </div>,
+              v.estudiante_correo,
+              <Button
+                key="d"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  del(`/api/admin/vincular-acudiente/${v.id}`, "Vinculación eliminada")
+                }
+                className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                Desvincular
+              </Button>,
+            ])}
+            emptyMessage="No hay acudientes vinculados aún."
+          />
         </TabsContent>
       </Tabs>
     </>

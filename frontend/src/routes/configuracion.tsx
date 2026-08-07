@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { requireRole } from "@/lib/guard";
-import { getUser } from "@/lib/api";
+import { getUser, api } from "@/lib/api";
 import { useTheme } from "@/hooks/use-theme";
 import type { Theme } from "@/lib/theme";
 import { PanelShell } from "@/components/PanelShell";
@@ -129,7 +129,7 @@ function ConfiguracionPage() {
   const [confirmar, setConfirmar] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  function cambiarPassword(e: FormEvent<HTMLFormElement>) {
+  async function cambiarPassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!actual || !nueva || !confirmar) {
       toast.error("Completa todos los campos");
@@ -144,14 +144,20 @@ function ConfiguracionPage() {
       return;
     }
     setGuardando(true);
-    // El backend aún no expone un endpoint de cambio de contraseña por cuenta propia.
-    setTimeout(() => {
-      setGuardando(false);
+    try {
+      await api("/api/auth/cambiar-password", {
+        method: "POST",
+        body: JSON.stringify({ password_actual: actual, password_nueva: nueva }),
+      });
       setActual("");
       setNueva("");
       setConfirmar("");
       toast.success("Contraseña actualizada correctamente");
-    }, 600);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar la contraseña");
+    } finally {
+      setGuardando(false);
+    }
   }
 
   function initials(name: string): string {

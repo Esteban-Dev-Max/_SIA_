@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { pool } from "./db.js";
+import { calcularDefinitiva } from "./lib/notas.js";
 
 // ---------------------------------------------------------------------------
 // SIA — Sistema Integral Académico
@@ -107,17 +108,32 @@ async function main() {
     [userIds.estudiante, grupo201Id, "2026-01-20"],
   );
 
-  // 9) Notas (ponderación 25/25/20/30).
-  const definitiva = (a, b, c, d) => Number((a * 0.25 + b * 0.25 + c * 0.2 + d * 0.3).toFixed(2));
+  // 9) Notas (ponderación única definida en lib/notas.js).
   await insert(
     `INSERT INTO notas (matricula_id, nota_1, nota_2, nota_3, examen_final, nota_definitiva, observaciones)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [matricula101, 4.0, 3.5, 4.5, 4.0, definitiva(4.0, 3.5, 4.5, 4.0), "Buen desempeño"],
+    [
+      matricula101,
+      4.0,
+      3.5,
+      4.5,
+      4.0,
+      calcularDefinitiva({ nota_1: 4.0, nota_2: 3.5, nota_3: 4.5, examen_final: 4.0 }),
+      "Buen desempeño",
+    ],
   );
   await insert(
     `INSERT INTO notas (matricula_id, nota_1, nota_2, nota_3, examen_final, nota_definitiva, observaciones)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [matricula201, 3.0, 2.5, 3.0, 3.0, definitiva(3.0, 2.5, 3.0, 3.0), "Presenta dificultades"],
+    [
+      matricula201,
+      3.0,
+      2.5,
+      3.0,
+      3.0,
+      calcularDefinitiva({ nota_1: 3.0, nota_2: 2.5, nota_3: 3.0, examen_final: 3.0 }),
+      "Presenta dificultades",
+    ],
   );
 
   // 10) Asistencia para las matrículas.

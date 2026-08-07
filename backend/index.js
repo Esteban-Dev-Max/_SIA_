@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import profesorRoutes from "./routes/profesor.js";
-import estudianteRoutes from "./routes/estudiante.js";
 import acudienteRoutes from "./routes/acudiente.js";
 import notasRoutes from "./routes/notas.js";
 import asistenciaRoutes from "./routes/asistencia.js";
@@ -17,6 +16,15 @@ import { isLanOrigin } from "./lib/lan.js";
 import { pool } from "./db.js";
 
 dotenv.config();
+
+// Fail-fast: sin JWT_SECRET el backend no debe arrancar, porque los tokens se
+// firmarían con un secreto conocido (compromiso total de las sesiones).
+if (!process.env.JWT_SECRET) {
+  console.error(
+    "Falta la variable JWT_SECRET. Crea backend/.env a partir de .env.example con una clave larga y aleatoria.",
+  );
+  process.exit(1);
+}
 
 const app = express();
 
@@ -43,7 +51,6 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/profesor", profesorRoutes);
-app.use("/api/estudiante", estudianteRoutes);
 app.use("/api/acudiente", acudienteRoutes);
 app.use("/api/notas", notasRoutes);
 app.use("/api/asistencia", asistenciaRoutes);
@@ -55,6 +62,16 @@ app.use("/api/notificaciones", notificacionesRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
+  // Violaciones de clave foránea: un dato referenciado no existe. Antes de esta
+  // validación terminaban como 500 "Error interno" cuando faltaba el chequeo previo.
+  if (err.code === "ER_NO_REFERENCED_ROW" || err.code === "ER_NO_REFERENCED_ROW_2") {
+    return res
+      .status(400)
+      .json({ error: "Uno de los datos referenciados no existe. Verifica e inténtalo de nuevo." });
+  }
+  if (err.code === "ER_DUP_ENTRY") {
+    return res.status(400).json({ error: "Ya existe un registro con esos datos." });
+  }
   const status = err.status && err.status >= 400 && err.status < 500 ? err.status : 500;
   const mensaje =
     status === 500 ? "Error interno del servidor" : err.message || "Error en la solicitud";
