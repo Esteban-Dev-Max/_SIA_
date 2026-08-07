@@ -227,31 +227,32 @@ r.delete("/materias/:id", asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// ---------- Grupos (materia + profesor + periodo) ----------
+// ---------- Grupos (materia + código/ficha + profesor + periodo) ----------
 r.get("/grupos", asyncHandler(async (_req, res) => {
   const [rows] = await pool.query(
-    `SELECT g.id, g.periodo, g.horario,
+    `SELECT g.id, g.codigo_grupo, g.periodo, g.horario,
             m.nombre AS materia, m.codigo AS materia_codigo,
             u.id AS profesor_id, u.nombre_completo AS profesor,
             (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = g.id) AS alumnos
      FROM grupos g
      JOIN materias m ON m.id = g.materia_id
      LEFT JOIN usuarios u ON u.id = g.profesor_id
-     ORDER BY m.nombre, g.periodo`,
+     ORDER BY m.nombre, g.codigo_grupo`,
   );
   res.json(rows);
 }));
 
 r.post("/grupos", asyncHandler(async (req, res) => {
-  const { materia_id, profesor_id, periodo, horario } = req.body;
+  const { materia_id, codigo_grupo, profesor_id, periodo, horario } = req.body;
   const materiaId = parseId(materia_id);
   const profesorId = parseId(profesor_id);
-  if (!materiaId || !profesorId || !periodo) {
-    return res.status(400).json({ error: "Faltan datos" });
+  const codigo = typeof codigo_grupo === "string" ? codigo_grupo.trim() : "";
+  if (!materiaId || !profesorId || !codigo || !periodo) {
+    return res.status(400).json({ error: "Faltan datos (código/ficha del grupo obligatorio)" });
   }
   const [result] = await pool.query(
-    "INSERT INTO grupos (materia_id, profesor_id, periodo, horario) VALUES (?, ?, ?, ?)",
-    [materiaId, profesorId, String(periodo), horario ?? null],
+    "INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)",
+    [materiaId, codigo, profesorId, String(periodo), horario ?? null],
   );
   res.json({ ok: true, id: result.insertId });
 }));
@@ -268,7 +269,7 @@ r.delete("/grupos/:id", asyncHandler(async (req, res) => {
 r.get("/matriculas", asyncHandler(async (_req, res) => {
   const [rows] = await pool.query(
     `SELECT mat.id, mat.estudiante_id, u.nombre_completo AS estudiante, u.correo,
-            g.id AS grupo_id, m.nombre AS materia, g.periodo, mat.fecha_matricula
+            g.id AS grupo_id, g.codigo_grupo, m.nombre AS materia, g.periodo, mat.fecha_matricula
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
      JOIN grupos g ON g.id = mat.grupo_id

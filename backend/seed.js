@@ -83,18 +83,18 @@ async function main() {
     ["Desarrollo Web", "SIS-301", 3, tecSolId],
   );
 
-  // 7) Grupos (materia + profesor + periodo).
+  // 7) Grupos (materia + código/ficha + profesor + periodo).
   const grupo101Id = await insert(
-    `INSERT INTO grupos (materia_id, profesor_id, periodo, horario) VALUES (?, ?, ?, ?)`,
-    [matSis101, userIds.profesor, "2026-1", "Lun y Mie 7:00 - 9:00"],
+    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)`,
+    [matSis101, "1003", userIds.profesor, "2026-1", "Lun y Mie 7:00 - 9:00"],
   );
   const grupo201Id = await insert(
-    `INSERT INTO grupos (materia_id, profesor_id, periodo, horario) VALUES (?, ?, ?, ?)`,
-    [matFund, userIds.profesor, "2026-1", "Mar y Jue 9:00 - 11:00"],
+    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)`,
+    [matFund, "801", userIds.profesor, "2026-1", "Mar y Jue 9:00 - 11:00"],
   );
   const grupoWebId = await insert(
-    `INSERT INTO grupos (materia_id, profesor_id, periodo, horario) VALUES (?, ?, ?, ?)`,
-    [matWeb, userIds.profesor, "2026-1", "Vie 14:00 - 18:00"],
+    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)`,
+    [matWeb, "250123", userIds.profesor, "2026-1", "Vie 14:00 - 18:00"],
   );
 
   // 8) Matrículas del estudiante demo.

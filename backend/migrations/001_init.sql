@@ -80,10 +80,13 @@ CREATE TABLE IF NOT EXISTS materias (
 
 -- ---------------------------------------------------------------------------
 -- grupos: agrupación de una materia dictada por un profesor en un periodo.
+-- codigo_grupo: código o ficha que identifica al grupo dentro de la materia
+-- (permite varios grupos/fichas para una misma asignatura, ej. 1003, 801).
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS grupos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   materia_id INT NOT NULL,
+  codigo_grupo VARCHAR(30) NOT NULL,
   profesor_id INT NOT NULL,
   periodo VARCHAR(20) NOT NULL,
   horario VARCHAR(120) DEFAULT NULL,

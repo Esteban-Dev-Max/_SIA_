@@ -35,6 +35,7 @@ type Materia = {
 };
 type Grupo = {
   id: number;
+  codigo_grupo: string;
   periodo: string;
   horario: string | null;
   materia: string;
@@ -49,6 +50,7 @@ type Matricula = {
   estudiante: string;
   correo: string;
   grupo_id: number;
+  codigo_grupo: string;
   materia: string;
   periodo: string;
 };
@@ -77,6 +79,7 @@ function AdminAcademico() {
   });
   const [grupoForm, setGrupoForm] = useState({
     materia_id: "",
+    codigo_grupo: "",
     profesor_id: "",
     periodo: "2026-1",
     horario: "",
@@ -342,16 +345,29 @@ function AdminAcademico() {
                     "/api/admin/grupos",
                     {
                       materia_id: Number(grupoForm.materia_id),
+                      codigo_grupo: grupoForm.codigo_grupo.trim(),
                       profesor_id: Number(grupoForm.profesor_id),
                       periodo: grupoForm.periodo,
                       horario: grupoForm.horario || null,
                     },
                     "Grupo creado",
                   );
-                  setGrupoForm({ ...grupoForm, materia_id: "", profesor_id: "", horario: "" });
+                  setGrupoForm({
+                    ...grupoForm,
+                    materia_id: "",
+                    codigo_grupo: "",
+                    profesor_id: "",
+                    horario: "",
+                  });
                 }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-4"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-5"
               >
+                <Input
+                  required
+                  placeholder="Código / Ficha del grupo (ej: 1003)"
+                  value={grupoForm.codigo_grupo}
+                  onChange={(e) => setGrupoForm({ ...grupoForm, codigo_grupo: e.target.value })}
+                />
                 <select
                   required
                   value={grupoForm.materia_id}
@@ -389,7 +405,7 @@ function AdminAcademico() {
                   value={grupoForm.horario}
                   onChange={(e) => setGrupoForm({ ...grupoForm, horario: e.target.value })}
                 />
-                <Button type="submit" className="gap-1.5 sm:col-span-4 sm:w-fit">
+                <Button type="submit" className="gap-1.5 sm:col-span-5 sm:w-fit">
                   <Plus className="h-4 w-4" />
                   Crear grupo
                 </Button>
@@ -398,12 +414,19 @@ function AdminAcademico() {
           </Card>
           <DataTable
             loading={cargando}
-            headers={["ID", "Materia", "Periodo", "Horario", "Profesor", "Alumnos", ""]}
+            headers={["ID", "Grupo", "Materia", "Periodo", "Horario", "Profesor", "Alumnos", ""]}
             rows={grupos.map((g) => [
               g.id,
+              <Badge
+                key="cg"
+                variant="outline"
+                className="rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
+              >
+                Ficha {g.codigo_grupo}
+              </Badge>,
               <span key="n" className="font-medium">
                 {g.materia}
-                <span className="ml-1.5 text-xs text-muted-foreground">{g.materia_codigo}</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">({g.materia_codigo})</span>
               </span>,
               <Badge key="p" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
                 {g.periodo}
@@ -471,7 +494,7 @@ function AdminAcademico() {
                   <option value="">— Grupo —</option>
                   {grupos.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.materia} · {g.periodo}
+                      {g.codigo_grupo} · {g.materia} · {g.periodo}
                     </option>
                   ))}
                 </select>
@@ -484,7 +507,7 @@ function AdminAcademico() {
           </Card>
           <DataTable
             loading={cargando}
-            headers={["ID", "Estudiante", "Materia", "Periodo", ""]}
+            headers={["ID", "Estudiante", "Materia", "Grupo", "Periodo", ""]}
             rows={matriculas.map((m) => [
               m.id,
               <div key="e">
@@ -492,6 +515,13 @@ function AdminAcademico() {
                 <div className="text-xs text-muted-foreground">{m.correo}</div>
               </div>,
               m.materia,
+              <Badge
+                key="cg"
+                variant="outline"
+                className="rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
+              >
+                {m.codigo_grupo}
+              </Badge>,
               <Badge key="p" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
                 {m.periodo}
               </Badge>,

@@ -39,6 +39,7 @@ export const Route = createFileRoute("/profesor/")({
 
 type Grupo = {
   id: number;
+  codigo_grupo: string;
   materia: string;
   materia_codigo: string;
   periodo: string;
@@ -130,7 +131,7 @@ function GrupoSelector({
           >
             {grupos.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.materia} · {g.periodo}
+                {g.codigo_grupo} · {g.materia} · {g.periodo}
               </option>
             ))}
           </select>
@@ -340,6 +341,12 @@ function ProfesorPanel() {
                 </div>
                 <h3 className="mt-3 text-base font-semibold">{g.materia}</h3>
                 <p className="text-xs text-muted-foreground">{g.materia_codigo}</p>
+                <Badge
+                  variant="outline"
+                  className="mt-2 rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
+                >
+                  Ficha {g.codigo_grupo}
+                </Badge>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline" className="rounded-full px-2.5 text-xs font-normal">
                     {g.periodo}

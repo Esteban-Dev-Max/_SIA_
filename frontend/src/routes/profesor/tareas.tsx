@@ -38,6 +38,7 @@ export const Route = createFileRoute("/profesor/tareas")({
 
 type Grupo = {
   id: number;
+  codigo_grupo: string;
   materia: string;
   materia_codigo: string;
   periodo: string;
@@ -242,7 +243,7 @@ function ProfesorTareas() {
               >
                 {grupos.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {g.materia} · {g.periodo}
+                    {g.codigo_grupo} · {g.materia} · {g.periodo}
                   </option>
                 ))}
               </select>
@@ -326,7 +327,7 @@ function ProfesorTareas() {
             </DialogTitle>
             <DialogDescription>
               {grupoActual
-                ? `Para ${grupoActual.materia} · ${grupoActual.periodo}`
+                ? `Para ${grupoActual.codigo_grupo} · ${grupoActual.materia} · ${grupoActual.periodo}`
                 : "Selecciona un grupo para crear la tarea."}
             </DialogDescription>
           </DialogHeader>
