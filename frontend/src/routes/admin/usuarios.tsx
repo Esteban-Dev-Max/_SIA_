@@ -161,11 +161,11 @@ function AdminUsuarios() {
       </div>
 
       <Card className="border-border/50 shadow-sm rounded-xl">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <CardContent className="flex flex-col gap-3 p-4">
           <select
             value={rol}
             onChange={(e) => setRol(e.target.value)}
-            className="input-field sm:w-44"
+            className="input-field w-full"
           >
             <option value="">Todos los roles</option>
             {ROLES.map((r) => (
@@ -174,13 +174,13 @@ function AdminUsuarios() {
               </option>
             ))}
           </select>
-          <div className="relative flex-1">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar por nombre o correo..."
-              className="pl-9"
+              className="h-10 w-full rounded-xl border-input bg-background py-2 pl-9 text-sm shadow-sm"
             />
           </div>
         </CardContent>
