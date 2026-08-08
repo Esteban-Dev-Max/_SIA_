@@ -737,36 +737,48 @@ function AdminAcademico() {
                 }}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-3"
               >
-                <select
-                  required
-                  value={vincularForm.acudiente_id}
-                  onChange={(e) =>
-                    setVincularForm({ ...vincularForm, acudiente_id: e.target.value })
-                  }
-                  className="input-field"
-                >
-                  <option value="">— Acudiente —</option>
-                  {acudientes.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nombre_completo}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  required
-                  value={vincularForm.estudiante_id}
-                  onChange={(e) =>
-                    setVincularForm({ ...vincularForm, estudiante_id: e.target.value })
-                  }
-                  className="input-field"
-                >
-                  <option value="">— Estudiante —</option>
-                  {estudiantes.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.nombre_completo}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <ComboboxBusqueda
+                    value={vincularForm.acudiente_id}
+                    onChange={(v) => setVincularForm({ ...vincularForm, acudiente_id: v })}
+                    options={acudientes.map((a) => ({
+                      value: String(a.id),
+                      label: a.nombre_completo,
+                      sublabel: a.correo,
+                    }))}
+                    placeholder="— Acudiente —"
+                    busquedaPlaceholder="Buscar por nombre o correo..."
+                  />
+                  <input
+                    required
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    value={vincularForm.acudiente_id}
+                    onChange={() => {}}
+                    className="absolute h-0 w-0 opacity-0"
+                  />
+                </div>
+                <div className="relative">
+                  <ComboboxBusqueda
+                    value={vincularForm.estudiante_id}
+                    onChange={(v) => setVincularForm({ ...vincularForm, estudiante_id: v })}
+                    options={estudiantes.map((u) => ({
+                      value: String(u.id),
+                      label: u.nombre_completo,
+                      sublabel: u.correo,
+                    }))}
+                    placeholder="— Estudiante —"
+                    busquedaPlaceholder="Buscar por nombre o correo..."
+                  />
+                  <input
+                    required
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    value={vincularForm.estudiante_id}
+                    onChange={() => {}}
+                    className="absolute h-0 w-0 opacity-0"
+                  />
+                </div>
                 <Button type="submit" className="gap-1.5 bg-sky-600 hover:bg-sky-700 text-white">
                   <Link2 className="h-4 w-4" />
                   Vincular
