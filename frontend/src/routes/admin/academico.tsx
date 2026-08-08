@@ -3,12 +3,22 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useHashTab } from "@/hooks/use-hash-tab";
+import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/DataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Search,
   School,
@@ -19,6 +29,8 @@ import {
   Plus,
   Trash2,
   Link2,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/academico")({
@@ -87,6 +99,73 @@ function FiltroBusqueda({
         className="h-10 w-full rounded-xl border-input bg-background py-2 pl-9 text-sm shadow-sm"
       />
     </div>
+  );
+}
+
+type OpcionBuscar = { value: string; label: string; sublabel?: string };
+
+function ComboboxBusqueda({
+  value,
+  onChange,
+  options,
+  placeholder,
+  busquedaPlaceholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: OpcionBuscar[];
+  placeholder: string;
+  busquedaPlaceholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const seleccion = options.find((o) => o.value === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-input bg-background px-3 text-sm shadow-sm transition-all duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className={cn("truncate", !seleccion && "text-muted-foreground")}>
+            {seleccion ? seleccion.label : placeholder}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] rounded-xl border-border/60 p-0">
+        <Command>
+          <CommandInput placeholder={busquedaPlaceholder} className="h-10" />
+          <CommandList>
+            <CommandEmpty>Sin resultados</CommandEmpty>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem
+                  key={o.value}
+                  value={o.sublabel ? `${o.label} ${o.sublabel}` : o.label}
+                  onSelect={() => {
+                    onChange(o.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn("h-4 w-4", o.value === value ? "opacity-100" : "opacity-0")}
+                  />
+                  <div className="flex flex-col">
+                    <span>{o.label}</span>
+                    {o.sublabel && (
+                      <span className="text-xs text-muted-foreground">{o.sublabel}</span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -543,34 +622,48 @@ function AdminAcademico() {
                 }}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-3"
               >
-                <select
-                  required
-                  value={matriculaForm.estudiante_id}
-                  onChange={(e) =>
-                    setMatriculaForm({ ...matriculaForm, estudiante_id: e.target.value })
-                  }
-                  className="input-field"
-                >
-                  <option value="">— Estudiante —</option>
-                  {estudiantes.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.nombre_completo}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  required
-                  value={matriculaForm.grupo_id}
-                  onChange={(e) => setMatriculaForm({ ...matriculaForm, grupo_id: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="">— Grupo —</option>
-                  {grupos.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.codigo_grupo} · {g.materia} · {g.periodo}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <ComboboxBusqueda
+                    value={matriculaForm.estudiante_id}
+                    onChange={(v) => setMatriculaForm({ ...matriculaForm, estudiante_id: v })}
+                    options={estudiantes.map((u) => ({
+                      value: String(u.id),
+                      label: u.nombre_completo,
+                      sublabel: u.correo,
+                    }))}
+                    placeholder="— Estudiante —"
+                    busquedaPlaceholder="Buscar por nombre o correo..."
+                  />
+                  <input
+                    required
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    value={matriculaForm.estudiante_id}
+                    onChange={() => {}}
+                    className="absolute h-0 w-0 opacity-0"
+                  />
+                </div>
+                <div className="relative">
+                  <ComboboxBusqueda
+                    value={matriculaForm.grupo_id}
+                    onChange={(v) => setMatriculaForm({ ...matriculaForm, grupo_id: v })}
+                    options={grupos.map((g) => ({
+                      value: String(g.id),
+                      label: g.codigo_grupo,
+                      sublabel: `${g.materia} · ${g.periodo}`,
+                    }))}
+                    placeholder="— Grupo —"
+                    busquedaPlaceholder="Buscar por ficha o materia..."
+                  />
+                  <input
+                    required
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    value={matriculaForm.grupo_id}
+                    onChange={() => {}}
+                    className="absolute h-0 w-0 opacity-0"
+                  />
+                </div>
                 <Button type="submit" className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Matricular
