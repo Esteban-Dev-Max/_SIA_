@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Search,
   School,
   BookOpen,
   Layers,
@@ -67,6 +68,28 @@ type Vinculo = {
 
 const TABS_ACADEMICO = ["carreras", "materias", "grupos", "matriculas", "acudientes"] as const;
 
+function FiltroBusqueda({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative w-full">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-10 w-full rounded-xl border-input bg-background py-2 pl-9 text-sm shadow-sm"
+      />
+    </div>
+  );
+}
+
 function AdminAcademico() {
   const [tab, setTab] = useHashTab(TABS_ACADEMICO, "carreras");
   const [cargando, setCargando] = useState(false);
@@ -78,6 +101,9 @@ function AdminAcademico() {
   const [estudiantes, setEstudiantes] = useState<Usuario[]>([]);
   const [acudientes, setAcudientes] = useState<Usuario[]>([]);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
+  const [busquedaMateria, setBusquedaMateria] = useState("");
+  const [busquedaGrupo, setBusquedaGrupo] = useState("");
+  const [busquedaMatricula, setBusquedaMatricula] = useState("");
 
   // formularios
   const [carreraForm, setCarreraForm] = useState({ nombre: "", codigo: "" });
@@ -131,6 +157,27 @@ function AdminAcademico() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const qMateria = busquedaMateria.trim().toLowerCase();
+  const materiasFiltradas = qMateria
+    ? materias.filter((m) => m.nombre.toLowerCase().includes(qMateria))
+    : materias;
+
+  const qGrupo = busquedaGrupo.trim().toLowerCase();
+  const gruposFiltrados = qGrupo
+    ? grupos.filter((g) =>
+        [g.codigo_grupo, g.materia, g.materia_codigo, g.profesor ?? ""].some((s) =>
+          s.toLowerCase().includes(qGrupo),
+        ),
+      )
+    : grupos;
+
+  const qMatricula = busquedaMatricula.trim().toLowerCase();
+  const matriculasFiltradas = qMatricula
+    ? matriculas.filter((m) =>
+        [m.estudiante, m.correo, m.codigo_grupo].some((s) => s.toLowerCase().includes(qMatricula)),
+      )
+    : matriculas;
 
   async function post(path: string, body: unknown, okMsg: string) {
     try {
@@ -316,10 +363,17 @@ function AdminAcademico() {
               </form>
             </CardContent>
           </Card>
+          <div className="mb-3">
+            <FiltroBusqueda
+              value={busquedaMateria}
+              onChange={setBusquedaMateria}
+              placeholder="Buscar materia por nombre..."
+            />
+          </div>
           <DataTable
             loading={cargando}
             headers={["ID", "Nombre", "Código", "Créditos", "Carrera", ""]}
-            rows={materias.map((m) => [
+            rows={materiasFiltradas.map((m) => [
               m.id,
               <span key="n" className="font-medium">
                 {m.nombre}
@@ -424,10 +478,17 @@ function AdminAcademico() {
               </form>
             </CardContent>
           </Card>
+          <div className="mb-3">
+            <FiltroBusqueda
+              value={busquedaGrupo}
+              onChange={setBusquedaGrupo}
+              placeholder="Buscar grupo por ficha, materia o profesor..."
+            />
+          </div>
           <DataTable
             loading={cargando}
             headers={["ID", "Grupo", "Materia", "Periodo", "Horario", "Profesor", "Alumnos", ""]}
-            rows={grupos.map((g) => [
+            rows={gruposFiltrados.map((g) => [
               g.id,
               <Badge
                 key="cg"
@@ -517,10 +578,17 @@ function AdminAcademico() {
               </form>
             </CardContent>
           </Card>
+          <div className="mb-3">
+            <FiltroBusqueda
+              value={busquedaMatricula}
+              onChange={setBusquedaMatricula}
+              placeholder="Buscar matrícula por estudiante, correo o grupo..."
+            />
+          </div>
           <DataTable
             loading={cargando}
             headers={["ID", "Estudiante", "Materia", "Grupo", "Periodo", ""]}
-            rows={matriculas.map((m) => [
+            rows={matriculasFiltradas.map((m) => [
               m.id,
               <div key="e">
                 <div className="font-medium">{m.estudiante}</div>
