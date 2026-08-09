@@ -53,7 +53,7 @@ export function ChatbotWidget() {
     setInput("");
     setCargando(true);
     try {
-      const data = await api<{ respuesta: string; opciones?: string[] }>("/api/chatbot/pregunta", {
+      const data = await api<{ respuesta: string; opciones?: string[] }>("/api/chat", {
         method: "POST",
         body: JSON.stringify({ pregunta: limpio }),
       });

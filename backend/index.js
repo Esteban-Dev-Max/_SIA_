@@ -10,6 +10,7 @@ import asistenciaRoutes from "./routes/asistencia.js";
 import tareasRoutes from "./routes/tareas.js";
 import calendarioRoutes from "./routes/calendario.js";
 import chatbotRoutes from "./routes/chatbot.js";
+import chatRoutes from "./routes/chat.js";
 import mensajesRoutes from "./routes/mensajes.js";
 import notificacionesRoutes from "./routes/notificaciones.js";
 import { isLanOrigin } from "./lib/lan.js";
@@ -59,6 +60,7 @@ app.use("/api/asistencia", asistenciaRoutes);
 app.use("/api/tareas", tareasRoutes);
 app.use("/api/calendario", calendarioRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/chat", chatRoutes);
 app.use("/api/mensajes", mensajesRoutes);
 app.use("/api/notificaciones", notificacionesRoutes);
 
@@ -80,12 +82,10 @@ app.use((err, _req, res, _next) => {
     err.code === "ER_NO_REFERENCED_ROW" ||
     err.code === "ER_NO_REFERENCED_ROW_2"
   ) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "Uno de los datos referenciados no existe. Verifica e inténtalo de nuevo.",
-      });
+    return res.status(400).json({
+      error:
+        "Uno de los datos referenciados no existe. Verifica e inténtalo de nuevo.",
+    });
   }
   if (err.code === "ER_DUP_ENTRY") {
     return res
