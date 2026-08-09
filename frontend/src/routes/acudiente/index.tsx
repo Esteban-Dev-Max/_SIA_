@@ -115,13 +115,21 @@ function AcudientePanel() {
 
   useEffect(() => {
     if (sel == null) return;
+    let activo = true;
     setCargando(true);
     api<Resumen>(`/api/acudiente/resumen/${sel}`)
-      .then(setResumen)
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Error al cargar el resumen"),
-      )
-      .finally(() => setCargando(false));
+      .then((r) => {
+        if (activo) setResumen(r);
+      })
+      .catch((err) => {
+        if (activo) toast.error(err instanceof Error ? err.message : "Error al cargar el resumen");
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+    return () => {
+      activo = false;
+    };
   }, [sel]);
 
   const hijoActual = hijos.find((h) => h.estudiante_id === sel);

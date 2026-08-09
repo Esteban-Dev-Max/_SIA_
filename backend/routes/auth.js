@@ -4,7 +4,11 @@ import jwt from "jsonwebtoken";
 import { pool } from "../db.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { verifyToken } from "../middleware/auth.js";
-import { estaBloqueado, registrarFallo, limpiarBloqueo } from "../lib/rateLimit.js";
+import {
+  estaBloqueado,
+  registrarFallo,
+  limpiarBloqueo,
+} from "../lib/rateLimit.js";
 
 const r = Router();
 
@@ -12,13 +16,21 @@ r.post(
   "/login",
   asyncHandler(async (req, res) => {
     const { correo, password } = req.body || {};
-    if (!correo || !password) return res.status(400).json({ error: "Faltan datos" });
-    const email = String(correo).trim().toLowerCase();
+    if (
+      typeof correo !== "string" ||
+      typeof password !== "string" ||
+      !correo ||
+      !password
+    ) {
+      return res.status(400).json({ error: "Faltan datos" });
+    }
+    const email = correo.trim().toLowerCase();
     const ip = req.ip || req.socket.remoteAddress || "unknown";
 
     if (estaBloqueado(email, ip)) {
       return res.status(429).json({
-        error: "Demasiados intentos de inicio de sesión. Espera unos minutos e intenta de nuevo.",
+        error:
+          "Demasiados intentos de inicio de sesión. Espera unos minutos e intenta de nuevo.",
       });
     }
 
@@ -35,7 +47,13 @@ r.post(
     limpiarBloqueo(email, ip);
 
     const token = jwt.sign(
-      { id: u.id, rol: u.rol, nombre: u.nombre_completo, correo: u.correo, foto_url: u.foto_url },
+      {
+        id: u.id,
+        rol: u.rol,
+        nombre: u.nombre_completo,
+        correo: u.correo,
+        foto_url: u.foto_url,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "8h" },
     );
@@ -82,7 +100,11 @@ r.post(
       return res.status(400).json({ error: "Faltan datos" });
     }
     if (String(password_nueva).length < 6) {
-      return res.status(400).json({ error: "La nueva contraseña debe tener al menos 6 caracteres" });
+      return res
+        .status(400)
+        .json({
+          error: "La nueva contraseña debe tener al menos 6 caracteres",
+        });
     }
 
     const [[u]] = await pool.query(
@@ -92,15 +114,23 @@ r.post(
     if (!u) return res.status(401).json({ error: "No autorizado" });
 
     const ok = await bcrypt.compare(password_actual, u.password);
-    if (!ok) return res.status(400).json({ error: "La contraseña actual no es correcta" });
+    if (!ok)
+      return res
+        .status(400)
+        .json({ error: "La contraseña actual no es correcta" });
 
     const repetida = await bcrypt.compare(password_nueva, u.password);
     if (repetida) {
-      return res.status(400).json({ error: "La nueva contraseña no puede ser igual a la actual" });
+      return res
+        .status(400)
+        .json({ error: "La nueva contraseña no puede ser igual a la actual" });
     }
 
     const hash = await bcrypt.hash(password_nueva, 10);
-    await pool.query("UPDATE usuarios SET `password` = ? WHERE id = ?", [hash, u.id]);
+    await pool.query("UPDATE usuarios SET `password` = ? WHERE id = ?", [
+      hash,
+      u.id,
+    ]);
     res.json({ ok: true });
   }),
 );

@@ -149,13 +149,22 @@ function CalendarioView() {
   }, [vista, cursor]);
 
   useEffect(() => {
+    let activo = true;
     setCargando(true);
     api<Evento[]>(`/api/calendario/eventos?desde=${rango.desde}&hasta=${rango.hasta}`)
-      .then(setEventos)
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Error al cargar el calendario"),
-      )
-      .finally(() => setCargando(false));
+      .then((d) => {
+        if (activo) setEventos(d);
+      })
+      .catch((err) => {
+        if (activo)
+          toast.error(err instanceof Error ? err.message : "Error al cargar el calendario");
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+    return () => {
+      activo = false;
+    };
   }, [rango.desde, rango.hasta, recarga]);
 
   const porDia = useMemo(() => {
@@ -625,7 +634,7 @@ function CalendarioView() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-fecha">Fecha</Label>
                   <Input

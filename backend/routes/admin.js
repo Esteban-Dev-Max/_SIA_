@@ -17,9 +17,11 @@ function parseId(value) {
 
 // ---------- Dashboard: métricas globales ----------
 // Una sola consulta (7 subconsultas → 1 round-trip).
-r.get("/stats", asyncHandler(async (_req, res) => {
-  const [[row]] = await pool.query(
-    `SELECT
+r.get(
+  "/stats",
+  asyncHandler(async (_req, res) => {
+    const [[row]] = await pool.query(
+      `SELECT
        (SELECT COUNT(*) FROM usuarios WHERE rol = 'estudiante') AS estudiantes,
        (SELECT COUNT(*) FROM usuarios WHERE rol = 'profesor' AND estado = 'activo') AS profesores,
        (SELECT COUNT(*) FROM materias) AS materias,
@@ -27,235 +29,326 @@ r.get("/stats", asyncHandler(async (_req, res) => {
        (SELECT COUNT(*) FROM matriculas) AS matriculas,
        (SELECT COUNT(*) FROM carreras_grados) AS carreras,
        (SELECT COUNT(*) FROM usuarios WHERE rol = 'acudiente' AND estado = 'activo') AS acudientes`,
-  );
-  res.json(row);
-}));
+    );
+    res.json(row);
+  }),
+);
 
 // ---------- Usuarios ----------
-r.get("/usuarios", asyncHandler(async (req, res) => {
-  const { rol, q } = req.query;
-  const conds = [];
-  const params = [];
-  if (rol && ROLES.includes(String(rol))) {
-    conds.push("rol = ?");
-    params.push(String(rol));
-  }
-  if (q && String(q).trim()) {
-    conds.push("(nombre_completo LIKE ? OR correo LIKE ?)");
-    const term = `%${String(q).trim()}%`;
-    params.push(term, term);
-  }
-  const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
+r.get(
+  "/usuarios",
+  asyncHandler(async (req, res) => {
+    const { rol, q } = req.query;
+    const conds = [];
+    const params = [];
+    if (rol && ROLES.includes(String(rol))) {
+      conds.push("rol = ?");
+      params.push(String(rol));
+    }
+    if (q && String(q).trim()) {
+      conds.push("(nombre_completo LIKE ? OR correo LIKE ?)");
+      const term = `%${String(q).trim()}%`;
+      params.push(term, term);
+    }
+    const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
 
-  // Paginación opcional (`?page=1&page_size=50`): si se pide, se devuelve el
-  // objeto paginado; sin `page` se conserva el arreglo completo (compatible).
-  const page = Number(req.query.page);
-  if (Number.isInteger(page) && page > 0) {
-    const pageSize = Math.min(Number(req.query.page_size) || 50, 500);
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) AS total FROM usuarios ${where}`,
-      params,
-    );
-    const [rows] = await pool.query(
-      `SELECT id, nombre_completo, correo, rol, estado, foto_url, fecha_creacion
+    // Paginación opcional (`?page=1&page_size=50`): si se pide, se devuelve el
+    // objeto paginado; sin `page` se conserva el arreglo completo (compatible).
+    const page = Number(req.query.page);
+    if (Number.isInteger(page) && page > 0) {
+      const pageSize = Math.min(Number(req.query.page_size) || 50, 500);
+      const [[{ total }]] = await pool.query(
+        `SELECT COUNT(*) AS total FROM usuarios ${where}`,
+        params,
+      );
+      const [rows] = await pool.query(
+        `SELECT id, nombre_completo, correo, rol, estado, foto_url, fecha_creacion
        FROM usuarios ${where}
        ORDER BY fecha_creacion DESC, id DESC
        LIMIT ? OFFSET ?`,
-      [...params, pageSize, (page - 1) * pageSize],
-    );
-    return res.json({
-      items: rows,
-      total,
-      page,
-      page_size: pageSize,
-      total_pages: total === 0 ? 1 : Math.ceil(total / pageSize),
-    });
-  }
+        [...params, pageSize, (page - 1) * pageSize],
+      );
+      return res.json({
+        items: rows,
+        total,
+        page,
+        page_size: pageSize,
+        total_pages: total === 0 ? 1 : Math.ceil(total / pageSize),
+      });
+    }
 
-  const [rows] = await pool.query(
-    `SELECT id, nombre_completo, correo, rol, estado, foto_url, fecha_creacion
+    const [rows] = await pool.query(
+      `SELECT id, nombre_completo, correo, rol, estado, foto_url, fecha_creacion
      FROM usuarios ${where}
      ORDER BY fecha_creacion DESC, id DESC`,
-    params,
-  );
-  res.json(rows);
-}));
-
-r.post("/usuarios", asyncHandler(async (req, res) => {
-  const { nombre_completo, correo, password, rol, foto_url } = req.body;
-  if (!nombre_completo || !correo || !password || !rol) {
-    return res.status(400).json({ error: "Faltan datos" });
-  }
-  if (!ROLES.includes(rol)) return res.status(400).json({ error: "Rol inválido" });
-  const hash = await bcrypt.hash(password, 10);
-  try {
-    const [result] = await pool.query(
-      `INSERT INTO usuarios (nombre_completo, correo, \`password\`, rol, foto_url)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nombre_completo.trim(), correo.trim().toLowerCase(), hash, rol, foto_url ?? null],
+      params,
     );
-    res.json({ ok: true, id: result.insertId });
-  } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({ error: "El correo ya está registrado" });
-    }
-    throw e;
-  }
-}));
+    res.json(rows);
+  }),
+);
 
-r.put("/usuarios/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const { nombre_completo, correo, rol, estado, password, foto_url } = req.body;
-  if (estado !== undefined && !["activo", "inactivo"].includes(estado)) {
-    return res.status(400).json({ error: "Estado inválido" });
-  }
-  const sets = [];
-  const params = [];
-  if (nombre_completo !== undefined) {
-    sets.push("nombre_completo = ?");
-    params.push(nombre_completo.trim());
-  }
-  if (correo !== undefined) {
-    sets.push("correo = ?");
-    params.push(correo.trim().toLowerCase());
-  }
-  if (rol !== undefined) {
-    if (!ROLES.includes(rol)) return res.status(400).json({ error: "Rol inválido" });
-    sets.push("rol = ?");
-    params.push(rol);
-  }
-  if (estado !== undefined) {
-    sets.push("estado = ?");
-    params.push(estado);
-  }
-  if (foto_url !== undefined) {
-    sets.push("foto_url = ?");
-    params.push(foto_url || null);
-  }
-  if (password) {
-    sets.push("`password` = ?");
-    params.push(await bcrypt.hash(password, 10));
-  }
-  if (sets.length === 0) return res.status(400).json({ error: "Nada que actualizar" });
-  params.push(id);
-  try {
-    await pool.query(`UPDATE usuarios SET ${sets.join(", ")} WHERE id = ?`, params);
-  } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({ error: "El correo ya está registrado" });
+r.post(
+  "/usuarios",
+  asyncHandler(async (req, res) => {
+    const { nombre_completo, correo, password, rol, foto_url } = req.body;
+    if (
+      typeof nombre_completo !== "string" ||
+      typeof correo !== "string" ||
+      typeof password !== "string" ||
+      !nombre_completo.trim() ||
+      !correo.trim() ||
+      !password ||
+      !rol
+    ) {
+      return res.status(400).json({ error: "Faltan datos" });
     }
-    throw e;
-  }
-  res.json({ ok: true });
-}));
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "La contraseña debe tener al menos 6 caracteres" });
+    }
+    if (!ROLES.includes(rol))
+      return res.status(400).json({ error: "Rol inválido" });
+    const hash = await bcrypt.hash(password, 10);
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO usuarios (nombre_completo, correo, \`password\`, rol, foto_url)
+       VALUES (?, ?, ?, ?, ?)`,
+        [
+          nombre_completo.trim(),
+          correo.trim().toLowerCase(),
+          hash,
+          rol,
+          foto_url ?? null,
+        ],
+      );
+      res.json({ ok: true, id: result.insertId });
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({ error: "El correo ya está registrado" });
+      }
+      throw e;
+    }
+  }),
+);
+
+r.put(
+  "/usuarios/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const { nombre_completo, correo, rol, estado, password, foto_url } =
+      req.body;
+    if (estado !== undefined && !["activo", "inactivo"].includes(estado)) {
+      return res.status(400).json({ error: "Estado inválido" });
+    }
+    const sets = [];
+    const params = [];
+    if (nombre_completo !== undefined) {
+      sets.push("nombre_completo = ?");
+      params.push(nombre_completo.trim());
+    }
+    if (correo !== undefined) {
+      sets.push("correo = ?");
+      params.push(correo.trim().toLowerCase());
+    }
+    if (rol !== undefined) {
+      if (!ROLES.includes(rol))
+        return res.status(400).json({ error: "Rol inválido" });
+      sets.push("rol = ?");
+      params.push(rol);
+    }
+    if (estado !== undefined) {
+      sets.push("estado = ?");
+      params.push(estado);
+    }
+    if (foto_url !== undefined) {
+      sets.push("foto_url = ?");
+      params.push(foto_url || null);
+    }
+    if (password) {
+      if (typeof password !== "string") {
+        return res.status(400).json({ error: "Contraseña inválida" });
+      }
+      if (password.length < 6) {
+        return res
+          .status(400)
+          .json({ error: "La contraseña debe tener al menos 6 caracteres" });
+      }
+      sets.push("`password` = ?");
+      params.push(await bcrypt.hash(password, 10));
+    }
+    if (sets.length === 0)
+      return res.status(400).json({ error: "Nada que actualizar" });
+    params.push(id);
+    try {
+      await pool.query(
+        `UPDATE usuarios SET ${sets.join(", ")} WHERE id = ?`,
+        params,
+      );
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({ error: "El correo ya está registrado" });
+      }
+      throw e;
+    }
+    res.json({ ok: true });
+  }),
+);
 
 // ---------- Carreras / grados ----------
-r.get("/carreras", asyncHandler(async (_req, res) => {
-  const [rows] = await pool.query("SELECT * FROM carreras_grados ORDER BY nombre");
-  res.json(rows);
-}));
-
-r.post("/carreras", asyncHandler(async (req, res) => {
-  const { nombre, codigo } = req.body;
-  if (!nombre) return res.status(400).json({ error: "Faltan datos" });
-  const code =
-    codigo?.trim() || nombre.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
-  try {
-    const [result] = await pool.query(
-      "INSERT INTO carreras_grados (nombre, codigo) VALUES (?, ?)",
-      [nombre.trim(), code],
+r.get(
+  "/carreras",
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query(
+      "SELECT * FROM carreras_grados ORDER BY nombre",
     );
-    res.json({ ok: true, id: result.insertId });
-  } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") return res.status(400).json({ error: "El código ya existe" });
-    throw e;
-  }
-}));
+    res.json(rows);
+  }),
+);
 
-r.put("/carreras/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const { nombre, codigo } = req.body;
-  if (!nombre || !codigo) return res.status(400).json({ error: "Faltan datos" });
-  const [result] = await pool.query(
-    "UPDATE carreras_grados SET nombre = ?, codigo = ? WHERE id = ?",
-    [nombre.trim(), codigo.trim(), id],
-  );
-  if (result.affectedRows === 0) return res.status(404).json({ error: "Carrera no encontrada" });
-  res.json({ ok: true });
-}));
+r.post(
+  "/carreras",
+  asyncHandler(async (req, res) => {
+    const { nombre, codigo } = req.body;
+    if (!nombre) return res.status(400).json({ error: "Faltan datos" });
+    const code =
+      codigo?.trim() ||
+      nombre
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+    try {
+      const [result] = await pool.query(
+        "INSERT INTO carreras_grados (nombre, codigo) VALUES (?, ?)",
+        [nombre.trim(), code],
+      );
+      res.json({ ok: true, id: result.insertId });
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY")
+        return res.status(400).json({ error: "El código ya existe" });
+      throw e;
+    }
+  }),
+);
 
-r.delete("/carreras/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const [result] = await pool.query("DELETE FROM carreras_grados WHERE id = ?", [id]);
-  if (result.affectedRows === 0) return res.status(404).json({ error: "Carrera no encontrada" });
-  res.json({ ok: true });
-}));
+r.put(
+  "/carreras/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const { nombre, codigo } = req.body;
+    if (!nombre || !codigo)
+      return res.status(400).json({ error: "Faltan datos" });
+    const [result] = await pool.query(
+      "UPDATE carreras_grados SET nombre = ?, codigo = ? WHERE id = ?",
+      [nombre.trim(), codigo.trim(), id],
+    );
+    if (result.affectedRows === 0)
+      return res.status(404).json({ error: "Carrera no encontrada" });
+    res.json({ ok: true });
+  }),
+);
+
+r.delete(
+  "/carreras/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const [result] = await pool.query(
+      "DELETE FROM carreras_grados WHERE id = ?",
+      [id],
+    );
+    if (result.affectedRows === 0)
+      return res.status(404).json({ error: "Carrera no encontrada" });
+    res.json({ ok: true });
+  }),
+);
 
 // ---------- Materias ----------
-r.get("/materias", asyncHandler(async (_req, res) => {
-  const [rows] = await pool.query(
-    `SELECT m.id, m.nombre, m.codigo, m.creditos, m.carrera_id, c.nombre AS carrera_nombre
+r.get(
+  "/materias",
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query(
+      `SELECT m.id, m.nombre, m.codigo, m.creditos, m.carrera_id, c.nombre AS carrera_nombre
      FROM materias m
      LEFT JOIN carreras_grados c ON c.id = m.carrera_id
      ORDER BY m.nombre`,
-  );
-  res.json(rows);
-}));
+    );
+    res.json(rows);
+  }),
+);
 
-r.post("/materias", asyncHandler(async (req, res) => {
-  const { nombre, codigo, creditos, carrera_id } = req.body;
-  if (!nombre || !codigo) return res.status(400).json({ error: "Faltan datos" });
-  try {
+r.post(
+  "/materias",
+  asyncHandler(async (req, res) => {
+    const { nombre, codigo, creditos, carrera_id } = req.body;
+    if (!nombre || !codigo)
+      return res.status(400).json({ error: "Faltan datos" });
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO materias (nombre, codigo, creditos, carrera_id) VALUES (?, ?, ?, ?)`,
+        [
+          nombre.trim(),
+          codigo.trim().toUpperCase(),
+          Number(creditos) || 0,
+          carrera_id ? Number(carrera_id) : null,
+        ],
+      );
+      res.json({ ok: true, id: result.insertId });
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY")
+        return res.status(400).json({ error: "El código ya existe" });
+      throw e;
+    }
+  }),
+);
+
+r.put(
+  "/materias/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const { nombre, codigo, creditos, carrera_id } = req.body;
+    if (!nombre || !codigo)
+      return res.status(400).json({ error: "Faltan datos" });
     const [result] = await pool.query(
-      `INSERT INTO materias (nombre, codigo, creditos, carrera_id) VALUES (?, ?, ?, ?)`,
+      `UPDATE materias SET nombre = ?, codigo = ?, creditos = ?, carrera_id = ? WHERE id = ?`,
       [
         nombre.trim(),
         codigo.trim().toUpperCase(),
         Number(creditos) || 0,
         carrera_id ? Number(carrera_id) : null,
+        id,
       ],
     );
-    res.json({ ok: true, id: result.insertId });
-  } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") return res.status(400).json({ error: "El código ya existe" });
-    throw e;
-  }
-}));
+    if (result.affectedRows === 0)
+      return res.status(404).json({ error: "Materia no encontrada" });
+    res.json({ ok: true });
+  }),
+);
 
-r.put("/materias/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const { nombre, codigo, creditos, carrera_id } = req.body;
-  if (!nombre || !codigo) return res.status(400).json({ error: "Faltan datos" });
-  const [result] = await pool.query(
-    `UPDATE materias SET nombre = ?, codigo = ?, creditos = ?, carrera_id = ? WHERE id = ?`,
-    [
-      nombre.trim(),
-      codigo.trim().toUpperCase(),
-      Number(creditos) || 0,
-      carrera_id ? Number(carrera_id) : null,
+r.delete(
+  "/materias/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const [result] = await pool.query("DELETE FROM materias WHERE id = ?", [
       id,
-    ],
-  );
-  if (result.affectedRows === 0) return res.status(404).json({ error: "Materia no encontrada" });
-  res.json({ ok: true });
-}));
-
-r.delete("/materias/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const [result] = await pool.query("DELETE FROM materias WHERE id = ?", [id]);
-  if (result.affectedRows === 0) return res.status(404).json({ error: "Materia no encontrada" });
-  res.json({ ok: true });
-}));
+    ]);
+    if (result.affectedRows === 0)
+      return res.status(404).json({ error: "Materia no encontrada" });
+    res.json({ ok: true });
+  }),
+);
 
 // ---------- Grupos (materia + código/ficha + profesor + periodo) ----------
-r.get("/grupos", asyncHandler(async (_req, res) => {
-  const [rows] = await pool.query(
-    `SELECT g.id, g.codigo_grupo, g.periodo, g.horario,
+r.get(
+  "/grupos",
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query(
+      `SELECT g.id, g.codigo_grupo, g.periodo, g.horario,
             m.nombre AS materia, m.codigo AS materia_codigo,
             u.id AS profesor_id, u.nombre_completo AS profesor,
             (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = g.id) AS alumnos
@@ -263,198 +356,249 @@ r.get("/grupos", asyncHandler(async (_req, res) => {
      JOIN materias m ON m.id = g.materia_id
      LEFT JOIN usuarios u ON u.id = g.profesor_id
      ORDER BY m.nombre, g.codigo_grupo`,
-  );
-  res.json(rows);
-}));
+    );
+    res.json(rows);
+  }),
+);
 
-r.post("/grupos", asyncHandler(async (req, res) => {
-  const { materia_id, codigo_grupo, profesor_id, periodo, horario } = req.body;
-  const materiaId = parseId(materia_id);
-  const profesorId = parseId(profesor_id);
-  const codigo = typeof codigo_grupo === "string" ? codigo_grupo.trim() : "";
-  if (!materiaId || !profesorId || !codigo || !periodo) {
-    return res.status(400).json({ error: "Faltan datos (código/ficha del grupo obligatorio)" });
-  }
-  const [[mat]] = await pool.query("SELECT id FROM materias WHERE id = ?", [materiaId]);
-  if (!mat) return res.status(400).json({ error: "La materia no existe" });
-  const [[prof]] = await pool.query(
-    "SELECT id FROM usuarios WHERE id = ? AND rol = 'profesor'",
-    [profesorId],
-  );
-  if (!prof) return res.status(400).json({ error: "El profesor no existe" });
-  // Unicidad: no puede haber otro grupo con el mismo código/ficha de la materia
-  // en el mismo periodo (evita secciones duplicadas).
-  const [[dupG]] = await pool.query(
-    `SELECT id FROM grupos
+r.post(
+  "/grupos",
+  asyncHandler(async (req, res) => {
+    const { materia_id, codigo_grupo, profesor_id, periodo, horario } =
+      req.body;
+    const materiaId = parseId(materia_id);
+    const profesorId = parseId(profesor_id);
+    const codigo = typeof codigo_grupo === "string" ? codigo_grupo.trim() : "";
+    if (!materiaId || !profesorId || !codigo || !periodo) {
+      return res
+        .status(400)
+        .json({ error: "Faltan datos (código/ficha del grupo obligatorio)" });
+    }
+    const [[mat]] = await pool.query("SELECT id FROM materias WHERE id = ?", [
+      materiaId,
+    ]);
+    if (!mat) return res.status(400).json({ error: "La materia no existe" });
+    const [[prof]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'profesor'",
+      [profesorId],
+    );
+    if (!prof) return res.status(400).json({ error: "El profesor no existe" });
+    // Unicidad: no puede haber otro grupo con el mismo código/ficha de la materia
+    // en el mismo periodo (evita secciones duplicadas).
+    const [[dupG]] = await pool.query(
+      `SELECT id FROM grupos
      WHERE materia_id = ? AND LOWER(codigo_grupo) = LOWER(?) AND periodo = ?`,
-    [materiaId, codigo, String(periodo)],
-  );
-  if (dupG) {
-    return res.status(400).json({
-      error: "Ya existe un grupo con ese código/ficha y periodo para la materia",
-    });
-  }
-  const [result] = await pool.query(
-    "INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)",
-    [materiaId, codigo, profesorId, String(periodo), horario ?? null],
-  );
-  res.json({ ok: true, id: result.insertId });
-}));
+      [materiaId, codigo, String(periodo)],
+    );
+    if (dupG) {
+      return res.status(400).json({
+        error:
+          "Ya existe un grupo con ese código/ficha y periodo para la materia",
+      });
+    }
+    const [result] = await pool.query(
+      "INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)",
+      [materiaId, codigo, profesorId, String(periodo), horario ?? null],
+    );
+    res.json({ ok: true, id: result.insertId });
+  }),
+);
 
-r.delete("/grupos/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const [result] = await pool.query("DELETE FROM grupos WHERE id = ?", [id]);
-  if (result.affectedRows === 0) return res.status(404).json({ error: "Grupo no encontrado" });
-  res.json({ ok: true });
-}));
+r.delete(
+  "/grupos/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const [result] = await pool.query("DELETE FROM grupos WHERE id = ?", [id]);
+    if (result.affectedRows === 0)
+      return res.status(404).json({ error: "Grupo no encontrado" });
+    res.json({ ok: true });
+  }),
+);
 
 // ---------- Matrículas ----------
-r.get("/matriculas", asyncHandler(async (_req, res) => {
-  const [rows] = await pool.query(
-    `SELECT mat.id, mat.estudiante_id, u.nombre_completo AS estudiante, u.correo,
+r.get(
+  "/matriculas",
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query(
+      `SELECT mat.id, mat.estudiante_id, u.nombre_completo AS estudiante, u.correo,
             g.id AS grupo_id, g.codigo_grupo, m.nombre AS materia, g.periodo, mat.fecha_matricula
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
      JOIN grupos g ON g.id = mat.grupo_id
      JOIN materias m ON m.id = g.materia_id
      ORDER BY mat.id DESC`,
-  );
-  res.json(rows);
-}));
+    );
+    res.json(rows);
+  }),
+);
 
-r.post("/matriculas", asyncHandler(async (req, res) => {
-  const { estudiante_id, grupo_id, fecha_matricula } = req.body;
-  const estudianteId = parseId(estudiante_id);
-  const grupoId = parseId(grupo_id);
-  if (!estudianteId || !grupoId) return res.status(400).json({ error: "Faltan datos" });
-  const [[est]] = await pool.query(
-    "SELECT id FROM usuarios WHERE id = ? AND rol = 'estudiante' AND estado = 'activo'",
-    [estudianteId],
-  );
-  if (!est) {
-    return res.status(400).json({ error: "El estudiante no existe o no está activo" });
-  }
-  const [[grp]] = await pool.query(
-    "SELECT id, materia_id, horario FROM grupos WHERE id = ?",
-    [grupoId],
-  );
-  if (!grp) return res.status(400).json({ error: "El grupo no existe" });
-  // Unicidad de materia: no se permite matricular al estudiante en dos secciones
-  // de la misma materia.
-  const [previos] = await pool.query(
-    `SELECT g.id, g.codigo_grupo AS grupo, g.horario, g.materia_id, m.nombre AS materia
+r.post(
+  "/matriculas",
+  asyncHandler(async (req, res) => {
+    const { estudiante_id, grupo_id, fecha_matricula } = req.body;
+    const estudianteId = parseId(estudiante_id);
+    const grupoId = parseId(grupo_id);
+    if (!estudianteId || !grupoId)
+      return res.status(400).json({ error: "Faltan datos" });
+    if (fecha_matricula != null && fecha_matricula !== "") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha_matricula))) {
+        return res.status(400).json({ error: "Fecha inválida" });
+      }
+    }
+    const [[est]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'estudiante' AND estado = 'activo'",
+      [estudianteId],
+    );
+    if (!est) {
+      return res
+        .status(400)
+        .json({ error: "El estudiante no existe o no está activo" });
+    }
+    const [[grp]] = await pool.query(
+      "SELECT id, materia_id, horario FROM grupos WHERE id = ?",
+      [grupoId],
+    );
+    if (!grp) return res.status(400).json({ error: "El grupo no existe" });
+    // Unicidad de materia: no se permite matricular al estudiante en dos secciones
+    // de la misma materia.
+    const [previos] = await pool.query(
+      `SELECT g.id, g.codigo_grupo AS grupo, g.horario, g.materia_id, m.nombre AS materia
      FROM matriculas mat
      JOIN grupos g ON g.id = mat.grupo_id
      JOIN materias m ON m.id = g.materia_id
      WHERE mat.estudiante_id = ? AND g.id <> ?`,
-    [estudianteId, grupoId],
-  );
-  const duplicada = previos.find((p) => p.materia_id === grp.materia_id);
-  if (duplicada) {
-    return res.status(400).json({
-      error: `El estudiante ya está matriculado en otra sección de ${duplicada.materia} (ficha ${duplicada.grupo})`,
-    });
-  }
-  // Restricción de horario: no puede haber choque con el de otra materia.
-  for (const p of previos) {
-    if (hayChoqueHorarios(grp.horario, p.horario)) {
+      [estudianteId, grupoId],
+    );
+    const duplicada = previos.find((p) => p.materia_id === grp.materia_id);
+    if (duplicada) {
       return res.status(400).json({
-        error: `El horario del grupo choca con ${p.materia} (ficha ${p.grupo})`,
+        error: `El estudiante ya está matriculado en otra sección de ${duplicada.materia} (ficha ${duplicada.grupo})`,
       });
     }
-  }
-  try {
-    const [result] = await pool.query(
-      `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula) VALUES (?, ?, ?)`,
-      [
-        estudianteId,
-        grupoId,
-        fecha_matricula ?? new Date().toISOString().slice(0, 10),
-      ],
-    );
-    res.json({ ok: true, id: result.insertId });
-  } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({ error: "El estudiante ya está matriculado en ese grupo" });
+    // Restricción de horario: no puede haber choque con el de otra materia.
+    for (const p of previos) {
+      if (hayChoqueHorarios(grp.horario, p.horario)) {
+        return res.status(400).json({
+          error: `El horario del grupo choca con ${p.materia} (ficha ${p.grupo})`,
+        });
+      }
     }
-    throw e;
-  }
-}));
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula) VALUES (?, ?, ?)`,
+        [
+          estudianteId,
+          grupoId,
+          fecha_matricula ?? new Date().toISOString().slice(0, 10),
+        ],
+      );
+      res.json({ ok: true, id: result.insertId });
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        return res
+          .status(400)
+          .json({ error: "El estudiante ya está matriculado en ese grupo" });
+      }
+      throw e;
+    }
+  }),
+);
 
-r.delete("/matriculas/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const [result] = await pool.query("DELETE FROM matriculas WHERE id = ?", [id]);
-  if (result.affectedRows === 0) {
-    return res.status(404).json({ error: "Matrícula no encontrada" });
-  }
-  res.json({ ok: true });
-}));
+r.delete(
+  "/matriculas/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const [result] = await pool.query("DELETE FROM matriculas WHERE id = ?", [
+      id,
+    ]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Matrícula no encontrada" });
+    }
+    res.json({ ok: true });
+  }),
+);
 
 // ---------- Vincular acudiente con estudiante ----------
 // Lista todas las vinculaciones (con nombres), opcionalmente filtradas por
 // acudiente o estudiante.
-r.get("/vincular-acudiente", asyncHandler(async (req, res) => {
-  const conds = [];
-  const params = [];
-  const acudienteId = parseId(req.query.acudiente_id);
-  const estudianteId = parseId(req.query.estudiante_id);
-  if (acudienteId) {
-    conds.push("ae.acudiente_id = ?");
-    params.push(acudienteId);
-  }
-  if (estudianteId) {
-    conds.push("ae.estudiante_id = ?");
-    params.push(estudianteId);
-  }
-  const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
-  const [rows] = await pool.query(
-    `SELECT ae.id, ae.acudiente_id, ua.nombre_completo AS acudiente, ua.correo AS acudiente_correo,
+r.get(
+  "/vincular-acudiente",
+  asyncHandler(async (req, res) => {
+    const conds = [];
+    const params = [];
+    const acudienteId = parseId(req.query.acudiente_id);
+    const estudianteId = parseId(req.query.estudiante_id);
+    if (acudienteId) {
+      conds.push("ae.acudiente_id = ?");
+      params.push(acudienteId);
+    }
+    if (estudianteId) {
+      conds.push("ae.estudiante_id = ?");
+      params.push(estudianteId);
+    }
+    const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
+    const [rows] = await pool.query(
+      `SELECT ae.id, ae.acudiente_id, ua.nombre_completo AS acudiente, ua.correo AS acudiente_correo,
             ae.estudiante_id, ue.nombre_completo AS estudiante, ue.correo AS estudiante_correo
      FROM acudiente_estudiante ae
      JOIN usuarios ua ON ua.id = ae.acudiente_id
      JOIN usuarios ue ON ue.id = ae.estudiante_id
      ${where}
      ORDER BY ua.nombre_completo, ue.nombre_completo`,
-    params,
-  );
-  res.json(rows);
-}));
-
-r.delete("/vincular-acudiente/:id", asyncHandler(async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-  const [result] = await pool.query("DELETE FROM acudiente_estudiante WHERE id = ?", [id]);
-  if (result.affectedRows === 0) {
-    return res.status(404).json({ error: "Vinculación no encontrada" });
-  }
-  res.json({ ok: true });
-}));
-
-r.post("/vincular-acudiente", asyncHandler(async (req, res) => {
-  const { acudiente_id, estudiante_id } = req.body;
-  if (!acudiente_id || !estudiante_id) return res.status(400).json({ error: "Faltan datos" });
-  const [[acu]] = await pool.query(
-    "SELECT id FROM usuarios WHERE id = ? AND rol = 'acudiente'",
-    [Number(acudiente_id)],
-  );
-  if (!acu) return res.status(400).json({ error: "El acudiente no existe" });
-  const [[est]] = await pool.query(
-    "SELECT id FROM usuarios WHERE id = ? AND rol = 'estudiante'",
-    [Number(estudiante_id)],
-  );
-  if (!est) return res.status(400).json({ error: "El estudiante no existe" });
-  try {
-    const [result] = await pool.query(
-      "INSERT INTO acudiente_estudiante (acudiente_id, estudiante_id) VALUES (?, ?)",
-      [Number(acudiente_id), Number(estudiante_id)],
+      params,
     );
-    res.json({ ok: true, id: result.insertId });
-  } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") return res.status(400).json({ error: "Ya están vinculados" });
-    throw e;
-  }
-}));
+    res.json(rows);
+  }),
+);
+
+r.delete(
+  "/vincular-acudiente/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const [result] = await pool.query(
+      "DELETE FROM acudiente_estudiante WHERE id = ?",
+      [id],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Vinculación no encontrada" });
+    }
+    res.json({ ok: true });
+  }),
+);
+
+r.post(
+  "/vincular-acudiente",
+  asyncHandler(async (req, res) => {
+    const { acudiente_id, estudiante_id } = req.body;
+    const acudienteId = parseId(acudiente_id);
+    const estudianteIdV = parseId(estudiante_id);
+    if (!acudienteId || !estudianteIdV)
+      return res.status(400).json({ error: "Faltan datos" });
+    const [[acu]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'acudiente'",
+      [acudienteId],
+    );
+    if (!acu) return res.status(400).json({ error: "El acudiente no existe" });
+    const [[est]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'estudiante'",
+      [estudianteIdV],
+    );
+    if (!est) return res.status(400).json({ error: "El estudiante no existe" });
+    try {
+      const [result] = await pool.query(
+        "INSERT INTO acudiente_estudiante (acudiente_id, estudiante_id) VALUES (?, ?)",
+        [acudienteId, estudianteIdV],
+      );
+      res.json({ ok: true, id: result.insertId });
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY")
+        return res.status(400).json({ error: "Ya están vinculados" });
+      throw e;
+    }
+  }),
+);
 
 export default r;

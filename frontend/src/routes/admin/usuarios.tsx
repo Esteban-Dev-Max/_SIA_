@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DataTable } from "@/components/DataTable";
@@ -70,23 +70,30 @@ function AdminUsuarios() {
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
+  const genRef = useRef(0);
+
   const load = useCallback(async () => {
+    const gen = ++genRef.current;
     setCargando(true);
     try {
       const params = new URLSearchParams();
       if (rol) params.set("rol", rol);
       if (q.trim()) params.set("q", q.trim());
       const url = `/api/admin/usuarios${params.toString() ? `?${params.toString()}` : ""}`;
-      setItems(await api<Usuario[]>(url));
+      const data = await api<Usuario[]>(url);
+      if (gen === genRef.current) setItems(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al cargar usuarios");
+      if (gen === genRef.current)
+        toast.error(err instanceof Error ? err.message : "Error al cargar usuarios");
     } finally {
-      setCargando(false);
+      if (gen === genRef.current) setCargando(false);
     }
   }, [rol, q]);
 
+  // Debounce de la búsqueda: espera 300 ms tras la última pulsación antes de consultar.
   useEffect(() => {
-    load();
+    const t = setTimeout(load, 300);
+    return () => clearTimeout(t);
   }, [load]);
 
   function abrirCrear() {
@@ -270,6 +277,7 @@ function AdminUsuarios() {
               <Input
                 id="password"
                 required={!editando}
+                minLength={6}
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}

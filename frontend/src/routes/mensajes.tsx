@@ -110,19 +110,26 @@ function MensajesView() {
   }, [loadConversaciones]);
 
   // Busca usuarios para iniciar una conversación nueva.
+  const genRef = useRef(0);
   const buscarContactos = useCallback(async () => {
+    const gen = ++genRef.current;
     try {
       const url = `/api/mensajes/contactos${
         busquedaContacto.trim() ? `?q=${encodeURIComponent(busquedaContacto.trim())}` : ""
       }`;
-      setContactosPosibles(await api<Contacto[]>(url));
+      const data = await api<Contacto[]>(url);
+      if (gen === genRef.current) setContactosPosibles(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al buscar contactos");
+      if (gen === genRef.current)
+        toast.error(err instanceof Error ? err.message : "Error al buscar contactos");
     }
   }, [busquedaContacto]);
 
+  // Debounce de la búsqueda de contactos: espera 300 ms tras la última pulsación.
   useEffect(() => {
-    if (openNuevo) buscarContactos();
+    if (!openNuevo) return;
+    const t = setTimeout(buscarContactos, 300);
+    return () => clearTimeout(t);
   }, [openNuevo, buscarContactos]);
 
   function iniciarConversacion(contacto: Contacto) {

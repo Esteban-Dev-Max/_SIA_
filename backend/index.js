@@ -40,7 +40,9 @@ app.use(
       if (!origin) return callback(null, true);
       if (extraOrigins.includes(origin)) return callback(null, true);
       if (isLanOrigin(origin, FRONTEND_PORT)) return callback(null, true);
-      callback(new Error(`CORS bloqueado para origen: ${origin}`));
+      const e = new Error(`CORS bloqueado para origen: ${origin}`);
+      e.status = 403;
+      callback(e);
     },
     credentials: true,
   }),
@@ -62,19 +64,40 @@ app.use("/api/notificaciones", notificacionesRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  // Violaciones de clave foránea: un dato referenciado no existe. Antes de esta
-  // validación terminaban como 500 "Error interno" cuando faltaba el chequeo previo.
-  if (err.code === "ER_NO_REFERENCED_ROW" || err.code === "ER_NO_REFERENCED_ROW_2") {
+  // Cuerpo JSON mal formado o demasiado grande: se responde en español antes
+  // de caer en el 500 genérico.
+  if (err.type === "entity.parse.failed") {
     return res
       .status(400)
-      .json({ error: "Uno de los datos referenciados no existe. Verifica e inténtalo de nuevo." });
+      .json({ error: "Solicitud inválida: el cuerpo no es JSON válido" });
+  }
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "La solicitud es demasiado grande" });
+  }
+  // Violaciones de clave foránea: un dato referenciado no existe. Antes de esta
+  // validación terminaban como 500 "Error interno" cuando faltaba el chequeo previo.
+  if (
+    err.code === "ER_NO_REFERENCED_ROW" ||
+    err.code === "ER_NO_REFERENCED_ROW_2"
+  ) {
+    return res
+      .status(400)
+      .json({
+        error:
+          "Uno de los datos referenciados no existe. Verifica e inténtalo de nuevo.",
+      });
   }
   if (err.code === "ER_DUP_ENTRY") {
-    return res.status(400).json({ error: "Ya existe un registro con esos datos." });
+    return res
+      .status(400)
+      .json({ error: "Ya existe un registro con esos datos." });
   }
-  const status = err.status && err.status >= 400 && err.status < 500 ? err.status : 500;
+  const status =
+    err.status && err.status >= 400 && err.status < 500 ? err.status : 500;
   const mensaje =
-    status === 500 ? "Error interno del servidor" : err.message || "Error en la solicitud";
+    status === 500
+      ? "Error interno del servidor"
+      : err.message || "Error en la solicitud";
   res.status(status).json({ error: mensaje });
 });
 

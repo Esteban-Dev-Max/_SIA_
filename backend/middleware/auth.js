@@ -11,7 +11,10 @@ export async function verifyToken(req, res, next) {
   try {
     const h = req.headers.authorization || "";
     const token = h.startsWith("Bearer ") ? h.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "No token" });
+    if (!token)
+      return res
+        .status(401)
+        .json({ error: "No autenticado. Inicia sesión de nuevo." });
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -21,10 +24,14 @@ export async function verifyToken(req, res, next) {
     );
     if (!u) return res.status(401).json({ error: "Token inválido" });
     if (u.estado !== "activo") {
-      return res.status(401).json({ error: "Cuenta desactivada. Contacta con el administrador." });
+      return res
+        .status(401)
+        .json({ error: "Cuenta desactivada. Contacta con el administrador." });
     }
     if (u.rol !== payload.rol) {
-      return res.status(401).json({ error: "Tu rol cambió. Inicia sesión de nuevo." });
+      return res
+        .status(401)
+        .json({ error: "Tu rol cambió. Inicia sesión de nuevo." });
     }
 
     req.user = { ...payload, rol: u.rol };

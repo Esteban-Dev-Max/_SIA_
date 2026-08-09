@@ -127,7 +127,7 @@ function LoginPage() {
                 Centralizada, segura y diseñada para simplificar la gestión educativa. Accede según
                 tu rol y comienza a trabajar.
               </p>
-              <div className="mt-6 grid grid-cols-4 gap-2">
+              <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {["Admin", "Profesor", "Estudiante", "Acudiente"].map((role) => (
                   <div key={role} className="rounded-xl bg-muted/30 p-3 text-center">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

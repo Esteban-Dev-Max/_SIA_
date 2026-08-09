@@ -158,11 +158,21 @@ function ProfesorPanel() {
 
   useEffect(() => {
     if (!sel) return;
+    let activo = true;
     setCargandoPlanilla(true);
     api<FilaNota[]>(`/api/notas/grupo/${sel}`)
-      .then(setPlanilla)
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Error al cargar planilla"))
-      .finally(() => setCargandoPlanilla(false));
+      .then((d) => {
+        if (activo) setPlanilla(d);
+      })
+      .catch((err) => {
+        if (activo) toast.error(err instanceof Error ? err.message : "Error al cargar planilla");
+      })
+      .finally(() => {
+        if (activo) setCargandoPlanilla(false);
+      });
+    return () => {
+      activo = false;
+    };
   }, [sel]);
 
   const totalAlumnos = grupos.reduce((s, g) => s + g.alumnos, 0);

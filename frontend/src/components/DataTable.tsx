@@ -23,7 +23,7 @@ type DataTableProps = {
 export function DataTable({
   headers,
   rows,
-  emptyMessage = "Sin datos",
+  emptyMessage = "Sin resultados",
   loading = false,
   loadingMessage = "Cargando datos...",
   className,

@@ -109,15 +109,23 @@ export function AsistenciaTab({ sel }: { sel: number | null }) {
 
   useEffect(() => {
     if (!sel) return;
+    let activo = true;
     setCargando(true);
     api<{ fecha: string; registros: RegistroAsistencia[] }>(
       `/api/asistencia/grupo/${sel}?fecha=${fecha}`,
     )
-      .then((d) => setRegistros(d.registros))
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Error al cargar asistencia"),
-      )
-      .finally(() => setCargando(false));
+      .then((d) => {
+        if (activo) setRegistros(d.registros);
+      })
+      .catch((err) => {
+        if (activo) toast.error(err instanceof Error ? err.message : "Error al cargar asistencia");
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+    return () => {
+      activo = false;
+    };
   }, [sel, fecha]);
 
   function refrescar() {
@@ -223,7 +231,7 @@ export function AsistenciaTab({ sel }: { sel: number | null }) {
     <>
       <Card className="mb-4 border-border/50 shadow-sm rounded-xl overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between gap-3 text-base">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-base">
             <span className="flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-emerald-600" />
               Asistencia del día
