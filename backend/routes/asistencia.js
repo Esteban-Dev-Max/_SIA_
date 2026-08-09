@@ -1,4 +1,9 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
+import multer from "multer";
 import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -7,10 +12,70 @@ const r = Router();
 r.use(verifyToken);
 
 const ESTADOS = ["presente", "ausente", "tarde", "excusa"];
+const MIME_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
+const CARPETA_EXCUSAS = path.join(process.cwd(), "uploads", "excusas");
+
+mkdirSync(CARPETA_EXCUSAS, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination(_req, _file, cb) {
+    cb(null, CARPETA_EXCUSAS);
+  },
+  filename(_req, file, cb) {
+    cb(null, `${randomUUID()}${path.extname(file.originalname)}`);
+  },
+});
+
+const uploadExcusa = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    if (MIME_PERMITIDOS.includes(file.mimetype)) return cb(null, true);
+    const err = new Error("El archivo debe ser PDF, JPG o PNG");
+    err.status = 400;
+    cb(err);
+  },
+});
+
+// Envuelve multer para traducir sus errores a respuestas 4xx en español.
+function subirArchivo(req, res, next) {
+  uploadExcusa.single("archivo")(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res
+          .status(400)
+          .json({ error: "El archivo supera el tamaño máximo permitido (5 MB)" });
+      }
+      return res.status(err.status ?? 400).json({
+        error: err.message || "Error al subir el archivo",
+      });
+    }
+    next();
+  });
+}
 
 function parseId(value) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function fechaValida(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value));
+}
+
+function rutaDisco(nombre) {
+  if (!nombre || typeof nombre !== "string") return null;
+  return path.join(CARPETA_EXCUSAS, path.basename(nombre));
+}
+
+async function eliminarArchivo(nombre) {
+  const ruta = rutaDisco(nombre);
+  if (!ruta) return;
+  try {
+    await unlink(ruta);
+  } catch (err) {
+    if (err.code !== "ENOENT") console.error("No se pudo eliminar el adjunto:", err.message);
+  }
 }
 
 async function puedeVerGrupo(req, res, grupoId) {
@@ -60,13 +125,12 @@ r.get("/grupo/:grupo_id", asyncHandler(async (req, res) => {
   if (!grupoId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerGrupo(req, res, grupoId))) return;
   const qFecha = String(req.query.fecha ?? "");
-  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(qFecha)
-    ? qFecha
-    : new Date().toISOString().slice(0, 10);
+  const fecha = fechaValida(qFecha) ? qFecha : new Date().toISOString().slice(0, 10);
   const [rows] = await pool.query(
     `SELECT mat.id AS matricula_id, u.id AS estudiante_id,
-            u.nombre_completo AS estudiante, u.correo,
-            a.fecha, a.estado, a.observacion
+            u.nombre_completo AS estudiante, u.correo, u.foto_url,
+            a.id AS asistencia_id, a.fecha, a.estado, a.observacion,
+            a.archivo_ruta, a.archivo_mime, a.archivo_nombre
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
      LEFT JOIN asistencia a ON a.matricula_id = mat.id AND a.fecha = ?
@@ -77,6 +141,91 @@ r.get("/grupo/:grupo_id", asyncHandler(async (req, res) => {
   res.json({ fecha, registros: rows });
 }));
 
+// Adjunta (o reemplaza) el soporte de la excusa de un estudiante en una fecha.
+r.post("/excusa", subirArchivo, asyncHandler(async (req, res) => {
+  const matriculaId = parseId(req.body.matricula_id);
+  const fecha = String(req.body.fecha ?? "");
+  if (!matriculaId || !fechaValida(fecha)) {
+    return res.status(400).json({ error: "Datos inválidos" });
+  }
+  const observacion =
+    typeof req.body.observacion === "string" && req.body.observacion.trim()
+      ? req.body.observacion.trim()
+      : null;
+
+  const [[mat]] = await pool.query(
+    `SELECT m.id, g.profesor_id
+     FROM matriculas m
+     JOIN grupos g ON g.id = m.grupo_id
+     WHERE m.id = ?`,
+    [matriculaId],
+  );
+  if (!mat) return res.status(404).json({ error: "Matrícula no encontrada" });
+  if (req.user.rol !== "admin" && mat.profesor_id !== req.user.id) {
+    return res.status(403).json({ error: "No autorizado" });
+  }
+
+  // Si ya existía un adjunto y se va a reemplazar, se borra del disco.
+  const archivoNuevo = req.file ?? null;
+  if (archivoNuevo) {
+    const [[prev]] = await pool.query(
+      "SELECT archivo_ruta FROM asistencia WHERE matricula_id = ? AND fecha = ?",
+      [matriculaId, fecha],
+    );
+    if (prev?.archivo_ruta) await eliminarArchivo(prev.archivo_ruta);
+  }
+
+  await pool.query(
+    `INSERT INTO asistencia (matricula_id, fecha, estado, observacion,
+                             archivo_ruta, archivo_mime, archivo_nombre)
+     VALUES (?, ?, 'excusa', ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       estado = 'excusa',
+       observacion = VALUES(observacion),
+       archivo_ruta = IF(VALUES(archivo_ruta) IS NULL, asistencia.archivo_ruta, VALUES(archivo_ruta)),
+       archivo_mime = IF(VALUES(archivo_mime) IS NULL, asistencia.archivo_mime, VALUES(archivo_mime)),
+       archivo_nombre = IF(VALUES(archivo_nombre) IS NULL, asistencia.archivo_nombre, VALUES(archivo_nombre))`,
+    [
+      matriculaId,
+      fecha,
+      observacion,
+      archivoNuevo ? archivoNuevo.filename : null,
+      archivoNuevo ? archivoNuevo.mimetype : null,
+      archivoNuevo ? archivoNuevo.originalname : null,
+    ],
+  );
+
+  res.json({ ok: true, fecha });
+}));
+
+// Descarga el soporte adjunto de la excusa de una matrícula en una fecha.
+r.get("/excusa/descargar", asyncHandler(async (req, res) => {
+  const matriculaId = parseId(req.query.matricula_id);
+  const fecha = String(req.query.fecha ?? "");
+  if (!matriculaId || !fechaValida(fecha)) {
+    return res.status(400).json({ error: "Parámetros inválidos" });
+  }
+  const [[a]] = await pool.query(
+    `SELECT a.archivo_ruta, a.archivo_nombre, g.profesor_id
+     FROM asistencia a
+     JOIN matriculas m ON m.id = a.matricula_id
+     JOIN grupos g ON g.id = m.grupo_id
+     WHERE a.matricula_id = ? AND a.fecha = ?`,
+    [matriculaId, fecha],
+  );
+  if (!a?.archivo_ruta) return res.status(404).json({ error: "No hay excusa adjunta" });
+  if (req.user.rol !== "admin" && a.profesor_id !== req.user.id) {
+    return res.status(403).json({ error: "No autorizado" });
+  }
+  const ruta = rutaDisco(a.archivo_ruta);
+  if (!ruta) return res.status(404).json({ error: "Archivo no encontrado" });
+  res.download(ruta, a.archivo_nombre || `excusa${path.extname(a.archivo_ruta)}`, (err) => {
+    if (err && !res.headersSent) {
+      res.status(404).json({ error: "Archivo no encontrado" });
+    }
+  });
+}));
+
 // Guarda la lista de asistencia del día para un grupo (arreglo de estudiantes).
 r.post("/registrar", asyncHandler(async (req, res) => {
   const { grupo_id, fecha, registros } = req.body;
@@ -84,7 +233,7 @@ r.post("/registrar", asyncHandler(async (req, res) => {
   if (!grupoId || !fecha || !Array.isArray(registros) || registros.length === 0) {
     return res.status(400).json({ error: "Faltan datos" });
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+  if (!fechaValida(fecha)) {
     return res.status(400).json({ error: "Fecha inválida" });
   }
   if (req.user.rol !== "admin") {
@@ -114,6 +263,7 @@ r.post("/registrar", asyncHandler(async (req, res) => {
   }
 
   const conn = await pool.getConnection();
+  const archivosEliminar = [];
   try {
     await conn.beginTransaction();
     for (const reg of registros) {
@@ -122,10 +272,24 @@ r.post("/registrar", asyncHandler(async (req, res) => {
         conn.release();
         return res.status(400).json({ error: "Registro inválido" });
       }
+      // Si deja de ser excusa se descarta el soporte adjunto asociado.
+      if (reg.estado !== "excusa") {
+        const [[prev]] = await conn.query(
+          "SELECT archivo_ruta FROM asistencia WHERE matricula_id = ? AND fecha = ?",
+          [reg.matricula_id, fecha],
+        );
+        if (prev?.archivo_ruta) archivosEliminar.push(prev.archivo_ruta);
+      }
       await conn.query(
-        `INSERT INTO asistencia (matricula_id, fecha, estado, observacion)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE estado = VALUES(estado), observacion = VALUES(observacion)`,
+        `INSERT INTO asistencia (matricula_id, fecha, estado, observacion,
+                                 archivo_ruta, archivo_mime, archivo_nombre)
+         VALUES (?, ?, ?, ?, NULL, NULL, NULL)
+         ON DUPLICATE KEY UPDATE
+           estado = VALUES(estado),
+           observacion = VALUES(observacion),
+           archivo_ruta = IF(VALUES(estado) = 'excusa', asistencia.archivo_ruta, NULL),
+           archivo_mime = IF(VALUES(estado) = 'excusa', asistencia.archivo_mime, NULL),
+           archivo_nombre = IF(VALUES(estado) = 'excusa', asistencia.archivo_nombre, NULL)`,
         [reg.matricula_id, fecha, reg.estado, reg.observacion ?? null],
       );
     }
@@ -135,6 +299,9 @@ r.post("/registrar", asyncHandler(async (req, res) => {
     throw e;
   } finally {
     conn.release();
+  }
+  for (const archivo of archivosEliminar) {
+    await eliminarArchivo(archivo);
   }
   res.json({ ok: true, fecha, guardados: registros.length });
 }));

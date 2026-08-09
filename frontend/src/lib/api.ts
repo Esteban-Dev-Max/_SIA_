@@ -48,10 +48,15 @@ export function getUser(): AuthUser | null {
 
 export async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken();
+  const isFormData =
+    typeof window !== "undefined" &&
+    typeof FormData !== "undefined" &&
+    opts.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(opts.headers as Record<string, string>),
   };
+  // Con FormData el navegador fija el Content-Type/multipart (con boundary).
+  if (!isFormData) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${API_URL}${path}`, { ...opts, headers });
   if (!res.ok) {
@@ -60,4 +65,49 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   }
   if (res.status === 204) return undefined as T;
   return res.json();
+}
+
+function apiUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
+
+/** Fetch autenticado del backend (para subir/descargar archivos con el token). */
+export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(opts.headers as Record<string, string>),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(apiUrl(path), { ...opts, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res;
+}
+
+/** Baja un archivo del backend como Blob (con autenticación Bearer). */
+export async function apiBlob(path: string): Promise<Blob> {
+  const res = await apiFetch(path);
+  return res.blob();
+}
+
+/** Abre un adjunto (PDF/JPG/PNG) en una pestaña nueva usando un blob autenticado. */
+export async function vistaArchivo(path: string): Promise<void> {
+  const blob = await apiBlob(path);
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+/** Descarga un adjunto autenticado usando el nombre original como nombre de archivo. */
+export async function descargarArchivo(path: string, nombre: string): Promise<void> {
+  const blob = await apiBlob(path);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

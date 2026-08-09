@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -20,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { AsistenciaTab } from "@/components/AsistenciaTab";
 import {
   BookOpen,
   CalendarClock,
@@ -60,30 +60,12 @@ type FilaNota = {
   observaciones: string | null;
 };
 
-type EstadoAsistencia = "presente" | "ausente" | "tarde" | "excusa";
-type RegistroAsistencia = {
-  matricula_id: number;
-  estudiante_id: number;
-  estudiante: string;
-  correo: string;
-  fecha: string | null;
-  estado: EstadoAsistencia | null;
-  observacion: string | null;
-};
-
 const CAMPOS_NOTA = [
   { key: "nota_1", label: "Nota 1 (25%)" },
   { key: "nota_2", label: "Nota 2 (25%)" },
   { key: "nota_3", label: "Nota 3 (20%)" },
   { key: "examen_final", label: "Examen (30%)" },
 ] as const;
-
-const ESTADOS_ASISTENCIA: { value: EstadoAsistencia; label: string }[] = [
-  { value: "presente", label: "Presente" },
-  { value: "ausente", label: "Ausente" },
-  { value: "tarde", label: "Tarde" },
-  { value: "excusa", label: "Excusa" },
-];
 
 const TABS_PROFESOR = ["inicio", "planilla", "asistencia"] as const;
 
@@ -162,12 +144,8 @@ function ProfesorPanel() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [planilla, setPlanilla] = useState<FilaNota[]>([]);
-  const [asistencia, setAsistencia] = useState<RegistroAsistencia[]>([]);
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [guardando, setGuardando] = useState<number | null>(null);
-  const [guardandoAsist, setGuardandoAsist] = useState(false);
   const [cargandoPlanilla, setCargandoPlanilla] = useState(false);
-  const [cargandoAsist, setCargandoAsist] = useState(false);
 
   useEffect(() => {
     api<Grupo[]>("/api/profesor/grupos")
@@ -186,19 +164,6 @@ function ProfesorPanel() {
       .catch((err) => toast.error(err instanceof Error ? err.message : "Error al cargar planilla"))
       .finally(() => setCargandoPlanilla(false));
   }, [sel]);
-
-  useEffect(() => {
-    if (!sel) return;
-    setCargandoAsist(true);
-    api<{ fecha: string; registros: RegistroAsistencia[] }>(
-      `/api/asistencia/grupo/${sel}?fecha=${fecha}`,
-    )
-      .then((d) => setAsistencia(d.registros))
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Error al cargar asistencia"),
-      )
-      .finally(() => setCargandoAsist(false));
-  }, [sel, fecha]);
 
   const totalAlumnos = grupos.reduce((s, g) => s + g.alumnos, 0);
   const materiasUnicas = new Set(grupos.map((g) => g.materia)).size;
@@ -239,33 +204,6 @@ function ProfesorPanel() {
       toast.error(err instanceof Error ? err.message : "Error al guardar notas");
     } finally {
       setGuardando(null);
-    }
-  }
-
-  function setEstado(id: number, estado: EstadoAsistencia) {
-    setAsistencia((prev) => prev.map((a) => (a.matricula_id === id ? { ...a, estado } : a)));
-  }
-
-  async function guardarAsistencia() {
-    if (!sel || asistencia.length === 0) return;
-    setGuardandoAsist(true);
-    try {
-      await api("/api/asistencia/registrar", {
-        method: "POST",
-        body: JSON.stringify({
-          grupo_id: sel,
-          fecha,
-          registros: asistencia.map((a) => ({
-            matricula_id: a.matricula_id,
-            estado: a.estado ?? "presente",
-          })),
-        }),
-      });
-      toast.success(`Asistencia del ${fecha} guardada`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar asistencia");
-    } finally {
-      setGuardandoAsist(false);
     }
   }
 
@@ -490,121 +428,7 @@ function ProfesorPanel() {
       {/* Toma de Asistencia */}
       <TabsContent value="asistencia">
         <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
-        <Card className="mb-4 border-border/50 shadow-sm rounded-xl overflow-hidden">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between gap-3 text-base">
-              <span className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-emerald-600" />
-                Asistencia del día
-              </span>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                  className="w-auto h-9 rounded-lg border-border/60 text-sm"
-                />
-                <Button
-                  size="sm"
-                  onClick={guardarAsistencia}
-                  disabled={guardandoAsist || asistencia.length === 0}
-                  className="gap-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                >
-                  {guardandoAsist ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
-                  Guardar asistencia
-                </Button>
-              </div>
-            </CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card className="overflow-hidden border-border/50 shadow-sm rounded-xl">
-          <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gradient-to-r from-muted/60 to-muted/30 hover:from-muted/60 hover:to-muted/30">
-                <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Estudiante
-                </TableHead>
-                <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Estado
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cargandoAsist ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="h-40 text-center">
-                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      <span className="text-sm font-medium">Cargando asistencia...</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                <>
-                  {asistencia.map((a, i) => (
-                    <TableRow
-                      key={a.matricula_id}
-                      className={cn(
-                        "transition-colors hover:bg-muted/30",
-                        i % 2 === 0 ? "bg-transparent" : "bg-muted/10",
-                      )}
-                    >
-                      <TableCell className="px-4 py-3">
-                        <div className="font-medium">{a.estudiante}</div>
-                        <div className="text-xs text-muted-foreground">{a.correo}</div>
-                      </TableCell>
-                      <TableCell className="px-4 py-3">
-                        <RadioGroup
-                          value={a.estado ?? "presente"}
-                          onValueChange={(v) => setEstado(a.matricula_id, v as EstadoAsistencia)}
-                          className="flex flex-wrap gap-x-4 gap-y-1"
-                        >
-                          {ESTADOS_ASISTENCIA.map((e) => (
-                            <div key={e.value} className="flex items-center gap-1.5">
-                              <RadioGroupItem
-                                value={e.value}
-                                id={`${a.matricula_id}-${e.value}`}
-                                className="h-4 w-4"
-                              />
-                              <Label
-                                htmlFor={`${a.matricula_id}-${e.value}`}
-                                className="cursor-pointer text-xs font-normal text-muted-foreground"
-                              >
-                                {e.label}
-                              </Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {asistencia.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={2} className="h-40 text-center">
-                        <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
-                            <Inbox className="h-6 w-6 opacity-40" />
-                          </div>
-                          <span className="text-sm font-medium">
-                            {sel
-                              ? "Sin alumnos matriculados en este grupo."
-                              : "Selecciona un grupo para tomar asistencia."}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+        <AsistenciaTab sel={sel} />
       </TabsContent>
     </Tabs>
   );

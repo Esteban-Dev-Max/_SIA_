@@ -137,6 +137,9 @@ CREATE TABLE IF NOT EXISTS asistencia (
   fecha DATE NOT NULL,
   estado ENUM('presente','ausente','tarde','excusa') NOT NULL DEFAULT 'presente',
   observacion VARCHAR(255) DEFAULT NULL,
+  archivo_ruta VARCHAR(255) DEFAULT NULL,
+  archivo_mime VARCHAR(100) DEFAULT NULL,
+  archivo_nombre VARCHAR(255) DEFAULT NULL,
   UNIQUE KEY uq_asistencia (matricula_id, fecha),
   CONSTRAINT fk_asistencia_matricula
     FOREIGN KEY (matricula_id) REFERENCES matriculas(id) ON DELETE CASCADE
