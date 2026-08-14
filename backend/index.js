@@ -51,6 +51,9 @@ app.use(
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+// Alias bajo /api/*: cuando se publica por un túnel con enrutado de path /api -> backend,
+// el health check debe estar accesible también ahí.
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/profesor", profesorRoutes);

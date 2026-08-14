@@ -1,6 +1,6 @@
 # Backend Académico (Express + MySQL)
 
-Servidor Node.js/Express con MySQL local.
+API REST de **SIA** — Node.js/Express con MySQL local (ESM). Servido por PM2 como `sia-backend` en producción.
 
 ## Acceso desde el celular (misma red)
 
@@ -21,84 +21,58 @@ netsh advfirewall firewall add rule name="Academico API" dir=in action=allow pro
 **Importante:** esto funciona en la red local (WiFi/hotspot). No expone la app a internet público.
 
 ## Requisitos
-- Node.js 18+
+- Node.js 20+
 - MySQL 8+ corriendo en `localhost:3306`
 
 ## Instalación
 ```bash
 cd backend
-cp .env.example .env      # edita credenciales de tu MySQL
+cp .env.example .env      # edita credenciales de tu MySQL y el JWT_SECRET
 npm install
-npm run migrate           # crea la BD `academico` y las tablas
-npm run seed              # crea usuarios demo
-npm run dev               # arranca en http://localhost:3001
+npm run migrate           # crea la BD `academico` y las tablas (destructivo)
+npm run seed              # crea usuarios demo (idempotente)
+npm run dev               # arranca en http://localhost:3001 (node --watch)
 ```
 
+- `npm run start` — `node index.js`, lo que corre PM2 en producción.
+- `index.js` aborta al arrancar solo si **falta** `JWT_SECRET`; no valida el placeholder de `.env.example` — cámbialo.
+
 ## Usuarios demo
-| Rol         | Email             | Password  |
-|-------------|-------------------|-----------|
-| admin       | admin@demo.com    | admin123  |
-| profesor    | profe@demo.com    | profe123  |
-| estudiante  | alumno@demo.com   | alumno123 |
+| Rol         | Email                   | Password  |
+|-------------|-------------------------|-----------|
+| admin       | admin@sia.edu.co        | admin123  |
+| profesor    | profesor@sia.edu.co     | prof123   |
+| estudiante  | estudiante@sia.edu.co   | est123    |
+| acudiente   | acudiente@sia.edu.co    | acu123    |
+
+## Variables de entorno (`.env`)
+| Variable | Descripción |
+|---|---|
+| `PORT` | Puerto del backend (3001) |
+| `FRONTEND_PORT` | Puerto del frontend (8080) — usado por CORS |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Conexión MySQL (BD `academico`) |
+| `JWT_SECRET` | Clave de firma de tokens (sesión de 8 h). No dejes el placeholder |
+| `GEMINI_API_KEY` | Opcional. Key de Google AI Studio (https://aistudio.google.com/apikey). Sin key, el asistente responde con el motor por palabras clave |
+| `GEMINI_MODEL` | Modelo Gemini (por defecto `gemini-3.5-flash`). Si no existe (404) o hay cuota (429), fallback silencioso al motor por palabras clave |
+| `CORS_ORIGIN` | Orígenes extra separados por coma (localhost e IPs privadas ya se permiten) |
 
 ## Endpoints
-- `POST /api/auth/login`
-- `GET/POST/PUT/DELETE /api/admin/{usuarios|carreras|materias|matriculas}`
-- `GET /api/profesor/materias`, `/materias/:id/alumnos`
-- `PUT /api/profesor/notas/:matricula_id`
-- `POST /api/profesor/asistencia`
-- `GET /api/estudiante/notas`, `/asistencia`
+Todos los endpoints (excepto `/api/auth/*` y `/health`) requieren `Authorization: Bearer <token>` y revalidan el estado del usuario contra la BD en cada petición.
 
-Todos los endpoints (excepto `/auth/login`) requieren header `Authorization: Bearer <token>`.
+- `POST /api/auth/login` — inicio de sesión (devuelve JWT)
+- `/api/admin/*` — usuarios, carreras, materias, grupos, matrículas, acudientes y estadísticas
+- `/api/profesor/*` — `GET /grupos` (grupos asignados al profesor)
+- `/api/notas/*` — registro y consulta de notas por matrícula (profesor, estudiante, acudiente)
+- `/api/asistencia/*` — `POST /registrar`, `GET /grupo/:grupo_id`, excusas (`/excusa`, `/excusa/descargar`), `GET /resumen/estudiante/:estudiante_id`
+- `/api/acudiente/*` — resumen académico de los estudiantes vinculados
+- `/api/tareas/*` — tareas y entregas por grupo/estudiante
+- `/api/calendario/*` — eventos y tareas con fecha
+- `/api/chatbot/*` — `POST /pregunta` (asistente por intención / palabras clave)
+- `/api/chat` — `POST` asistente con IA Gemini (cae a `lib/chatbotEngine.js` si falla)
+- `/api/mensajes/*` — conversaciones internas (`/contactos`, `/conversacion/:usuario_id/:contacto_id`, `/enviar`, `/leidas/...`)
+- `/api/notificaciones/*` — alertas por usuario (`GET /:usuario_id`, `PUT /marcar-leida/:id`, `PUT /marcar-todas/:usuario_id`)
+- `GET /health` — estado del servidor y conexión a MySQL
 
-📋 Requisitos Previos (Lo que debe tener la PC)
-Antes de tocar el código, la computadora donde vayas a correr el proyecto debe tener instalado:
-
-Node.js (Versión LTS recomendada).
-
-MySQL Server (Ya sea mediante XAMPP, WampServer o MySQL Workbench).
-
-Visual Studio Code (O cualquier editor).
-
-🚀 Pasos para Arrancar el Proyecto Desde Cero (En cualquier PC)
-Paso 1: Clonar o Descargar el Proyecto
-Abre la carpeta del proyecto en Visual Studio Code. Verás que tienes la estructura con la carpeta server (backend) y la carpeta src (frontend).
-
-Paso 2: Dejar la Base de Datos Lista
-Abre tu herramienta de MySQL (Workbench o phpMyAdmin de XAMPP).
-
-Crea una base de datos vacía ejecutando:
-
-SQL
-CREATE DATABASE academic_hub;
-Paso 3: Configurar las Variables de Entorno (.env)
-Ve a la carpeta `backend/`.
-
-Si no existe el archivo .env, crea uno nuevo (o copia el .env.example y cámbiale el nombre a .env).
-
-Configura los datos de conexión según la PC actual:
-
-Fragmento de código
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=TU_CONTRASEÑA_DE_MYSQL_AQUÍ  # Si usas XAMPP, déjalo vacío
-DB_NAME=academic_hub
-JWT_SECRET=sena_secret_key_123
-Paso 4: Levantar el Backend (Servidor)
-Abre una terminal en VS Code y muévete a la carpeta del servidor:
-
-Bash
-cd backend
-npm install
-npm run migrate
-npm run seed
-npm run dev
-💡 ¿Qué hace esto? npm install descarga los paquetes, migrate crea automáticamente todas tus tablas en MySQL, seed te inserta los usuarios de prueba (Admin, Profesor, Estudiante) y dev enciende tu API en el puerto 3001.
-
-Paso 5: Levantar el Frontend (Interfaz)
-Abre otra terminal diferente en VS Code y asegúrate de estar en la raíz del proyecto (academic-hub-32):
-
-Bash
-npm install
-npm run dev
-💡 Esto encenderá la interfaz visual en el puerto 8080. ¡Listo! Abres http://localhost:8080 en el navegador y el sistema estará 100% operativo.
+## Documentación
+- `README.md` (raíz) — instalación completa, orden de arranque y cuentas demo.
+- `AGENTS.md` (raíz) — convenciones de código, seguridad y despliegue PM2 + túneles.

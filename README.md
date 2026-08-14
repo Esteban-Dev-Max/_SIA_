@@ -91,7 +91,7 @@
 | **cors + dotenv** | Orígenes permitidos y configuración |
 
 ### Base de datos
-**MySQL 8** — base de datos `academico` con 14 tablas relacionales (ver mapeo completo en [AGENTS.md](AGENTS.md#4-esquema-relacional-de-la-base-de-datos)).
+**MySQL 8** — base de datos `academico` con 14 tablas relacionales (mapeo completo en [AGENTS.md](AGENTS.md)).
 
 ---
 
@@ -114,7 +114,7 @@ SIA/
 │
 ├── frontend/                    # UI React (puerto 8080)
 │   ├── vite.config.ts           # Alias @/, SSR, puerto 0.0.0.0:8080
-│   ├── .env.example             # VITE_API_URL
+│   ├── .env                     # VITE_API_URL (solo SSR, versionado)
 │   └── src/
 │       ├── routes/              # Rutas por archivo (kebab-case)
 │       │   ├── index.tsx        # Landing pública
@@ -163,16 +163,7 @@ JWT_SECRET=cambia_esto_por_una_cadena_larga_y_aleatoria
 
 **Frontend** (opcional — se autoconfigura):
 
-```bash
-cd frontend
-cp .env.example .env
-```
-
-```env
-VITE_API_URL=http://localhost:3001
-```
-
-> En el navegador, el frontend resuelve la API usando el mismo host desde el que se abre la página (ej. `http://192.168.0.164:3001`), para que funcione desde otros dispositivos de la red sin configurar nada más.
+No hay `.env.example` para el frontend: `frontend/.env` (versionado) solo define `VITE_API_URL` para las llamadas **SSR** (usa `http://localhost:3001` en el servidor). En el navegador, `api()` resuelve según el protocolo: sobre **HTTPS** (publicación vía Tailscale Funnel) usa paths relativos `/api/*` (misma-origen, sin CORS); sobre **HTTP** (localhost o IP LAN) usa `window.location.hostname:3001`, así funciona desde otros dispositivos de la red sin configurar nada.
 
 ### 3. Instalación de dependencias
 
@@ -192,7 +183,7 @@ npm install
 
 ```bash
 cd backend
-npm run migrate   # Crea la BD "academico" y las 13 tablas (esquema completo)
+npm run migrate   # Crea la BD "academico" y las 14 tablas (esquema completo)
 npm run seed      # Inserta institución, usuarios demo, materias, grupos, notas, etc.
 ```
 
@@ -222,6 +213,10 @@ Abre **http://localhost:8080** y haz login con cualquiera de las cuentas demo.
 1. Encuentra la IP local de la máquina (`ipconfig` → IPv4, ej. `192.168.0.164`).
 2. Abre desde el celular: `http://192.168.0.164:8080`.
 3. El frontend y el backend se comunican automáticamente por la misma IP (CORS ya lo permite).
+
+### 🌐 Acceso público (Tailscale Funnel)
+
+En el servidor de producción, SIA se publica con **Tailscale Funnel** en una URL estable `https://sia.<tailnet>.ts.net` (sin dominio, HTTPS automático, funciona tras NAT/firewall). El túnel enruta `/` → frontend (8080) y `/api` → backend (3001/api). Se gestiona con `sudo tailscale funnel ...` y persiste entre reinicios. En el navegador sobre HTTPS, `api()` usa paths relativos `/api/*` (misma-origen, sin CORS); en SSR llama a `http://localhost:3001` directo.
 
 ---
 

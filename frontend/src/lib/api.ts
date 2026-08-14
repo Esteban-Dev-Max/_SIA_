@@ -1,6 +1,12 @@
-/** Usa el mismo host que la UI (localhost o IP LAN) para que fetch no apunte a localhost desde otra máquina. */
+/** Resuelve la base de la API:
+ * - Navegador sobre HTTPS (túnel de publicación, p. ej. Tailscale Funnel): usa paths
+ *   relativos /api/* — la puerta de enlace enruta /api/* al backend (misma-origen, sin CORS).
+ * - Navegador sobre HTTP (localhost o IP LAN): usa el mismo host + puerto 3001, para que
+ *   fetch no apunte a localhost desde otra máquina.
+ * - Servidor (SSR): VITE_API_URL o localhost:3001 directo (loopback, sin pasar por el túnel). */
 function resolveApiUrl(): string {
   if (typeof window !== "undefined") {
+    if (window.location.protocol === "https:") return "";
     return `${window.location.protocol}//${window.location.hostname}:3001`;
   }
   return import.meta.env.VITE_API_URL || "http://localhost:3001";
