@@ -26,10 +26,12 @@ Aplicación web full-stack para instituciones educativas: centraliza la gestión
 - La publicación pública la hace **Tailscale Funnel**: URL estable `https://sia.<tailnet>.ts.net` (sin dominio, no cambia al reiniciar). Corre como servicio systemd (NO en PM2). Config: `/` → `http://127.0.0.1:8080` y `/api` → `http://127.0.0.1:3001/api`. Ojo: Funnel **quita el prefijo del path** al enrutar, por eso el target del backend debe incluir `/api`. Se gestiona con `sudo tailscale funnel ...`; persiste entre reinicios.
 - Los antiguos túneles efímeros de Cloudflare (`sia-backend-tunnel`, `sia-frontend-tunnel`) están **detenidos** en PM2; rollback con `pm2 restart`.
 - Resolución de `api()` (`frontend/src/lib/api.ts`): navegador sobre **HTTPS** (Funnel) → paths **relativos** `/api/*` (misma-origen, sin CORS); navegador sobre **HTTP** (localhost/IP LAN) → `window.location.hostname:3001`; **SSR** → `VITE_API_URL` (ahora `http://localhost:3001`, loopback directo).
+- **Seguridad del despliegue público**: Funnel no tiene muro de autenticación (a diferencia de Cloudflare Access) — la URL expone la app a internet. Las cuentas del seed son **dev-only**: en producción se **rotan sus contraseñas** (no quedan como `admin123`). `/api/chat` y `/api/chatbot/pregunta` tienen límite por usuario (15 req/min, in-memory). Para un muro de acceso real se requiere un reverse proxy con basic auth o Cloudflare Access (necesita dominio).
 
 ## Chatbot / IA (Gemini)
 - `POST /api/chat` (`routes/chat.js`) llama a Gemini con `@google/generative-ai`; si no hay `GEMINI_API_KEY` o la llamada falla (404/429/timeout), **cae silenciosamente** al motor por palabras clave (`lib/chatbotEngine.js`) — nunca responde 500. Un modelo inválido o una key mala se notan como respuestas "de robot", sin error visible.
 - El modelo se configura con `GEMINI_MODEL` (por defecto `gemini-3.5-flash`). Si lo cambias, verifica que exista para tu cuenta: 404 = modelo no disponible.
+- Tanto `/api/chat` como `/api/chatbot/pregunta` aplican `crearLimitePeticiones()` (`lib/rateLimit.js`) — 15 req/min por usuario+IP, in-memory.
 
 ## Convenciones
 - Backend **ESM**: usa extensiones `.js` explícitas en los imports relativos (p. ej. `import { pool } from "../db.js"`).

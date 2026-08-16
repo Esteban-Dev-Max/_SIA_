@@ -3,10 +3,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { crearLimitePeticiones } from "../lib/rateLimit.js";
 import { detectarIntento, personalizar } from "../lib/chatbotEngine.js";
 
 const r = Router();
 r.use(verifyToken);
+r.use(crearLimitePeticiones());
 
 const MAX_PREGUNTA = 500;
 const TIMEOUT_MS = 30000;

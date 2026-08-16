@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { crearLimitePeticiones } from "../lib/rateLimit.js";
 import { detectarIntento, personalizar } from "../lib/chatbotEngine.js";
 
 const r = Router();
 r.use(verifyToken);
+r.use(crearLimitePeticiones());
 
 // Punto de entrada del asistente con respuestas por intención. La ruta de IA
 // (`POST /api/chat`) reutiliza este motor como respaldo cuando la IA no está

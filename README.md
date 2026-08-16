@@ -222,7 +222,9 @@ En el servidor de producción, SIA se publica con **Tailscale Funnel** en una UR
 
 ## 🔑 Cuentas Demo de Prueba
 
-| Rol | Email | Contraseña | Panel |
+> ⚠️ **Solo para desarrollo local.** En un despliegue público las contraseñas por defecto del seed deben **rotarse** (no quedan con estos valores). La URL pública (`https://sia.<tailnet>.ts.net`) usa cuentas con contraseñas aleatorias que no están en este documento.
+
+| Rol | Email | Contraseña (dev) | Panel |
 |---|---|---|---|
 | 👑 Administrador | `admin@sia.edu.co` | `admin123` | `/admin` |
 | 👨‍🏫 Profesor | `profesor@sia.edu.co` | `prof123` | `/profesor` |

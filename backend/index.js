@@ -34,12 +34,29 @@ const extraOrigins = (process.env.CORS_ORIGIN ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+// Orígenes derivados del Host de cada petición: cuando la UI y la API se sirven
+// por la misma URL pública (p. ej. Tailscale Funnel: `/` para la UI y `/api`
+// para la API), el navegador manda el header `Origin` en los POST aunque sean
+// misma-origen, y ese origen no es ni localhost ni una IP privada. Aquí se
+// permite cualquier origen cuyo host coincida con el Host de la petición (la
+// propia URL pública), sin necesidad de hardcodear el dominio.
+const dynamicOrigins = new Set();
+
+app.use((req, _res, next) => {
+  const host = req.headers.host;
+  if (host && typeof host === "string") {
+    dynamicOrigins.add(`https://${host}`);
+    dynamicOrigins.add(`http://${host}`);
+  }
+  next();
+});
 
 app.use(
   cors({
     origin(origin, callback) {
       if (!origin) return callback(null, true);
-      if (extraOrigins.includes(origin)) return callback(null, true);
+      if (extraOrigins.includes(origin) || dynamicOrigins.has(origin))
+        return callback(null, true);
       if (isLanOrigin(origin, FRONTEND_PORT)) return callback(null, true);
       const e = new Error(`CORS bloqueado para origen: ${origin}`);
       e.status = 403;

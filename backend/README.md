@@ -38,7 +38,9 @@ npm run dev               # arranca en http://localhost:3001 (node --watch)
 - `index.js` aborta al arrancar solo si **falta** `JWT_SECRET`; no valida el placeholder de `.env.example` — cámbialo.
 
 ## Usuarios demo
-| Rol         | Email                   | Password  |
+> ⚠️ **Solo para desarrollo local.** En producción se rotan estas contraseñas; no quedan con los valores del seed.
+
+| Rol         | Email                   | Password (dev) |
 |-------------|-------------------------|-----------|
 | admin       | admin@sia.edu.co        | admin123  |
 | profesor    | profesor@sia.edu.co     | prof123   |
