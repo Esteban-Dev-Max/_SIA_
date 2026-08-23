@@ -306,6 +306,61 @@ r.post("/registrar", asyncHandler(async (req, res) => {
   res.json({ ok: true, fecha, guardados: registros.length });
 }));
 
+// Resumen histórico consolidado de asistencia por estudiante para un grupo.
+// Usa la misma semántica que /resumen/estudiante: fallas = ausentes + tardes,
+// porcentaje sobre registros con estado (excluye fechas sin marcar).
+r.get("/resumen/grupo/:grupo_id", asyncHandler(async (req, res) => {
+  const grupoId = parseId(req.params.grupo_id);
+  if (!grupoId) return res.status(400).json({ error: "ID inválido" });
+  if (!(await puedeVerGrupo(req, res, grupoId))) return;
+  const [rows] = await pool.query(
+    `SELECT u.id AS estudiante_id, u.nombre_completo AS estudiante,
+            u.correo, u.foto_url,
+            COALESCE(a.estado, 'sin_registro') AS estado, COUNT(*) AS total
+     FROM matriculas mat
+     JOIN usuarios u ON u.id = mat.estudiante_id
+     LEFT JOIN asistencia a ON a.matricula_id = mat.id
+     WHERE mat.grupo_id = ?
+     GROUP BY u.id, u.nombre_completo, u.correo, u.foto_url, a.estado
+     ORDER BY u.nombre_completo`,
+    [grupoId],
+  );
+
+  const map = new Map();
+  for (const row of rows) {
+    if (!map.has(row.estudiante_id)) {
+      map.set(row.estudiante_id, {
+        estudiante_id: row.estudiante_id,
+        estudiante: row.estudiante,
+        correo: row.correo,
+        foto_url: row.foto_url,
+        presentes: 0,
+        ausentes: 0,
+        tardes: 0,
+        excusas: 0,
+        total: 0,
+      });
+    }
+    const e = map.get(row.estudiante_id);
+    if (row.estado === "presente") e.presentes += row.total;
+    else if (row.estado === "ausente") e.ausentes += row.total;
+    else if (row.estado === "tarde") e.tardes += row.total;
+    else if (row.estado === "excusa") e.excusas += row.total;
+  }
+
+  const estudiantes = [...map.values()].map((e) => {
+    const registrados = e.presentes + e.ausentes + e.tardes + e.excusas;
+    e.total = registrados;
+    return {
+      ...e,
+      fallas: e.ausentes + e.tardes,
+      porcentaje: registrados > 0 ? Math.round((e.presentes / registrados) * 100) : null,
+    };
+  });
+
+  res.json({ estudiantes });
+}));
+
 // Resumen global de asistencia y fallas por materia de un estudiante.
 // Un profesor solo ve las materias que dicta a ese estudiante (sin fuga entre
 // materias/carreras); admin y el propio estudiante ven el histórico completo.

@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { AsistenciaTab } from "@/components/AsistenciaTab";
+import { HistorialAsistenciaTab } from "@/components/HistorialAsistenciaTab";
 import {
+  BarChart3,
   BookOpen,
   CalendarClock,
   CalendarDays,
@@ -67,7 +69,7 @@ const CAMPOS_NOTA = [
   { key: "examen_final", label: "Examen (30%)" },
 ] as const;
 
-const TABS_PROFESOR = ["inicio", "planilla", "asistencia"] as const;
+const TABS_PROFESOR = ["inicio", "planilla", "asistencia", "resumen-asistencia"] as const;
 
 function calcDefinitiva(
   a: number | null,
@@ -235,6 +237,10 @@ function ProfesorPanel() {
         <TabsTrigger value="asistencia" className="gap-1.5 px-4 py-2 rounded-lg">
           <CalendarDays className="h-4 w-4" />
           Toma de Asistencia
+        </TabsTrigger>
+        <TabsTrigger value="resumen-asistencia" className="gap-1.5 px-4 py-2 rounded-lg">
+          <BarChart3 className="h-4 w-4" />
+          Resumen de Asistencia
         </TabsTrigger>
       </TabsList>
 
@@ -439,6 +445,12 @@ function ProfesorPanel() {
       <TabsContent value="asistencia">
         <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
         <AsistenciaTab sel={sel} />
+      </TabsContent>
+
+      {/* Resumen histórico de asistencia por estudiante */}
+      <TabsContent value="resumen-asistencia">
+        <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
+        <HistorialAsistenciaTab sel={sel} />
       </TabsContent>
     </Tabs>
   );
