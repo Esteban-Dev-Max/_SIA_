@@ -71,17 +71,74 @@ const CAMPOS_NOTA = [
 
 const TABS_PROFESOR = ["inicio", "planilla", "asistencia", "resumen-asistencia"] as const;
 
-function calcDefinitiva(
-  a: number | null,
-  b: number | null,
-  c: number | null,
-  d: number | null,
-): number | null {
+const NOTA_MIN = 1;
+const NOTA_MAX = 5;
+
+type CampoNota = "nota_1" | "nota_2" | "nota_3" | "examen_final";
+
+// Fila de la planilla en la UI: las notas se guardan como texto crudo (lo que
+// digita el profesor, aceptando punto o coma) y los números se derivan al
+// calcular la definitiva o al guardar.
+type FilaPlanilla = Omit<FilaNota, CampoNota> & Record<CampoNota, string>;
+
+/** Sanitiza mientras se escribe: coma→punto, solo dígitos y un separador,
+ * máx 2 decimales y tope inmediato en NOTA_MAX (p. ej. 50, 500 o 10 → 5).
+ * Los negativos se descartan por completo. */
+function filtrarNota(raw: string): string {
+  if (raw.includes("-")) return "";
+  let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
+  const i = s.indexOf(".");
+  if (i !== -1) {
+    s =
+      s.slice(0, i + 1) +
+      s
+        .slice(i + 1)
+        .replace(/\./g, "")
+        .slice(0, 2);
+  }
+  s = s.replace(/^0+(?=\d)/, "");
+  if (s && Number(s.replace(/\.$/, "")) > NOTA_MAX) {
+    s = String(NOTA_MAX);
+  }
+  return s;
+}
+
+/** Texto → número; null si está vacío o es inválido (p. ej. "." a secas). */
+function notaDeTexto(texto: string): number | null {
+  const t = texto.trim();
+  if (!t || t === ".") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Vacío cuenta como válido (permite limpiar una nota); lo demás debe estar en rango. */
+function notaValida(texto: string): boolean {
+  const n = notaDeTexto(texto);
+  return n === null || (n >= NOTA_MIN && n <= NOTA_MAX);
+}
+
+function filaATexto(f: FilaNota): FilaPlanilla {
+  return {
+    ...f,
+    nota_1: f.nota_1?.toString() ?? "",
+    nota_2: f.nota_2?.toString() ?? "",
+    nota_3: f.nota_3?.toString() ?? "",
+    examen_final: f.examen_final?.toString() ?? "",
+  };
+}
+
+function calcDefinitiva(...campos: string[]): number | null {
   // Mismo criterio que el backend (lib/notas.js): la definitiva solo se
-  // muestra/cuenta cuando las 4 notas están completas.
-  if (a == null || b == null || c == null || d == null) return null;
+  // muestra/cuenta cuando las 4 notas están completas y en rango [1, 5].
+  const notas: number[] = [];
+  for (const t of campos) {
+    const n = notaDeTexto(t);
+    if (n === null || n < NOTA_MIN || n > NOTA_MAX) return null;
+    notas.push(n);
+  }
   // Epsilon para que coincida con lib/notas.js del backend (3.975 -> 3.98).
-  return Math.round((a * 0.25 + b * 0.25 + c * 0.2 + d * 0.3 + 1e-9) * 100) / 100;
+  const total = notas[0] * 0.25 + notas[1] * 0.25 + notas[2] * 0.2 + notas[3] * 0.3;
+  return Math.round((total + 1e-9) * 100) / 100;
 }
 
 function GrupoSelector({
@@ -145,7 +202,7 @@ function ProfesorPanel() {
   const [tab, setTab] = useHashTab(TABS_PROFESOR, "inicio");
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [sel, setSel] = useState<number | null>(null);
-  const [planilla, setPlanilla] = useState<FilaNota[]>([]);
+  const [planilla, setPlanilla] = useState<FilaPlanilla[]>([]);
   const [guardando, setGuardando] = useState<number | null>(null);
   const [cargandoPlanilla, setCargandoPlanilla] = useState(false);
 
@@ -164,7 +221,7 @@ function ProfesorPanel() {
     setCargandoPlanilla(true);
     api<FilaNota[]>(`/api/notas/grupo/${sel}`)
       .then((d) => {
-        if (activo) setPlanilla(d);
+        if (activo) setPlanilla(d.map(filaATexto));
       })
       .catch((err) => {
         if (activo) toast.error(err instanceof Error ? err.message : "Error al cargar planilla");
@@ -180,29 +237,43 @@ function ProfesorPanel() {
   const totalAlumnos = grupos.reduce((s, g) => s + g.alumnos, 0);
   const materiasUnicas = new Set(grupos.map((g) => g.materia)).size;
 
-  function actualizarNota(
-    id: number,
-    campo: "nota_1" | "nota_2" | "nota_3" | "examen_final",
-    valor: string,
-  ) {
-    setPlanilla((prev) =>
-      prev.map((f) =>
-        f.matricula_id === id ? { ...f, [campo]: valor === "" ? null : Number(valor) } : f,
-      ),
-    );
+  function actualizarNota(id: number, campo: CampoNota, valor: string) {
+    setPlanilla((prev) => prev.map((f) => (f.matricula_id === id ? { ...f, [campo]: valor } : f)));
   }
 
-  async function guardarNota(f: FilaNota) {
+  // Al salir del campo: ajusta al rango válido (500→5, 0.3→1), canoniza el
+  // separador a punto y limpia los textos que no se pueden interpretar.
+  function normalizarNotaAlSalir(id: number, campo: CampoNota, valor: string) {
+    let texto = valor.trim();
+    const n = notaDeTexto(texto);
+    if (texto && n === null) {
+      texto = "";
+    } else if (n !== null) {
+      const ajustada = Math.min(NOTA_MAX, Math.max(NOTA_MIN, Math.round(n * 100) / 100));
+      texto = String(ajustada);
+    }
+    setPlanilla((prev) => prev.map((f) => (f.matricula_id === id ? { ...f, [campo]: texto } : f)));
+  }
+
+  async function guardarNota(f: FilaPlanilla) {
+    // Validar antes de enviar: un campo inválido no puede viajar como null,
+    // porque el upsert del backend borraría la nota ya guardada.
+    for (const c of CAMPOS_NOTA) {
+      if (!notaValida(f[c.key])) {
+        toast.error(`Las notas deben estar entre ${NOTA_MIN} y ${NOTA_MAX}, con máx. 2 decimales`);
+        return;
+      }
+    }
     setGuardando(f.matricula_id);
     try {
       const res = await api<{ nota_definitiva: number | null }>("/api/notas/guardar", {
         method: "POST",
         body: JSON.stringify({
           matricula_id: f.matricula_id,
-          nota_1: f.nota_1,
-          nota_2: f.nota_2,
-          nota_3: f.nota_3,
-          examen_final: f.examen_final,
+          nota_1: notaDeTexto(f.nota_1),
+          nota_2: notaDeTexto(f.nota_2),
+          nota_3: notaDeTexto(f.nota_3),
+          examen_final: notaDeTexto(f.examen_final),
           observaciones: f.observaciones,
         }),
       });
@@ -370,21 +441,39 @@ function ProfesorPanel() {
                           <div className="font-medium">{f.estudiante}</div>
                           <div className="text-xs text-muted-foreground">{f.correo}</div>
                         </TableCell>
-                        {CAMPOS_NOTA.map((c) => (
-                          <TableCell key={c.key} className="px-4 py-3">
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min={0}
-                              max={5}
-                              value={f[c.key] ?? ""}
-                              onChange={(e) =>
-                                actualizarNota(f.matricula_id, c.key, e.target.value)
-                              }
-                              className="w-20 h-9 rounded-lg border-border/60 text-center text-sm font-medium focus-visible:ring-primary/30"
-                            />
-                          </TableCell>
-                        ))}
+                        {CAMPOS_NOTA.map((c) => {
+                          const invalida = !notaValida(f[c.key]);
+                          return (
+                            <TableCell key={c.key} className="px-4 py-3">
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9]+([.,][0-9]{1,2})?"
+                                min={NOTA_MIN}
+                                max={NOTA_MAX}
+                                step="0.1"
+                                aria-invalid={invalida}
+                                title={
+                                  invalida
+                                    ? `Debe estar entre ${NOTA_MIN}.0 y ${NOTA_MAX}.0`
+                                    : undefined
+                                }
+                                value={f[c.key]}
+                                onChange={(e) =>
+                                  actualizarNota(f.matricula_id, c.key, filtrarNota(e.target.value))
+                                }
+                                onBlur={(e) =>
+                                  normalizarNotaAlSalir(f.matricula_id, c.key, e.target.value)
+                                }
+                                className={cn(
+                                  "w-20 h-9 rounded-lg border-border/60 text-center text-sm font-medium focus-visible:ring-primary/30",
+                                  invalida &&
+                                    "border-rose-400 bg-rose-500/5 focus-visible:ring-rose-300",
+                                )}
+                              />
+                            </TableCell>
+                          );
+                        })}
                         <TableCell className="px-4 py-3">
                           <Badge
                             variant="outline"

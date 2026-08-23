@@ -3,7 +3,7 @@ import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { notificar } from "../lib/notificar.js";
-import { calcularDefinitiva, normalizarNumero } from "../lib/notas.js";
+import { calcularDefinitiva } from "../lib/notas.js";
 
 const r = Router();
 r.use(verifyToken);
@@ -11,6 +11,14 @@ r.use(verifyToken);
 function parseId(value) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+// Vacío/null = sin nota. Un valor no numérico devuelve NaN (se rechaza con 400
+// y no se silencia como null, para no borrar una nota ya guardada por error).
+function limpiarNota(v) {
+  if (v === "" || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
 }
 
 // Un admin todo lo puede. Un profesor solo sobre estudiantes a los que dicta
@@ -132,16 +140,16 @@ r.post(
       if (!m) return res.status(403).json({ error: "No autorizado" });
     }
 
-    const a = normalizarNumero(nota_1);
-    const b = normalizarNumero(nota_2);
-    const c = normalizarNumero(nota_3);
-    const d = normalizarNumero(examen_final);
+    const a = limpiarNota(nota_1);
+    const b = limpiarNota(nota_2);
+    const c = limpiarNota(nota_3);
+    const d = limpiarNota(examen_final);
     const enRango = (v) =>
-      v === null || (typeof v === "number" && v >= 0 && v <= 5);
+      v === null || (Number.isFinite(v) && v >= 1 && v <= 5);
     if (![a, b, c, d].every(enRango)) {
       return res
         .status(400)
-        .json({ error: "Las notas deben estar entre 0 y 5" });
+        .json({ error: "Las notas deben estar entre 1 y 5" });
     }
     const observacionFinal =
       typeof observaciones === "string" && observaciones.trim()
