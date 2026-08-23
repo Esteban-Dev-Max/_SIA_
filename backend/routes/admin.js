@@ -241,13 +241,24 @@ r.put(
     const { nombre, codigo } = req.body;
     if (!nombre || !codigo)
       return res.status(400).json({ error: "Faltan datos" });
-    const [result] = await pool.query(
-      "UPDATE carreras_grados SET nombre = ?, codigo = ? WHERE id = ?",
-      [nombre.trim(), codigo.trim(), id],
+    try {
+      await pool.query(
+        "UPDATE carreras_grados SET nombre = ?, codigo = ? WHERE id = ?",
+        [nombre.trim(), codigo.trim(), id],
+      );
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY")
+        return res.status(400).json({ error: "El código ya existe" });
+      throw e;
+    }
+    // Se devuelve la entidad actualizada (y 404 si no existe, en lugar de
+    // confiar en affectedRows que da 0 cuando los valores no cambian).
+    const [[row]] = await pool.query(
+      "SELECT id, nombre, codigo FROM carreras_grados WHERE id = ?",
+      [id],
     );
-    if (result.affectedRows === 0)
-      return res.status(404).json({ error: "Carrera no encontrada" });
-    res.json({ ok: true });
+    if (!row) return res.status(404).json({ error: "Carrera no encontrada" });
+    res.json(row);
   }),
 );
 
@@ -313,19 +324,32 @@ r.put(
     const { nombre, codigo, creditos, carrera_id } = req.body;
     if (!nombre || !codigo)
       return res.status(400).json({ error: "Faltan datos" });
-    const [result] = await pool.query(
-      `UPDATE materias SET nombre = ?, codigo = ?, creditos = ?, carrera_id = ? WHERE id = ?`,
-      [
-        nombre.trim(),
-        codigo.trim().toUpperCase(),
-        Number(creditos) || 0,
-        carrera_id ? Number(carrera_id) : null,
-        id,
-      ],
+    try {
+      await pool.query(
+        `UPDATE materias SET nombre = ?, codigo = ?, creditos = ?, carrera_id = ? WHERE id = ?`,
+        [
+          nombre.trim(),
+          codigo.trim().toUpperCase(),
+          Number(creditos) || 0,
+          carrera_id ? Number(carrera_id) : null,
+          id,
+        ],
+      );
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY")
+        return res.status(400).json({ error: "El código ya existe" });
+      throw e;
+    }
+    // Entidad actualizada (con el nombre de carrera resuelto).
+    const [[row]] = await pool.query(
+      `SELECT m.id, m.nombre, m.codigo, m.creditos, m.carrera_id, c.nombre AS carrera_nombre
+       FROM materias m
+       LEFT JOIN carreras_grados c ON c.id = m.carrera_id
+       WHERE m.id = ?`,
+      [id],
     );
-    if (result.affectedRows === 0)
-      return res.status(404).json({ error: "Materia no encontrada" });
-    res.json({ ok: true });
+    if (!row) return res.status(404).json({ error: "Materia no encontrada" });
+    res.json(row);
   }),
 );
 
@@ -348,7 +372,7 @@ r.get(
   "/grupos",
   asyncHandler(async (_req, res) => {
     const [rows] = await pool.query(
-      `SELECT g.id, g.codigo_grupo, g.periodo, g.horario,
+      `SELECT g.id, g.materia_id, g.codigo_grupo, g.periodo, g.horario,
             m.nombre AS materia, m.codigo AS materia_codigo,
             u.id AS profesor_id, u.nombre_completo AS profesor,
             (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = g.id) AS alumnos
@@ -401,6 +425,63 @@ r.post(
       [materiaId, codigo, profesorId, String(periodo), horario ?? null],
     );
     res.json({ ok: true, id: result.insertId });
+  }),
+);
+
+// Edita un grupo (ficha/código, profesor, periodo y horario). La materia no se
+// toca: cambiarla reasignaría el histórico de notas/asistencia de los matriculados.
+r.put(
+  "/grupos/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const { codigo_grupo, profesor_id, periodo, horario } = req.body;
+    const profesorId = parseId(profesor_id);
+    const codigo = typeof codigo_grupo === "string" ? codigo_grupo.trim() : "";
+    if (!profesorId || !codigo || !periodo) {
+      return res
+        .status(400)
+        .json({ error: "Faltan datos (código/ficha del grupo obligatorio)" });
+    }
+    const [[grupo]] = await pool.query(
+      "SELECT id, materia_id FROM grupos WHERE id = ?",
+      [id],
+    );
+    if (!grupo) return res.status(404).json({ error: "Grupo no encontrado" });
+    const [[prof]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'profesor'",
+      [profesorId],
+    );
+    if (!prof) return res.status(400).json({ error: "El profesor no existe" });
+    // Misma unicidad del POST (materia + código/ficha + periodo), excluyendo el propio grupo.
+    const [[dupG]] = await pool.query(
+      `SELECT id FROM grupos
+       WHERE materia_id = ? AND LOWER(codigo_grupo) = LOWER(?) AND periodo = ? AND id <> ?`,
+      [grupo.materia_id, codigo, String(periodo), id],
+    );
+    if (dupG) {
+      return res.status(400).json({
+        error:
+          "Ya existe un grupo con ese código/ficha y periodo para la materia",
+      });
+    }
+    await pool.query(
+      "UPDATE grupos SET codigo_grupo = ?, profesor_id = ?, periodo = ?, horario = ? WHERE id = ?",
+      [codigo, profesorId, String(periodo), horario ?? null, id],
+    );
+    // Entidad actualizada con el mismo formato del GET.
+    const [[row]] = await pool.query(
+      `SELECT g.id, g.materia_id, g.codigo_grupo, g.periodo, g.horario,
+              m.nombre AS materia, m.codigo AS materia_codigo,
+              u.id AS profesor_id, u.nombre_completo AS profesor,
+              (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = g.id) AS alumnos
+       FROM grupos g
+       JOIN materias m ON m.id = g.materia_id
+       LEFT JOIN usuarios u ON u.id = g.profesor_id
+       WHERE g.id = ?`,
+      [id],
+    );
+    res.json(row);
   }),
 );
 
@@ -505,6 +586,82 @@ r.post(
   }),
 );
 
+// Edita una matrícula (grupo/sección y fecha opcional). El estudiante no se
+// toca: cambiarlo transferiría notas/asistencia registradas en la matrícula.
+r.put(
+  "/matriculas/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const { grupo_id, fecha_matricula } = req.body;
+    const grupoId = parseId(grupo_id);
+    if (!grupoId) return res.status(400).json({ error: "Faltan datos" });
+    if (fecha_matricula != null && fecha_matricula !== "") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha_matricula))) {
+        return res.status(400).json({ error: "Fecha inválida" });
+      }
+    }
+    const [[mat]] = await pool.query(
+      "SELECT id, estudiante_id FROM matriculas WHERE id = ?",
+      [id],
+    );
+    if (!mat) return res.status(404).json({ error: "Matrícula no encontrada" });
+    const [[grp]] = await pool.query(
+      "SELECT id, materia_id, horario FROM grupos WHERE id = ?",
+      [grupoId],
+    );
+    if (!grp) return res.status(400).json({ error: "El grupo no existe" });
+    // Mismas reglas del POST (materia duplicada y choque de horarios),
+    // excluyendo la propia matrícula y el grupo destino de la comparación.
+    const [previos] = await pool.query(
+      `SELECT g.id, g.codigo_grupo AS grupo, g.horario, g.materia_id, m.nombre AS materia
+       FROM matriculas mat
+       JOIN grupos g ON g.id = mat.grupo_id
+       JOIN materias m ON m.id = g.materia_id
+       WHERE mat.estudiante_id = ? AND mat.id <> ? AND g.id <> ?`,
+      [mat.estudiante_id, id, grupoId],
+    );
+    const duplicada = previos.find((p) => p.materia_id === grp.materia_id);
+    if (duplicada) {
+      return res.status(400).json({
+        error: `El estudiante ya está matriculado en otra sección de ${duplicada.materia} (ficha ${duplicada.grupo})`,
+      });
+    }
+    for (const p of previos) {
+      if (hayChoqueHorarios(grp.horario, p.horario)) {
+        return res.status(400).json({
+          error: `El horario del grupo choca con ${p.materia} (ficha ${p.grupo})`,
+        });
+      }
+    }
+    try {
+      await pool.query(
+        "UPDATE matriculas SET grupo_id = ?, fecha_matricula = COALESCE(?, fecha_matricula) WHERE id = ?",
+        [grupoId, fecha_matricula || null, id],
+      );
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        return res
+          .status(400)
+          .json({ error: "El estudiante ya está matriculado en ese grupo" });
+      }
+      throw e;
+    }
+    // Entidad actualizada con el mismo formato del GET.
+    const [[row]] = await pool.query(
+      `SELECT mat.id, mat.estudiante_id, u.nombre_completo AS estudiante, u.correo,
+              g.id AS grupo_id, g.codigo_grupo, m.nombre AS materia, g.periodo, mat.fecha_matricula
+       FROM matriculas mat
+       JOIN usuarios u ON u.id = mat.estudiante_id
+       JOIN grupos g ON g.id = mat.grupo_id
+       JOIN materias m ON m.id = g.materia_id
+       WHERE mat.id = ?`,
+      [id],
+    );
+    res.json(row);
+  }),
+);
+
 r.delete(
   "/matriculas/:id",
   asyncHandler(async (req, res) => {
@@ -598,6 +755,57 @@ r.post(
         return res.status(400).json({ error: "Ya están vinculados" });
       throw e;
     }
+  }),
+);
+
+// Edita una vinculación acudiente-estudiante (cambia cualquiera de los dos).
+r.put(
+  "/vincular-acudiente/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "ID inválido" });
+    const { acudiente_id, estudiante_id } = req.body;
+    const acudienteId = parseId(acudiente_id);
+    const estudianteIdV = parseId(estudiante_id);
+    if (!acudienteId || !estudianteIdV)
+      return res.status(400).json({ error: "Faltan datos" });
+    const [[vin]] = await pool.query(
+      "SELECT id FROM acudiente_estudiante WHERE id = ?",
+      [id],
+    );
+    if (!vin)
+      return res.status(404).json({ error: "Vinculación no encontrada" });
+    const [[acu]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'acudiente'",
+      [acudienteId],
+    );
+    if (!acu) return res.status(400).json({ error: "El acudiente no existe" });
+    const [[est]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'estudiante'",
+      [estudianteIdV],
+    );
+    if (!est) return res.status(400).json({ error: "El estudiante no existe" });
+    try {
+      await pool.query(
+        "UPDATE acudiente_estudiante SET acudiente_id = ?, estudiante_id = ? WHERE id = ?",
+        [acudienteId, estudianteIdV, id],
+      );
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY")
+        return res.status(400).json({ error: "Ya están vinculados" });
+      throw e;
+    }
+    // Entidad actualizada con el mismo formato del GET.
+    const [[row]] = await pool.query(
+      `SELECT ae.id, ae.acudiente_id, ua.nombre_completo AS acudiente, ua.correo AS acudiente_correo,
+              ae.estudiante_id, ue.nombre_completo AS estudiante, ue.correo AS estudiante_correo
+       FROM acudiente_estudiante ae
+       JOIN usuarios ua ON ua.id = ae.acudiente_id
+       JOIN usuarios ue ON ue.id = ae.estudiante_id
+       WHERE ae.id = ?`,
+      [id],
+    );
+    res.json(row);
   }),
 );
 
