@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { clearSession, getUser, type AuthUser, type Rol } from "@/lib/api";
+import { clearSession, getUser, urlRecurso, type AuthUser, type Rol } from "@/lib/api";
 import { useEffect, useState, type ReactNode } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -276,7 +276,7 @@ export function PanelShell({ title, children }: { title: string; children: React
                 >
                   <Avatar className="size-8 rounded-lg border border-border/60">
                     {user?.foto_url ? (
-                      <AvatarImage src={user.foto_url} alt={user.nombre} />
+                      <AvatarImage src={urlRecurso(user.foto_url)} alt={user.nombre} />
                     ) : (
                       <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary/15 to-violet-500/15 text-primary text-xs font-bold">
                         {user ? initials(user.nombre) : "U"}

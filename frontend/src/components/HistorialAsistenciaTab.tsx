@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, BarChart3, CalendarCheck, Clock, Inbox, Loader2 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, urlRecurso } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,7 +160,7 @@ export function HistorialAsistenciaTab({ sel }: { sel: number | null }) {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border border-border/60">
                             {f.foto_url ? (
-                              <AvatarImage src={f.foto_url} alt={f.estudiante} />
+                              <AvatarImage src={urlRecurso(f.foto_url)} alt={f.estudiante} />
                             ) : null}
                             <AvatarFallback className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 text-emerald-700 text-xs font-semibold">
                               {iniciales(f.estudiante)}

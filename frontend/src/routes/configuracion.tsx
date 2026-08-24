@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { requireRole } from "@/lib/guard";
-import { getUser, api } from "@/lib/api";
+import { getUser, api, urlRecurso } from "@/lib/api";
 import { useTheme } from "@/hooks/use-theme";
 import type { Theme } from "@/lib/theme";
 import { PanelShell } from "@/components/PanelShell";
@@ -286,7 +286,7 @@ function ConfiguracionPage() {
                 <div className="mb-6 flex items-center gap-4">
                   <Avatar className="size-16 rounded-2xl border border-border/60 shadow-sm">
                     {user?.foto_url ? (
-                      <AvatarImage src={user.foto_url} alt={user.nombre} />
+                      <AvatarImage src={urlRecurso(user.foto_url)} alt={user.nombre} />
                     ) : (
                       <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary/15 to-violet-500/15 text-primary text-lg font-bold">
                         {user ? initials(user.nombre) : "U"}

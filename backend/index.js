@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "node:path";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import profesorRoutes from "./routes/profesor.js";
@@ -71,6 +72,15 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 // Alias bajo /api/*: cuando se publica por un túnel con enrutado de path /api -> backend,
 // el health check debe estar accesible también ahí.
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Avatares públicos (solo esa carpeta): uploads/excusas contiene documentos de
+// estudiantes y se sirve únicamente por su endpoint autenticado. Se monta en
+// /uploads/avatars (acceso directo en dev) y en /api/uploads/avatars porque es
+// la ruta que atraviesa el túnel de publicación (/api -> backend).
+const CARPETA_AVATARES = path.join(process.cwd(), "uploads", "avatars");
+app.use("/uploads/avatars", express.static(CARPETA_AVATARES));
+app.use("/api/uploads/avatars", express.static(CARPETA_AVATARES));
+
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/profesor", profesorRoutes);

@@ -1,5 +1,10 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import multer from "multer";
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { pool } from "../db.js";
 import { verifyToken, requireRole } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -9,6 +14,71 @@ const r = Router();
 r.use(verifyToken, requireRole("admin"));
 
 const ROLES = ["admin", "profesor", "estudiante", "acudiente"];
+
+// ---------- Avatares de usuarios ----------
+const MIME_AVATAR = ["image/jpeg", "image/png", "image/webp"];
+const CARPETA_AVATARES = path.join(process.cwd(), "uploads", "avatars");
+mkdirSync(CARPETA_AVATARES, { recursive: true });
+
+const storageAvatar = multer.diskStorage({
+  destination(_req, _file, cb) {
+    cb(null, CARPETA_AVATARES);
+  },
+  filename(_req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+
+const uploadAvatar = multer({
+  storage: storageAvatar,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    if (MIME_AVATAR.includes(file.mimetype)) return cb(null, true);
+    const err = new Error("La foto debe ser JPG, PNG o WEBP");
+    err.status = 400;
+    cb(err);
+  },
+});
+
+// Envuelve multer para traducir sus errores a respuestas 4xx en español.
+function subirAvatar(req, res, next) {
+  uploadAvatar.single("foto")(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res
+          .status(400)
+          .json({ error: "La foto supera el tamaño máximo permitido (3 MB)" });
+      }
+      return res.status(err.status ?? 400).json({
+        error: err.message || "Error al subir la foto",
+      });
+    }
+    next();
+  });
+}
+
+function rutaDiscoAvatar(nombre) {
+  if (!nombre || typeof nombre !== "string") return null;
+  return path.join(CARPETA_AVATARES, path.basename(nombre));
+}
+
+async function eliminarAvatar(fotoUrl) {
+  // foto_url se guarda como "/api/uploads/avatars/<archivo>"; extrae el nombre.
+  const nombre = typeof fotoUrl === "string" ? fotoUrl.split("/").pop() : null;
+  const ruta = rutaDiscoAvatar(nombre);
+  if (!ruta || !nombre) return;
+  try {
+    await unlink(ruta);
+  } catch (err) {
+    if (err.code !== "ENOENT") console.error("No se pudo eliminar el avatar:", err.message);
+  }
+}
+
+/** foto_url a almacenar para esta petición (null si no subieron archivo). */
+function urlAvatarDeReq(req) {
+  return req.file ? `/api/uploads/avatars/${req.file.filename}` : null;
+}
 
 function parseId(value) {
   const n = Number(value);
@@ -89,6 +159,7 @@ r.get(
 
 r.post(
   "/usuarios",
+  subirAvatar,
   asyncHandler(async (req, res) => {
     const { nombre_completo, correo, password, rol, foto_url } = req.body;
     if (
@@ -119,7 +190,7 @@ r.post(
           correo.trim().toLowerCase(),
           hash,
           rol,
-          foto_url ?? null,
+          urlAvatarDeReq(req) ?? foto_url ?? null,
         ],
       );
       res.json({ ok: true, id: result.insertId });
@@ -134,11 +205,11 @@ r.post(
 
 r.put(
   "/usuarios/:id",
+  subirAvatar,
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "ID inválido" });
-    const { nombre_completo, correo, rol, estado, password, foto_url } =
-      req.body;
+    const { nombre_completo, correo, rol, estado, password } = req.body;
     if (estado !== undefined && !["activo", "inactivo"].includes(estado)) {
       return res.status(400).json({ error: "Estado inválido" });
     }
@@ -162,9 +233,23 @@ r.put(
       sets.push("estado = ?");
       params.push(estado);
     }
-    if (foto_url !== undefined) {
+    // Foto de perfil: reemplazo por archivo nuevo o quitado explícito
+    // (quitar_foto="true" llega como texto cuando el cuerpo es multipart).
+    const avatarNuevo = urlAvatarDeReq(req);
+    const quitaFoto = !req.file && req.body.quitar_foto === "true";
+    let avatarAnterior = null;
+    if (avatarNuevo || quitaFoto) {
+      const [[prev]] = await pool.query(
+        "SELECT foto_url FROM usuarios WHERE id = ?",
+        [id],
+      );
+      avatarAnterior = prev?.foto_url ?? null;
+    }
+    if (avatarNuevo) {
       sets.push("foto_url = ?");
-      params.push(foto_url || null);
+      params.push(avatarNuevo);
+    } else if (quitaFoto) {
+      sets.push("foto_url = NULL");
     }
     if (password) {
       if (typeof password !== "string") {
@@ -188,9 +273,14 @@ r.put(
       );
     } catch (e) {
       if (e.code === "ER_DUP_ENTRY") {
+        // No se aplicó el cambio: descarta el archivo recién subido para no dejar huérfanos.
+        if (avatarNuevo) await eliminarAvatar(avatarNuevo);
         return res.status(400).json({ error: "El correo ya está registrado" });
       }
       throw e;
+    }
+    if ((avatarNuevo || quitaFoto) && avatarAnterior) {
+      await eliminarAvatar(avatarAnterior);
     }
     res.json({ ok: true });
   }),

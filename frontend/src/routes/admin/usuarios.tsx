@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, urlRecurso } from "@/lib/api";
 import { DataTable } from "@/components/DataTable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Pencil, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Loader2, Upload, X, Check } from "lucide-react";
 
 export const Route = createFileRoute("/admin/usuarios")({
   component: AdminUsuarios,
@@ -60,6 +61,39 @@ const emptyForm = {
   rol: "estudiante" as Usuario["rol"],
 };
 
+function iniciales(nombre: string): string {
+  return nombre
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function AvatarUsuario({
+  fotoUrl,
+  nombre,
+  className,
+}: {
+  fotoUrl: string | null;
+  nombre: string;
+  className?: string;
+}) {
+  return (
+    <Avatar
+      className={cn(
+        "h-9 w-9 rounded-full border border-border/60 bg-gradient-to-br from-primary/10 to-violet-500/10",
+        className,
+      )}
+    >
+      {fotoUrl ? <AvatarImage src={urlRecurso(fotoUrl)} alt={nombre} /> : null}
+      <AvatarFallback className="rounded-full text-xs font-semibold">
+        {iniciales(nombre)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 function AdminUsuarios() {
   const [items, setItems] = useState<Usuario[]>([]);
   const [rol, setRol] = useState("");
@@ -69,6 +103,10 @@ function AdminUsuarios() {
   const [editando, setEditando] = useState<Usuario | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  // foto de perfil: archivo elegido + vista previa + marca de "quitada"
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fotoEliminada, setFotoEliminada] = useState(false);
 
   const genRef = useRef(0);
 
@@ -96,41 +134,62 @@ function AdminUsuarios() {
     return () => clearTimeout(t);
   }, [load]);
 
+  function liberarVistaPrevia() {
+    if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+  }
+
   function abrirCrear() {
+    liberarVistaPrevia();
     setEditando(null);
     setForm(emptyForm);
+    setArchivo(null);
+    setPreviewUrl(null);
+    setFotoEliminada(false);
     setOpen(true);
   }
 
   function abrirEditar(u: Usuario) {
+    liberarVistaPrevia();
     setEditando(u);
     setForm({ nombre_completo: u.nombre_completo, correo: u.correo, password: "", rol: u.rol });
+    setArchivo(null);
+    setPreviewUrl(u.foto_url ? urlRecurso(u.foto_url) : null);
+    setFotoEliminada(false);
     setOpen(true);
+  }
+
+  function elegirArchivo(f: File | null) {
+    liberarVistaPrevia();
+    setArchivo(f);
+    setPreviewUrl(f ? URL.createObjectURL(f) : null);
+    setFotoEliminada(false);
+  }
+
+  function quitarFoto() {
+    liberarVistaPrevia();
+    setArchivo(null);
+    setPreviewUrl(null);
+    setFotoEliminada(!!editando?.foto_url);
   }
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
+    if (!editando && !form.password) return;
     setGuardando(true);
     try {
-      if (editando) {
-        const body: Record<string, unknown> = {
-          nombre_completo: form.nombre_completo,
-          correo: form.correo,
-          rol: form.rol,
-        };
-        if (form.password) body.password = form.password;
-        await api(`/api/admin/usuarios/${editando.id}`, {
-          method: "PUT",
-          body: JSON.stringify(body),
-        });
-        toast.success("Usuario actualizado");
-      } else {
-        await api("/api/admin/usuarios", {
-          method: "POST",
-          body: JSON.stringify(form),
-        });
-        toast.success("Usuario creado");
-      }
+      // Siempre FormData: el backend usa multer y así la foto viaja en el mismo request.
+      const data = new FormData();
+      data.append("nombre_completo", form.nombre_completo);
+      data.append("correo", form.correo);
+      data.append("rol", form.rol);
+      if (!editando || form.password) data.append("password", form.password);
+      if (archivo) data.append("foto", archivo);
+      else if (fotoEliminada) data.append("quitar_foto", "true");
+      await api(editando ? `/api/admin/usuarios/${editando.id}` : "/api/admin/usuarios", {
+        method: editando ? "PUT" : "POST",
+        body: data,
+      });
+      toast.success(editando ? "Usuario actualizado" : "Usuario creado");
       setOpen(false);
       load();
     } catch (err) {
@@ -198,9 +257,10 @@ function AdminUsuarios() {
         headers={["ID", "Nombre", "Correo", "Rol", "Estado", "Acciones"]}
         rows={items.map((u) => [
           u.id,
-          <span key="n" className="font-medium">
-            {u.nombre_completo}
-          </span>,
+          <div key="n" className="flex items-center gap-3">
+            <AvatarUsuario fotoUrl={u.foto_url} nombre={u.nombre_completo} />
+            <span className="font-medium">{u.nombre_completo}</span>
+          </div>,
           u.correo,
           <Badge
             key="r"
@@ -250,6 +310,57 @@ function AdminUsuarios() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={guardar} className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 shrink-0 rounded-2xl border border-border/60">
+                {previewUrl ? <AvatarImage src={previewUrl} alt={form.nombre_completo} /> : null}
+                <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary/15 to-violet-500/15 text-lg font-bold">
+                  {form.nombre_completo ? iniciales(form.nombre_completo) : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Label htmlFor="foto" className="sr-only">
+                  Foto de perfil
+                </Label>
+                <label
+                  htmlFor="foto"
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 border-dashed border-border/70 bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/60 hover:bg-muted/50",
+                    archivo && "border-primary/60 bg-primary/5 text-foreground",
+                  )}
+                >
+                  {archivo ? (
+                    <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <Upload className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {archivo ? archivo.name : "Subir foto — JPG · PNG · WEBP · 3 MB"}
+                  </span>
+                </label>
+                <Input
+                  id="foto"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(e) => {
+                    elegirArchivo(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+                {(archivo || fotoEliminada || (editando?.foto_url && previewUrl)) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+                    onClick={quitarFoto}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Quitar foto
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="nombre">Nombre completo</Label>
               <Input

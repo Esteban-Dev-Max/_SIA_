@@ -14,6 +14,15 @@ function resolveApiUrl(): string {
 
 const API_URL = resolveApiUrl();
 
+/** Resuelve la URL pública de un recurso estático del backend (p. ej. un avatar
+ * guardado como "/api/uploads/avatars/x.jpg") según el mismo criterio de
+ * resolveApiUrl: relativo en HTTPS, host:3001 en HTTP LAN y VITE_API_URL en SSR. */
+export function urlRecurso(path: string | null | undefined): string {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_URL}${path}`;
+}
+
 export type Rol = "admin" | "profesor" | "estudiante" | "acudiente";
 export interface AuthUser {
   id: number;

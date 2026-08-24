@@ -16,7 +16,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { api, descargarArchivo, vistaArchivo } from "@/lib/api";
+import { api, descargarArchivo, vistaArchivo, urlRecurso } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -324,7 +324,7 @@ export function AsistenciaTab({ sel }: { sel: number | null }) {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border border-border/60">
                             {reg.foto_url ? (
-                              <AvatarImage src={reg.foto_url} alt={reg.estudiante} />
+                              <AvatarImage src={urlRecurso(reg.foto_url)} alt={reg.estudiante} />
                             ) : null}
                             <AvatarFallback className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 text-emerald-700 text-xs font-semibold">
                               {iniciales(reg.estudiante)}
