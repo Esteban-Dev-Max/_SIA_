@@ -79,7 +79,17 @@ async function eliminarArchivo(nombre) {
 }
 
 async function puedeVerGrupo(req, res, grupoId) {
-  if (req.user.rol === "admin") return true;
+  if (req.user.rol === "admin") {
+    const [[g]] = await pool.query(
+      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+      [grupoId, req.user.institucion_id],
+    );
+    if (!g) {
+      res.status(403).json({ error: "No autorizado" });
+      return false;
+    }
+    return true;
+  }
   const [[g]] = await pool.query(
     "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
     [grupoId, req.user.id],
@@ -92,8 +102,18 @@ async function puedeVerGrupo(req, res, grupoId) {
 }
 
 async function puedeVerEstudiante(req, res, estudianteId) {
-  const { rol, id } = req.user;
-  if (rol === "admin") return true;
+  const { rol, id, institucion_id } = req.user;
+  if (rol === "admin") {
+    const [[est]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND institucion_id = ?",
+      [estudianteId, institucion_id],
+    );
+    if (!est) {
+      res.status(403).json({ error: "No autorizado" });
+      return false;
+    }
+    return true;
+  }
   if (rol === "estudiante") {
     if (id !== estudianteId) {
       res.status(403).json({ error: "No autorizado" });
@@ -154,14 +174,18 @@ r.post("/excusa", subirArchivo, asyncHandler(async (req, res) => {
       : null;
 
   const [[mat]] = await pool.query(
-    `SELECT m.id, g.profesor_id
+    `SELECT m.id, m.institucion_id, g.profesor_id
      FROM matriculas m
      JOIN grupos g ON g.id = m.grupo_id
      WHERE m.id = ?`,
     [matriculaId],
   );
   if (!mat) return res.status(404).json({ error: "Matrícula no encontrada" });
-  if (req.user.rol !== "admin" && mat.profesor_id !== req.user.id) {
+  if (req.user.rol === "admin") {
+    if (mat.institucion_id !== req.user.institucion_id) {
+      return res.status(403).json({ error: "No autorizado" });
+    }
+  } else if (mat.profesor_id !== req.user.id) {
     return res.status(403).json({ error: "No autorizado" });
   }
 
@@ -206,7 +230,7 @@ r.get("/excusa/descargar", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Parámetros inválidos" });
   }
   const [[a]] = await pool.query(
-    `SELECT a.archivo_ruta, a.archivo_nombre, g.profesor_id
+    `SELECT a.archivo_ruta, a.archivo_nombre, m.institucion_id, g.profesor_id
      FROM asistencia a
      JOIN matriculas m ON m.id = a.matricula_id
      JOIN grupos g ON g.id = m.grupo_id
@@ -214,7 +238,11 @@ r.get("/excusa/descargar", asyncHandler(async (req, res) => {
     [matriculaId, fecha],
   );
   if (!a?.archivo_ruta) return res.status(404).json({ error: "No hay excusa adjunta" });
-  if (req.user.rol !== "admin" && a.profesor_id !== req.user.id) {
+  if (req.user.rol === "admin") {
+    if (a.institucion_id !== req.user.institucion_id) {
+      return res.status(403).json({ error: "No autorizado" });
+    }
+  } else if (a.profesor_id !== req.user.id) {
     return res.status(403).json({ error: "No autorizado" });
   }
   const ruta = rutaDisco(a.archivo_ruta);
@@ -236,7 +264,13 @@ r.post("/registrar", asyncHandler(async (req, res) => {
   if (!fechaValida(fecha)) {
     return res.status(400).json({ error: "Fecha inválida" });
   }
-  if (req.user.rol !== "admin") {
+  if (req.user.rol === "admin") {
+    const [[g]] = await pool.query(
+      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+      [grupoId, req.user.institucion_id],
+    );
+    if (!g) return res.status(403).json({ error: "No autorizado" });
+  } else {
     const [[g]] = await pool.query(
       "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
       [grupoId, req.user.id],

@@ -4,6 +4,7 @@ import { getUser, type Rol } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 const dashboards: Record<Rol, string> = {
+  superadmin: "/admin/instituciones",
   admin: "/admin",
   profesor: "/profesor",
   estudiante: "/estudiante",

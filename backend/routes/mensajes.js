@@ -14,8 +14,11 @@ function parseId(value) {
 
 // El usuario solo puede ver sus propias conversaciones (o un admin cualquiera).
 async function puedeAcceder(req, res, usuarioId) {
-  if (req.user.rol === "admin") return true;
   if (req.user.id === usuarioId) return true;
+  if (req.user.rol === "admin") {
+    const [[u]] = await pool.query("SELECT institucion_id FROM usuarios WHERE id = ?", [usuarioId]);
+    if (u && u.institucion_id === req.user.institucion_id) return true;
+  }
   res.status(403).json({ error: "Prohibido" });
   return false;
 }
@@ -84,6 +87,10 @@ r.get("/contactos", asyncHandler(async (req, res) => {
   const { q } = req.query;
   const params = [req.user.id];
   let where = "u.estado = 'activo' AND u.id <> ?";
+  if (req.user.institucion_id) {
+    where += " AND u.institucion_id = ?";
+    params.push(req.user.institucion_id);
+  }
   if (q && String(q).trim()) {
     where += " AND (u.nombre_completo LIKE ? OR u.correo LIKE ?)";
     const term = `%${String(q).trim()}%`;
@@ -117,15 +124,18 @@ r.post("/enviar", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "No puedes enviarte mensajes a ti mismo" });
   }
   const [[dest]] = await pool.query(
-    "SELECT id, nombre_completo FROM usuarios WHERE id = ? AND estado = 'activo'",
+    "SELECT id, nombre_completo, institucion_id FROM usuarios WHERE id = ? AND estado = 'activo'",
     [destinatarioId],
   );
   if (!dest) return res.status(404).json({ error: "Destinatario no encontrado" });
+  if (req.user.institucion_id && dest.institucion_id !== req.user.institucion_id) {
+    return res.status(403).json({ error: "No puedes enviar mensajes a usuarios de otra institución" });
+  }
 
   const [result] = await pool.query(
-    `INSERT INTO mensajes (remitente_id, destinatario_id, contenido, leido)
-     VALUES (?, ?, ?, 0)`,
-    [req.user.id, destinatarioId, contenido.trim()],
+    `INSERT INTO mensajes (remitente_id, destinatario_id, contenido, leido, institucion_id)
+     VALUES (?, ?, ?, 0, ?)`,
+    [req.user.id, destinatarioId, contenido.trim(), req.user.institucion_id],
   );
 
   await notificar(

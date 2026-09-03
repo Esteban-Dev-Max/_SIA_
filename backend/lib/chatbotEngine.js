@@ -318,10 +318,17 @@ async function personalizar(intento, req) {
   }
 
   if (intento === "reunion") {
+    const evConds = ["tipo = 'reunion'", "fecha_inicio >= NOW()"];
+    const evParams = [];
+    if (rol === "admin" && req.user.institucion_id) {
+      evConds.push("institucion_id = ?");
+      evParams.push(req.user.institucion_id);
+    }
     const [eventos] = await pool.query(
       `SELECT titulo, fecha_inicio, fecha_fin FROM eventos_calendario
-       WHERE tipo = 'reunion' AND fecha_inicio >= NOW()
+       WHERE ${evConds.join(" AND ")}
        ORDER BY fecha_inicio LIMIT 5`,
+      evParams,
     );
     if (eventos.length > 0) {
       const lista = eventos
@@ -342,10 +349,17 @@ async function personalizar(intento, req) {
   }
 
   if (intento === "examenes") {
+    const evConds = ["tipo = 'evaluacion'", "fecha_inicio >= NOW()"];
+    const evParams = [];
+    if (rol === "admin" && req.user.institucion_id) {
+      evConds.push("institucion_id = ?");
+      evParams.push(req.user.institucion_id);
+    }
     const [eventos] = await pool.query(
       `SELECT titulo, fecha_inicio FROM eventos_calendario
-       WHERE tipo = 'evaluacion' AND fecha_inicio >= NOW()
+       WHERE ${evConds.join(" AND ")}
        ORDER BY fecha_inicio LIMIT 5`,
+      evParams,
     );
     if (eventos.length > 0) {
       const lista = eventos
@@ -366,8 +380,15 @@ async function personalizar(intento, req) {
   }
 
   if (intento === "calendario") {
+    const evConds = ["fecha_inicio >= NOW()"];
+    const evParams = [];
+    if (rol === "admin" && req.user.institucion_id) {
+      evConds.push("institucion_id = ?");
+      evParams.push(req.user.institucion_id);
+    }
     const [[n]] = await pool.query(
-      "SELECT COUNT(*) AS n FROM eventos_calendario WHERE fecha_inicio >= NOW()",
+      `SELECT COUNT(*) AS n FROM eventos_calendario WHERE ${evConds.join(" AND ")}`,
+      evParams,
     );
     return {
       texto: `En el Calendario encuentras tus tareas y los eventos académicos. Hay ${n} eventos programados. Usa las vistas mensual o semanal y los colores por tipo de evento.`,

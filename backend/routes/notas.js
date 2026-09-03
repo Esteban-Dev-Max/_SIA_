@@ -24,8 +24,18 @@ function limpiarNota(v) {
 // Un admin todo lo puede. Un profesor solo sobre estudiantes a los que dicta
 // clase y un estudiante únicamente sobre su propio perfil.
 async function puedeVerEstudiante(req, res, estudianteId) {
-  const { rol, id } = req.user;
-  if (rol === "admin") return true;
+  const { rol, id, institucion_id } = req.user;
+  if (rol === "admin") {
+    const [[est]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND institucion_id = ?",
+      [estudianteId, institucion_id],
+    );
+    if (!est) {
+      res.status(403).json({ error: "No autorizado" });
+      return false;
+    }
+    return true;
+  }
   if (rol === "estudiante") {
     if (id !== estudianteId) {
       res.status(403).json({ error: "No autorizado" });
@@ -52,7 +62,17 @@ async function puedeVerEstudiante(req, res, estudianteId) {
 }
 
 async function puedeVerGrupo(req, res, grupoId) {
-  if (req.user.rol === "admin") return true;
+  if (req.user.rol === "admin") {
+    const [[g]] = await pool.query(
+      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+      [grupoId, req.user.institucion_id],
+    );
+    if (!g) {
+      res.status(403).json({ error: "No autorizado" });
+      return false;
+    }
+    return true;
+  }
   const [[g]] = await pool.query(
     "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
     [grupoId, req.user.id],
@@ -130,7 +150,13 @@ r.post(
     } = req.body;
     const matriculaId = parseId(matricula_id);
     if (!matriculaId) return res.status(400).json({ error: "Faltan datos" });
-    if (req.user.rol !== "admin") {
+    if (req.user.rol === "admin") {
+      const [[m]] = await pool.query(
+        "SELECT id FROM matriculas WHERE id = ? AND institucion_id = ?",
+        [matriculaId, req.user.institucion_id],
+      );
+      if (!m) return res.status(403).json({ error: "No autorizado" });
+    } else {
       const [[m]] = await pool.query(
         `SELECT mat.id FROM matriculas mat
        JOIN grupos g ON g.id = mat.grupo_id

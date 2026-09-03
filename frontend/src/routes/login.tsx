@@ -20,6 +20,7 @@ import {
   User,
   ShieldCheck,
   HeartHandshake,
+  Crown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/login")({
 });
 
 const dashboards: Record<Rol, string> = {
+  superadmin: "/admin/instituciones",
   admin: "/admin",
   profesor: "/profesor",
   estudiante: "/estudiante",
@@ -36,6 +38,14 @@ const dashboards: Record<Rol, string> = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const demoAccounts = [
+  {
+    rol: "Super Admin",
+    email: "superadmin@sia.edu.co",
+    pass: "superadmin123",
+    icon: Crown,
+    color: "text-fuchsia-600",
+    bg: "bg-fuchsia-50 dark:bg-fuchsia-500/10",
+  },
   {
     rol: "Admin",
     email: "admin@sia.edu.co",

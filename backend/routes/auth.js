@@ -35,7 +35,10 @@ r.post(
     }
 
     const [rows] = await pool.query(
-      "SELECT * FROM usuarios WHERE correo = ? AND estado = 'activo'",
+      `SELECT u.*, i.logo_url AS institucion_logo
+       FROM usuarios u
+       LEFT JOIN instituciones i ON i.id = u.institucion_id
+       WHERE u.correo = ? AND u.estado = 'activo'`,
       [email],
     );
     const u = rows[0];
@@ -53,6 +56,8 @@ r.post(
         nombre: u.nombre_completo,
         correo: u.correo,
         foto_url: u.foto_url,
+        institucion_id: u.institucion_id,
+        institucion_logo: u.institucion_logo,
       },
       process.env.JWT_SECRET,
       { expiresIn: "8h" },
@@ -65,6 +70,8 @@ r.post(
         correo: u.correo,
         rol: u.rol,
         foto_url: u.foto_url,
+        institucion_id: u.institucion_id,
+        institucion_logo: u.institucion_logo,
       },
     });
   }),
@@ -75,8 +82,10 @@ r.get(
   verifyToken,
   asyncHandler(async (req, res) => {
     const [rows] = await pool.query(
-      `SELECT id, nombre_completo, correo, rol, foto_url, estado
-       FROM usuarios WHERE id = ?`,
+      `SELECT u.id, u.nombre_completo, u.correo, u.rol, u.foto_url, u.estado, i.logo_url AS institucion_logo
+       FROM usuarios u
+       LEFT JOIN instituciones i ON i.id = u.institucion_id
+       WHERE u.id = ?`,
       [req.user.id],
     );
     const u = rows[0];
@@ -87,6 +96,7 @@ r.get(
       correo: u.correo,
       rol: u.rol,
       foto_url: u.foto_url,
+      institucion_logo: u.institucion_logo,
     });
   }),
 );

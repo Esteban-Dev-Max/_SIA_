@@ -10,6 +10,7 @@ import { calcularDefinitiva } from "./lib/notas.js";
 // ---------------------------------------------------------------------------
 
 const DEMO_USERS = [
+  { nombre_completo: "Super Admin SIA", correo: "superadmin@sia.edu.co", password: "superadmin123", rol: "superadmin", institucion_id: null },
   { nombre_completo: "Administrador SIA", correo: "admin@sia.edu.co", password: "admin123", rol: "admin" },
   { nombre_completo: "Profesor Demo", correo: "profesor@sia.edu.co", password: "prof123", rol: "profesor" },
   { nombre_completo: "Estudiante Demo", correo: "estudiante@sia.edu.co", password: "est123", rol: "estudiante" },
@@ -43,16 +44,19 @@ async function main() {
   );
 
   // 3) Usuarios demo (contraseñas encriptadas con bcrypt).
+  // El superadmin NO pertenece a ninguna institución (institucion_id = NULL);
+  // el resto de usuarios se vincula a la institución demo.
   const userIds = {};
   for (const u of DEMO_USERS) {
     const hash = await bcrypt.hash(u.password, 10);
+    const instId = u.rol === "superadmin" ? null : institucionId;
     userIds[u.rol] = await insert(
-      `INSERT INTO usuarios (nombre_completo, correo, \`password\`, rol, estado)
-       VALUES (?, ?, ?, ?, 'activo')`,
-      [u.nombre_completo, u.correo, hash, u.rol],
+      `INSERT INTO usuarios (nombre_completo, correo, \`password\`, rol, estado, institucion_id)
+       VALUES (?, ?, ?, ?, 'activo', ?)`,
+      [u.nombre_completo, u.correo, hash, u.rol, instId],
     );
   }
-  log("OK", "4 usuarios demo creados con bcrypt");
+  log("OK", "5 usuarios demo creados con bcrypt");
 
   // 4) Relación acudiente -> estudiante.
   await insert(
@@ -62,50 +66,50 @@ async function main() {
 
   // 5) Carreras / grados.
   const ingSoftId = await insert(
-    `INSERT INTO carreras_grados (nombre, codigo) VALUES (?, ?)`,
-    ["Ingeniería de Software", "ING-SOFT"],
+    `INSERT INTO carreras_grados (nombre, codigo, institucion_id) VALUES (?, ?, ?)`,
+    ["Ingeniería de Software", "ING-SOFT", institucionId],
   );
   const tecSolId = await insert(
-    `INSERT INTO carreras_grados (nombre, codigo) VALUES (?, ?)`,
-    ["Técnico en Soluciones TI", "TEC-SOL"],
+    `INSERT INTO carreras_grados (nombre, codigo, institucion_id) VALUES (?, ?, ?)`,
+    ["Técnico en Soluciones TI", "TEC-SOL", institucionId],
   );
 
   // 6) Materias.
   const matSis101 = await insert(
-    `INSERT INTO materias (nombre, codigo, creditos, carrera_id) VALUES (?, ?, ?, ?)`,
-    ["Sistemas de Información", "SIS-101", 3, ingSoftId],
+    `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+    ["Sistemas de Información", "SIS-101", 3, ingSoftId, institucionId],
   );
   const matFund = await insert(
-    `INSERT INTO materias (nombre, codigo, creditos, carrera_id) VALUES (?, ?, ?, ?)`,
-    ["Fundamentos de Programación", "SIS-201", 3, ingSoftId],
+    `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+    ["Fundamentos de Programación", "SIS-201", 3, ingSoftId, institucionId],
   );
   const matWeb = await insert(
-    `INSERT INTO materias (nombre, codigo, creditos, carrera_id) VALUES (?, ?, ?, ?)`,
-    ["Desarrollo Web", "SIS-301", 3, tecSolId],
+    `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+    ["Desarrollo Web", "SIS-301", 3, tecSolId, institucionId],
   );
 
   // 7) Grupos (materia + código/ficha + profesor + periodo).
   const grupo101Id = await insert(
-    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)`,
-    [matSis101, "1003", userIds.profesor, "2026-1", "Lun y Mie 7:00 - 9:00"],
+    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario, institucion_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [matSis101, "1003", userIds.profesor, "2026-1", "Lun y Mie 7:00 - 9:00", institucionId],
   );
   const grupo201Id = await insert(
-    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)`,
-    [matFund, "801", userIds.profesor, "2026-1", "Mar y Jue 9:00 - 11:00"],
+    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario, institucion_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [matFund, "801", userIds.profesor, "2026-1", "Mar y Jue 9:00 - 11:00", institucionId],
   );
   const grupoWebId = await insert(
-    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario) VALUES (?, ?, ?, ?, ?)`,
-    [matWeb, "250123", userIds.profesor, "2026-1", "Vie 14:00 - 18:00"],
+    `INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario, institucion_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [matWeb, "250123", userIds.profesor, "2026-1", "Vie 14:00 - 18:00", institucionId],
   );
 
   // 8) Matrículas del estudiante demo.
   const matricula101 = await insert(
-    `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula) VALUES (?, ?, ?)`,
-    [userIds.estudiante, grupo101Id, "2026-01-20"],
+    `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula, institucion_id) VALUES (?, ?, ?, ?)`,
+    [userIds.estudiante, grupo101Id, "2026-01-20", institucionId],
   );
   const matricula201 = await insert(
-    `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula) VALUES (?, ?, ?)`,
-    [userIds.estudiante, grupo201Id, "2026-01-20"],
+    `INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula, institucion_id) VALUES (?, ?, ?, ?)`,
+    [userIds.estudiante, grupo201Id, "2026-01-20", institucionId],
   );
 
   // 9) Notas (ponderación única definida en lib/notas.js).
@@ -152,9 +156,9 @@ async function main() {
 
   // 11) Tareas y entrega de ejemplo.
   const tareaId = await insert(
-    `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max)
-     VALUES (?, ?, ?, ?, ?)`,
-    [grupo101Id, "Taller 1: Modelo relacional", "Diseñar el modelo entidad-relación del sistema", "2026-02-28 23:59:00", 10],
+    `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max, institucion_id)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [grupo101Id, "Taller 1: Modelo relacional", "Diseñar el modelo entidad-relación del sistema", "2026-02-28 23:59:00", 10, institucionId],
   );
   await insert(
     `INSERT INTO entregas_tareas (tarea_id, estudiante_id, archivo_url, calificacion, comentario)
@@ -164,33 +168,33 @@ async function main() {
 
   // 12) Evento de calendario de ejemplo.
   await insert(
-    `INSERT INTO eventos_calendario (titulo, descripcion, fecha_inicio, fecha_fin, tipo, curso_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    ["Parcial de Sistemas de Información", "Evaluación del primer corte", "2026-03-15 07:00:00", "2026-03-15 09:00:00", "evaluacion", ingSoftId],
+    `INSERT INTO eventos_calendario (titulo, descripcion, fecha_inicio, fecha_fin, tipo, curso_id, institucion_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ["Parcial de Sistemas de Información", "Evaluación del primer corte", "2026-03-15 07:00:00", "2026-03-15 09:00:00", "evaluacion", ingSoftId, institucionId],
   );
 
   // 13) Mensaje de ejemplo acudiente -> estudiante.
   await insert(
-    `INSERT INTO mensajes (remitente_id, destinatario_id, contenido, leido) VALUES (?, ?, ?, ?)`,
-    [userIds.acudiente, userIds.estudiante, "Hijo, ya revisé tus notas del primer corte. Felicitaciones.", 0],
+    `INSERT INTO mensajes (remitente_id, destinatario_id, contenido, leido, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+    [userIds.acudiente, userIds.estudiante, "Hijo, ya revisé tus notas del primer corte. Felicitaciones.", 0, institucionId],
   );
   await insert(
-    `INSERT INTO mensajes (remitente_id, destinatario_id, contenido, leido) VALUES (?, ?, ?, ?)`,
-    [userIds.profesor, userIds.estudiante, "Te espero en la tutoría del jueves para repasar el examen.", 0],
+    `INSERT INTO mensajes (remitente_id, destinatario_id, contenido, leido, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+    [userIds.profesor, userIds.estudiante, "Te espero en la tutoría del jueves para repasar el examen.", 0, institucionId],
   );
 
   // 14) Notificaciones demo para el estudiante.
   await insert(
-    `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, leida) VALUES (?, ?, ?, ?, ?)`,
-    [userIds.estudiante, "Nueva calificación", "Tu nota de Sistemas de Información se publicó: 4.0", "nota", 0],
+    `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, leida, institucion_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [userIds.estudiante, "Nueva calificación", "Tu nota de Sistemas de Información se publicó: 4.0", "nota", 0, institucionId],
   );
   await insert(
-    `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, leida) VALUES (?, ?, ?, ?, ?)`,
-    [userIds.estudiante, "Tarea próxima a vencer", "Taller 1: Modelo relacional vence el 28 de febrero", "tarea", 0],
+    `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, leida, institucion_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [userIds.estudiante, "Tarea próxima a vencer", "Taller 1: Modelo relacional vence el 28 de febrero", "tarea", 0, institucionId],
   );
   await insert(
-    `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, leida) VALUES (?, ?, ?, ?, ?)`,
-    [userIds.profesor, "Nuevo mensaje", "Recibiste un mensaje de un acudiente", "mensaje", 0],
+    `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, leida, institucion_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [userIds.profesor, "Nuevo mensaje", "Recibiste un mensaje de un acudiente", "mensaje", 0, institucionId],
   );
 
   console.log("---");

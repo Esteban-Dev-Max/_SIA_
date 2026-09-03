@@ -19,7 +19,10 @@ export async function verifyToken(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     const [[u]] = await pool.query(
-      "SELECT id, rol, estado FROM usuarios WHERE id = ?",
+      `SELECT u.id, u.rol, u.estado, u.institucion_id, i.logo_url AS institucion_logo
+       FROM usuarios u
+       LEFT JOIN instituciones i ON i.id = u.institucion_id
+       WHERE u.id = ?`,
       [payload.id],
     );
     if (!u) return res.status(401).json({ error: "Token inválido" });
@@ -34,7 +37,7 @@ export async function verifyToken(req, res, next) {
         .json({ error: "Tu rol cambió. Inicia sesión de nuevo." });
     }
 
-    req.user = { ...payload, rol: u.rol };
+    req.user = { ...payload, rol: u.rol, institucion_id: u.institucion_id, institucion_logo: u.institucion_logo };
     next();
   } catch (e) {
     if (e.name === "JsonWebTokenError" || e.name === "TokenExpiredError") {

@@ -23,13 +23,15 @@ export function urlRecurso(path: string | null | undefined): string {
   return `${API_URL}${path}`;
 }
 
-export type Rol = "admin" | "profesor" | "estudiante" | "acudiente";
+export type Rol = "superadmin" | "admin" | "profesor" | "estudiante" | "acudiente";
 export interface AuthUser {
   id: number;
   nombre: string;
   correo: string;
   rol: Rol;
   foto_url: string | null;
+  institucion_id: number | null;
+  institucion_logo: string | null;
 }
 
 export function getToken(): string | null {

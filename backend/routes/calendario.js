@@ -47,6 +47,9 @@ r.get(
       } else if (rol === "profesor") {
         conds.push("g.profesor_id = ?");
         p.push(id);
+      } else if (rol === "admin" && req.user.institucion_id) {
+        conds.push("g.institucion_id = ?");
+        p.push(req.user.institucion_id);
       }
       if (desde) {
         conds.push("t.fecha_entrega >= ?");
@@ -64,6 +67,10 @@ r.get(
 
     const evConds = [];
     const evParams = [];
+    if (req.user.institucion_id) {
+      evConds.push("institucion_id = ?");
+      evParams.push(req.user.institucion_id);
+    }
     if (desde) {
       evConds.push("fecha_inicio >= ?");
       evParams.push(`${desde} 00:00:00`);
@@ -141,9 +148,9 @@ r.post(
     }
 
     const [result] = await pool.query(
-      `INSERT INTO eventos_calendario (titulo, descripcion, fecha_inicio, fecha_fin, tipo, curso_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-      [titulo.trim(), descripcion ?? null, inicio, fin, t, cursoId],
+      `INSERT INTO eventos_calendario (titulo, descripcion, fecha_inicio, fecha_fin, tipo, curso_id, institucion_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [titulo.trim(), descripcion ?? null, inicio, fin, t, cursoId, req.user.institucion_id],
     );
     res.json({ ok: true, id: result.insertId });
   }),

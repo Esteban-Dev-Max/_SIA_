@@ -15,13 +15,19 @@ function parseId(value) {
 r.get(
   "/estudiantes",
   asyncHandler(async (req, res) => {
+    const params = [req.user.id];
+    let filterInst = "";
+    if (req.user.institucion_id) {
+      filterInst = " AND u.institucion_id = ?";
+      params.push(req.user.institucion_id);
+    }
     const [rows] = await pool.query(
       `SELECT u.id AS estudiante_id, u.nombre_completo AS estudiante, u.correo
        FROM acudiente_estudiante ae
        JOIN usuarios u ON u.id = ae.estudiante_id
-       WHERE ae.acudiente_id = ? AND u.estado = 'activo'
+       WHERE ae.acudiente_id = ? AND u.estado = 'activo'${filterInst}
        ORDER BY u.nombre_completo`,
-      [req.user.id],
+      params,
     );
     res.json(rows);
   }),

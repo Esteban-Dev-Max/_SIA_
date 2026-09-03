@@ -4,10 +4,13 @@ import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 dotenv.config();
 
-const sql = fs.readFileSync(
-  path.join(process.cwd(), "migrations", "001_init.sql"),
-  "utf8",
-);
+const leer = (file) =>
+  fs.readFileSync(path.join(process.cwd(), "migrations", file), "utf8");
+
+// Migraciones en orden. 001 crea el esquema base, 002 aplica el soporte
+// multi-tenant (institucion_id, rol superadmin, estado en instituciones),
+// 003 agrega logo_url a instituciones para branding multi-tenant.
+const migraciones = ["001_init.sql", "002_multi_tenant.sql", "003_institucion_logo.sql"];
 
 const conn = await mysql.createConnection({
   host: process.env.DB_HOST || "127.0.0.1",
@@ -17,6 +20,10 @@ const conn = await mysql.createConnection({
   multipleStatements: true,
 });
 
-await conn.query(sql);
+for (const file of migraciones) {
+  const sql = leer(file);
+  await conn.query(sql);
+  console.log(`Aplicada: ${file}`);
+}
 console.log("Migración aplicada.");
 await conn.end();

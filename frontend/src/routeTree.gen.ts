@@ -25,6 +25,7 @@ import { Route as AcudienteIndexRouteImport } from './routes/acudiente/index'
 import { Route as ProfesorTareasRouteImport } from './routes/profesor/tareas'
 import { Route as EstudianteTareasRouteImport } from './routes/estudiante/tareas'
 import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
+import { Route as AdminInstitucionesRouteImport } from './routes/admin/instituciones'
 import { Route as AdminAcademicoRouteImport } from './routes/admin/academico'
 
 const MensajesRoute = MensajesRouteImport.update({
@@ -107,6 +108,11 @@ const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminInstitucionesRoute = AdminInstitucionesRouteImport.update({
+  id: '/instituciones',
+  path: '/instituciones',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminAcademicoRoute = AdminAcademicoRouteImport.update({
   id: '/academico',
   path: '/academico',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
   '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/estudiante/tareas': typeof EstudianteTareasRoute
   '/profesor/tareas': typeof ProfesorTareasRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
   '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/estudiante/tareas': typeof EstudianteTareasRoute
   '/profesor/tareas': typeof ProfesorTareasRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
   '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/estudiante/tareas': typeof EstudianteTareasRoute
   '/profesor/tareas': typeof ProfesorTareasRoute
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mensajes'
     | '/admin/academico'
+    | '/admin/instituciones'
     | '/admin/usuarios'
     | '/estudiante/tareas'
     | '/profesor/tareas'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mensajes'
     | '/admin/academico'
+    | '/admin/instituciones'
     | '/admin/usuarios'
     | '/estudiante/tareas'
     | '/profesor/tareas'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mensajes'
     | '/admin/academico'
+    | '/admin/instituciones'
     | '/admin/usuarios'
     | '/estudiante/tareas'
     | '/profesor/tareas'
@@ -349,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/instituciones': {
+      id: '/admin/instituciones'
+      path: '/instituciones'
+      fullPath: '/admin/instituciones'
+      preLoaderRoute: typeof AdminInstitucionesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/academico': {
       id: '/admin/academico'
       path: '/academico'
@@ -373,12 +392,14 @@ const AcudienteRouteRouteWithChildren = AcudienteRouteRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminAcademicoRoute: typeof AdminAcademicoRoute
+  AdminInstitucionesRoute: typeof AdminInstitucionesRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAcademicoRoute: AdminAcademicoRoute,
+  AdminInstitucionesRoute: AdminInstitucionesRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

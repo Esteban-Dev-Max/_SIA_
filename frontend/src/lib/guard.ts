@@ -2,6 +2,7 @@ import { redirect } from "@tanstack/react-router";
 import { getUser, type Rol } from "./api";
 
 const dashboards: Record<Rol, string> = {
+  superadmin: "/admin/instituciones",
   admin: "/admin",
   profesor: "/profesor",
   estudiante: "/estudiante",

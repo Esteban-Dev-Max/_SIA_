@@ -14,6 +14,7 @@ import chatbotRoutes from "./routes/chatbot.js";
 import chatRoutes from "./routes/chat.js";
 import mensajesRoutes from "./routes/mensajes.js";
 import notificacionesRoutes from "./routes/notificaciones.js";
+import institucionesRoutes from "./routes/instituciones.js";
 import { isLanOrigin } from "./lib/lan.js";
 import { pool } from "./db.js";
 
@@ -81,6 +82,11 @@ const CARPETA_AVATARES = path.join(process.cwd(), "uploads", "avatars");
 app.use("/uploads/avatars", express.static(CARPETA_AVATARES));
 app.use("/api/uploads/avatars", express.static(CARPETA_AVATARES));
 
+// Logos de instituciones (branding multi-tenant)
+const CARPETA_LOGOS = path.join(process.cwd(), "uploads", "logos");
+app.use("/uploads/logos", express.static(CARPETA_LOGOS));
+app.use("/api/uploads/logos", express.static(CARPETA_LOGOS));
+
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/profesor", profesorRoutes);
@@ -93,6 +99,7 @@ app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/mensajes", mensajesRoutes);
 app.use("/api/notificaciones", notificacionesRoutes);
+app.use("/api/instituciones", institucionesRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

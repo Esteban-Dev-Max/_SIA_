@@ -25,7 +25,15 @@ function aDatetime(value) {
 // Un admin todo lo puede. Un profesor solo sobre sus propios grupos y un
 // estudiante únicamente sobre los grupos donde está matriculado.
 async function puedeVerGrupo(req, res, grupoId) {
-  if (req.user.rol === "admin") return true;
+  if (req.user.rol === "admin") {
+    const [[g]] = await pool.query(
+      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+      [grupoId, req.user.institucion_id],
+    );
+    if (g) return true;
+    res.status(403).json({ error: "No autorizado" });
+    return false;
+  }
   if (req.user.rol === "profesor") {
     const [[g]] = await pool.query(
       "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
@@ -49,7 +57,13 @@ async function puedeVerGrupo(req, res, grupoId) {
 }
 
 async function esProfesorDeGrupo(req, grupoId) {
-  if (req.user.rol === "admin") return true;
+  if (req.user.rol === "admin") {
+    const [[g]] = await pool.query(
+      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+      [grupoId, req.user.institucion_id],
+    );
+    return !!g;
+  }
   const [[g]] = await pool.query(
     "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
     [grupoId, req.user.id],
@@ -131,15 +145,19 @@ r.post(
       return res.status(400).json({ error: "Fecha inválida" });
     }
 
+    const [[grpRow]] = await pool.query("SELECT institucion_id FROM grupos WHERE id = ?", [grupoId]);
+    const instId = grpRow?.institucion_id ?? req.user.institucion_id;
+
     const [result] = await pool.query(
-      `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max)
-     VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max, institucion_id)
+     VALUES (?, ?, ?, ?, ?, ?)`,
       [
         grupoId,
         titulo.trim(),
         typeof descripcion === "string" ? descripcion.trim() || null : null,
         fecha,
         puntaje,
+        instId,
       ],
     );
 

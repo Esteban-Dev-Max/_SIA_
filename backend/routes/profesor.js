@@ -8,14 +8,20 @@ r.use(verifyToken, requireRole("profesor"));
 
 // Grupos asignados al profesor (materia, periodo, horario y nº de alumnos).
 r.get("/grupos", asyncHandler(async (req, res) => {
+  const params = [req.user.id];
+  let filterInst = "";
+  if (req.user.institucion_id) {
+    filterInst = " AND g.institucion_id = ?";
+    params.push(req.user.institucion_id);
+  }
   const [rows] = await pool.query(
     `SELECT g.id, g.codigo_grupo, g.periodo, g.horario, m.nombre AS materia, m.codigo AS materia_codigo,
             (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = g.id) AS alumnos
      FROM grupos g
      JOIN materias m ON m.id = g.materia_id
-     WHERE g.profesor_id = ?
+     WHERE g.profesor_id = ?${filterInst}
      ORDER BY m.nombre, g.codigo_grupo`,
-    [req.user.id],
+    params,
   );
   res.json(rows);
 }));

@@ -29,7 +29,10 @@ export const Route = createFileRoute("/")({
     if (typeof window === "undefined") return;
     const u = getUser();
     if (u)
-      throw redirect({ to: `/${u.rol}` as "/admin" | "/profesor" | "/estudiante" | "/acudiente" });
+      throw redirect({
+        to: (u.rol === "superadmin" ? "/admin/instituciones" : `/${u.rol}`) as
+          "/admin" | "/profesor" | "/estudiante" | "/acudiente",
+      });
   },
   component: Home,
 });

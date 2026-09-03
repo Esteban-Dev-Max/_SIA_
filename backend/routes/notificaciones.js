@@ -15,8 +15,15 @@ function parseId(value) {
 r.get("/:usuario_id", asyncHandler(async (req, res) => {
   const usuarioId = parseId(req.params.usuario_id);
   if (!usuarioId) return res.status(400).json({ error: "ID inválido" });
-  if (req.user.rol !== "admin" && req.user.id !== usuarioId) {
-    return res.status(403).json({ error: "Prohibido" });
+  if (req.user.id !== usuarioId) {
+    if (req.user.rol === "admin") {
+      const [[u]] = await pool.query("SELECT institucion_id FROM usuarios WHERE id = ?", [usuarioId]);
+      if (!u || u.institucion_id !== req.user.institucion_id) {
+        return res.status(403).json({ error: "Prohibido" });
+      }
+    } else {
+      return res.status(403).json({ error: "Prohibido" });
+    }
   }
 
   const [[{ pendientes }]] = await pool.query(
@@ -41,12 +48,14 @@ r.put("/marcar-leida/:id", asyncHandler(async (req, res) => {
   if (!id) return res.status(400).json({ error: "ID inválido" });
 
   const [[n]] = await pool.query(
-    "SELECT usuario_id FROM notificaciones WHERE id = ?",
+    "SELECT n.usuario_id, u.institucion_id FROM notificaciones n JOIN usuarios u ON u.id = n.usuario_id WHERE n.id = ?",
     [id],
   );
   if (!n) return res.status(404).json({ error: "Notificación no encontrada" });
-  if (req.user.rol !== "admin" && req.user.id !== n.usuario_id) {
-    return res.status(403).json({ error: "Prohibido" });
+  if (req.user.id !== n.usuario_id) {
+    if (req.user.rol !== "admin" || n.institucion_id !== req.user.institucion_id) {
+      return res.status(403).json({ error: "Prohibido" });
+    }
   }
 
   await pool.query("UPDATE notificaciones SET leida = 1 WHERE id = ?", [id]);
@@ -57,8 +66,15 @@ r.put("/marcar-leida/:id", asyncHandler(async (req, res) => {
 r.put("/marcar-todas/:usuario_id", asyncHandler(async (req, res) => {
   const usuarioId = parseId(req.params.usuario_id);
   if (!usuarioId) return res.status(400).json({ error: "ID inválido" });
-  if (req.user.rol !== "admin" && req.user.id !== usuarioId) {
-    return res.status(403).json({ error: "Prohibido" });
+  if (req.user.id !== usuarioId) {
+    if (req.user.rol === "admin") {
+      const [[u]] = await pool.query("SELECT institucion_id FROM usuarios WHERE id = ?", [usuarioId]);
+      if (!u || u.institucion_id !== req.user.institucion_id) {
+        return res.status(403).json({ error: "Prohibido" });
+      }
+    } else {
+      return res.status(403).json({ error: "Prohibido" });
+    }
   }
 
   await pool.query(
