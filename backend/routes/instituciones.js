@@ -8,6 +8,7 @@ import { unlink } from "node:fs/promises";
 import { pool } from "../db.js";
 import { verifyToken, requireRole } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { notificar } from "../lib/notificar.js";
 
 const r = Router();
 
@@ -235,7 +236,15 @@ r.put(
       sets.push("ciudad = ?");
       params.push(ciudad.trim() || null);
     }
+    // Estado anterior de la institución (para avisar a los admins al cambiar).
+    let estadoAnterior = null;
     if (estado !== undefined) {
+      const [[actual]] = await pool.query(
+        "SELECT estado FROM instituciones WHERE id = ?",
+        [id],
+      );
+      if (!actual) return res.status(404).json({ error: "Institución no encontrada" });
+      estadoAnterior = actual.estado;
       sets.push("estado = ?");
       params.push(estado);
     }
@@ -256,6 +265,30 @@ r.put(
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Institución no encontrada" });
+    }
+
+    // Avisa a los administradores cuando la institución se desactiva o reactiva.
+    if (estadoAnterior && estadoAnterior !== estado) {
+      const [[inst]] = await pool.query(
+        "SELECT nombre FROM instituciones WHERE id = ?",
+        [id],
+      );
+      const nombre = inst?.nombre || "Tu institución";
+      const [admins] = await pool.query(
+        "SELECT id FROM usuarios WHERE institucion_id = ? AND rol = 'admin'",
+        [id],
+      );
+      const titulo =
+        estado === "inactivo"
+          ? "Institución desactivada"
+          : "Institución reactivada";
+      const mensaje =
+        estado === "inactivo"
+          ? `${nombre} fue desactivada por el superadministrador. Contacta con el soporte para más información.`
+          : `${nombre} fue reactivada por el superadministrador. Todos los accesos vuelven a estar disponibles.`;
+      for (const a of admins) {
+        await notificar(a.id, titulo, mensaje, "sistema");
+      }
     }
 
     res.json({ ok: true });

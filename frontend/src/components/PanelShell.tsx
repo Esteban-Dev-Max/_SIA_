@@ -1,10 +1,19 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { clearSession, getUser, urlRecurso, type AuthUser, type Rol } from "@/lib/api";
+import { clearSession, getUser, api, urlRecurso, type AuthUser, type Rol } from "@/lib/api";
 import { useEffect, useState, type ReactNode } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -198,11 +207,25 @@ export function PanelShell({ title, children }: { title: string; children: React
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [alertaInactiva, setAlertaInactiva] = useState(false);
 
   // La sesión vive en localStorage: se carga tras el montaje para que el SSR y el
   // primer render del cliente coincidan (evita errores de hidratación que congelan la UI).
   useEffect(() => {
     setUser(getUser());
+  }, []);
+
+  // Detecta de forma fresca si la institución del usuario fue desactivada por el
+  // superadministrador (no se puede confiar solo en el estado guardado al iniciar
+  // sesión, que quedaría obsoleto). Solo aplica a cuentas con institución (admin).
+  useEffect(() => {
+    const u = getUser();
+    if (!u || u.rol !== "admin") return;
+    api<AuthUser>("/api/auth/me")
+      .then((me) => {
+        if (me.institucion_estado === "inactivo") setAlertaInactiva(true);
+      })
+      .catch(() => undefined);
   }, []);
 
   function logout() {
@@ -356,6 +379,24 @@ export function PanelShell({ title, children }: { title: string; children: React
           {children}
         </div>
       </SidebarInset>
+
+      <AlertDialog open={alertaInactiva} onOpenChange={setAlertaInactiva}>
+        <AlertDialogContent className="max-w-md rounded-2xl border-border/60">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Institución desactivada
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed text-muted-foreground">
+              Tu institución fue desactivada por el superadministrador. En este momento
+              los accesos están restringidos. Si crees que es un error, contacta con el
+              soporte de la plataforma.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertaInactiva(false)}>Entendido</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
