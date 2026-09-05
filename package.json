@@ -1,0 +1,29 @@
+{
+  "name": "_sia_",
+  "version": "1.0.0",
+  "description": "[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?style=flat&logo=nodedotjs&logoColor=white)](https://nodejs.org)\r [![Express](https://img.shields.io/badge/Express-4-000000?style=flat&logo=express&logoColor=white)](https://expressjs.com)\r [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=white)](https://react.dev)\r [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org)\r [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)\r [![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com)\r [![TanStack](https://img.shields.io/badge/TanStack_Start-Router%20%2F%20Query-FF4154?style=flat&logo=tanstack&logoColor=white)](https://tanstack.com)",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm --prefix backend run test && npm --prefix frontend run test",
+    "test:unit": "npm --prefix backend run test:unit && npm --prefix frontend run test",
+    "test:setup:db": "npm --prefix backend run test:setup && npm --prefix backend run test:seed",
+    "test:integration": "npm --prefix backend run test:integration && npm --prefix frontend run test",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Esteban-Dev-Max/_SIA_.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Esteban-Dev-Max/_SIA_/issues"
+  },
+  "homepage": "https://github.com/Esteban-Dev-Max/_SIA_#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "cross-env": "^10.1.0"
+  }
+}

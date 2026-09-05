@@ -33,6 +33,7 @@ export interface AuthUser {
   institucion_id: number | null;
   institucion_logo: string | null;
   institucion_estado?: "activo" | "inactivo" | null;
+  institucion_nombre?: string | null;
 }
 
 export function getToken(): string | null {

@@ -256,20 +256,10 @@ export function PanelShell({ title, children }: { title: string; children: React
               >
                 <Link to="/" className="min-w-0">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-sm">
-                    {user?.institucion_logo ? (
-                      <img
-                        src={urlRecurso(user.institucion_logo)}
-                        alt={user?.nombre || "Institución"}
-                        className="h-6 w-6 object-contain"
-                      />
-                    ) : (
-                      <img src="/logo.png" alt="SIA" className="h-6 w-6 object-contain" />
-                    )}
+                    <img src="/logo.png" alt="SIA" className="h-6 w-6 object-contain" />
                   </div>
                   <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                    <span className="font-display text-sm font-bold tracking-tight">
-                      {user?.institucion_logo ? "Institución" : "SIA"}
-                    </span>
+                    <span className="font-display text-sm font-bold tracking-tight">SIA</span>
                     <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                       Académico
                     </span>
@@ -311,17 +301,25 @@ export function PanelShell({ title, children }: { title: string; children: React
               {title}
             </h1>
           </div>
-          {user?.institucion_logo && (
-            <img
-              src={urlRecurso(user.institucion_logo)}
-              alt={user?.nombre || "Institución"}
-              className="h-8 w-auto object-contain rounded-lg bg-white/10 px-2 py-1"
-              title="Logo de la institución"
-            />
-          )}
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            <ThemeToggle />
-            <NotificationBell />
+          <div className="ml-auto flex items-center gap-4">
+            {user?.institucion_logo && (
+              <div className="flex items-center gap-2.5">
+                <img
+                  src={urlRecurso(user.institucion_logo)}
+                  alt={user?.institucion_nombre || "Institución"}
+                  className="h-12 w-auto object-contain"
+                  title={user?.institucion_nombre || "Institución"}
+                />
+                {user?.institucion_nombre && (
+                  <span className="hidden font-display text-sm font-bold tracking-tight lg:block">
+                    {user?.institucion_nombre}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <ThemeToggle />
+              <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -371,7 +369,8 @@ export function PanelShell({ title, children }: { title: string; children: React
                   <span>Cerrar sesión</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 

@@ -19,7 +19,7 @@ export async function verifyToken(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     const [[u]] = await pool.query(
-      `SELECT u.id, u.rol, u.estado, u.institucion_id, i.logo_url AS institucion_logo, i.estado AS institucion_estado
+      `SELECT u.id, u.rol, u.estado, u.institucion_id, i.logo_url AS institucion_logo, i.estado AS institucion_estado, i.nombre AS institucion_nombre
        FROM usuarios u
        LEFT JOIN instituciones i ON i.id = u.institucion_id
        WHERE u.id = ?`,
@@ -37,7 +37,7 @@ export async function verifyToken(req, res, next) {
         .json({ error: "Tu rol cambió. Inicia sesión de nuevo." });
     }
 
-    req.user = { ...payload, rol: u.rol, institucion_id: u.institucion_id, institucion_logo: u.institucion_logo, institucion_estado: u.institucion_estado };
+    req.user = { ...payload, rol: u.rol, institucion_id: u.institucion_id, institucion_logo: u.institucion_logo, institucion_estado: u.institucion_estado, institucion_nombre: u.institucion_nombre };
     next();
   } catch (e) {
     if (e.name === "JsonWebTokenError" || e.name === "TokenExpiredError") {

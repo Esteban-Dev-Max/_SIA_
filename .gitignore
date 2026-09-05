@@ -16,6 +16,15 @@ dist-ssr
 .nitro
 *.local
 
+# Playwright / pruebas
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Cobertura de Vitest
+coverage/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

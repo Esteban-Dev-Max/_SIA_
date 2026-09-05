@@ -35,7 +35,7 @@ r.post(
     }
 
     const [rows] = await pool.query(
-      `SELECT u.*, i.logo_url AS institucion_logo, i.estado AS institucion_estado
+      `SELECT u.*, i.logo_url AS institucion_logo, i.estado AS institucion_estado, i.nombre AS institucion_nombre
        FROM usuarios u
        LEFT JOIN instituciones i ON i.id = u.institucion_id
        WHERE u.correo = ? AND u.estado = 'activo'`,
@@ -59,6 +59,7 @@ r.post(
         institucion_id: u.institucion_id,
         institucion_logo: u.institucion_logo,
         institucion_estado: u.institucion_estado,
+        institucion_nombre: u.institucion_nombre,
       },
       process.env.JWT_SECRET,
       { expiresIn: "8h" },
@@ -74,6 +75,7 @@ r.post(
         institucion_id: u.institucion_id,
         institucion_logo: u.institucion_logo,
         institucion_estado: u.institucion_estado,
+        institucion_nombre: u.institucion_nombre,
       },
     });
   }),
@@ -84,7 +86,7 @@ r.get(
   verifyToken,
   asyncHandler(async (req, res) => {
     const [rows] = await pool.query(
-      `SELECT u.id, u.nombre_completo, u.correo, u.rol, u.foto_url, u.estado, i.logo_url AS institucion_logo, i.estado AS institucion_estado
+      `SELECT u.id, u.nombre_completo, u.correo, u.rol, u.foto_url, u.estado, i.logo_url AS institucion_logo, i.estado AS institucion_estado, i.nombre AS institucion_nombre
        FROM usuarios u
        LEFT JOIN instituciones i ON i.id = u.institucion_id
        WHERE u.id = ?`,
@@ -100,6 +102,7 @@ r.get(
       foto_url: u.foto_url,
       institucion_logo: u.institucion_logo,
       institucion_estado: u.institucion_estado,
+      institucion_nombre: u.institucion_nombre,
     });
   }),
 );
