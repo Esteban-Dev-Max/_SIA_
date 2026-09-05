@@ -18,7 +18,20 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Pencil, Loader2, Upload, X, Check } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Loader2,
+  Upload,
+  X,
+  Check,
+  FileSpreadsheet,
+  Download,
+  FileUp,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/usuarios")({
   component: AdminUsuarios,
@@ -94,12 +107,245 @@ function AvatarUsuario({
   );
 }
 
+// ---------- Carga masiva de usuarios (CSV / XLSX) ----------
+
+type FilaExito = {
+  fila: number;
+  id: number;
+  nombre: string;
+  correo: string;
+  rol: string;
+};
+
+type FilaError = {
+  fila: number;
+  correo: string;
+  motivo: string;
+};
+
+type ResultadoCarga = {
+  total: number;
+  insertados: number;
+  fallidos: number;
+  exitosos: FilaExito[];
+  fallidos: FilaError[];
+};
+
+function descargarPlantilla() {
+  const contenido = [
+    "nombre,correo,rol,password",
+    "Ana García,ana.garcia@correo.com,Profesor,Clave123",
+    "Luis Pérez,luis.perez@correo.com,Estudiante,Clave456",
+  ].join("\r\n");
+  // BOM para que Excel muestre bien los acentos.
+  const blob = new Blob([`\uFEFF${contenido}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "plantilla_carga_usuarios.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function ResumenCarga({ resultado }: { resultado: ResultadoCarga }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl border border-border/60 bg-muted/40 p-2.5">
+          <div className="text-lg font-bold">{resultado.total}</div>
+          <div className="text-xs text-muted-foreground">Filas</div>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-500/10 p-2.5">
+          <div className="text-lg font-bold text-emerald-700">{resultado.insertados}</div>
+          <div className="text-xs text-muted-foreground">Insertados</div>
+        </div>
+        <div className="rounded-xl border border-rose-200 bg-rose-500/10 p-2.5">
+          <div className="text-lg font-bold text-rose-700">{resultado.fallidos}</div>
+          <div className="text-xs text-muted-foreground">Con errores</div>
+        </div>
+      </div>
+
+      {resultado.fallidos.length > 0 && (
+        <div className="max-h-44 overflow-y-auto rounded-xl border border-rose-200 bg-rose-500/5">
+          <div className="border-b border-rose-200 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-700">
+            Fallos ({resultado.fallidos.length})
+          </div>
+          <ul className="divide-y divide-border/60">
+            {resultado.fallidos.map((f) => (
+              <li
+                key={`f-${f.fila}-${f.correo}`}
+                className="flex items-start gap-2 px-3 py-2 text-xs"
+              >
+                <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
+                <span className="shrink-0 text-muted-foreground">Fila {f.fila}:</span>
+                <span className="min-w-0 break-words font-medium">{f.correo || "—"}</span>
+                <span className="min-w-0 break-words text-muted-foreground">— {f.motivo}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {resultado.exitosos.length > 0 && (
+        <div className="max-h-36 overflow-y-auto rounded-xl border border-emerald-200 bg-emerald-500/5">
+          <div className="border-b border-emerald-200 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
+            Insertados ({resultado.exitosos.length})
+          </div>
+          <ul className="divide-y divide-border/60">
+            {resultado.exitosos.map((e) => (
+              <li key={`e-${e.id}`} className="flex items-start gap-2 px-3 py-2 text-xs">
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                <span className="font-medium">{e.nombre}</span>
+                <span className="text-muted-foreground">
+                  ({e.correo} · {e.rol})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CargaMasivaModal({
+  onOpenChange,
+  onExito,
+}: {
+  onOpenChange: (open: boolean) => void;
+  onExito: () => void;
+}) {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoCarga | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function elegirArchivo(f: File | null) {
+    if (!f) return;
+    const ext = f.name.toLowerCase().split(".").pop();
+    if (!ext || !["csv", "xlsx", "xls"].includes(ext)) {
+      toast.error("El archivo debe ser .csv o .xlsx");
+      return;
+    }
+    setArchivo(f);
+    setResultado(null);
+  }
+
+  async function subir() {
+    if (!archivo) return;
+    setEnviando(true);
+    setResultado(null);
+    try {
+      const data = new FormData();
+      data.append("archivo", archivo);
+      const res = await api<ResultadoCarga>("/api/usuarios/carga-masiva", {
+        method: "POST",
+        body: data,
+      });
+      setResultado(res);
+      if (res.insertados > 0 && res.fallidos === 0)
+        toast.success(`${res.insertados} usuarios insertados correctamente`);
+      else if (res.insertados > 0)
+        toast.info(`${res.insertados} insertados · ${res.fallidos} con errores`);
+      else toast.error("Ningún usuario se pudo insertar");
+      onExito();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al procesar el archivo");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] flex-col rounded-2xl border-border/60 sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Carga masiva de usuarios</DialogTitle>
+          <DialogDescription>
+            Sube un archivo .csv o .xlsx con las columnas: nombre, correo, rol y password.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
+          <span className="text-xs text-muted-foreground">
+            ¿No sabes cómo estructurar el archivo?
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={descargarPlantilla}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Descargar plantilla
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className={cn(
+            "flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 border-dashed border-border/70 bg-muted/30 px-3 py-4 text-sm text-muted-foreground transition-colors hover:border-primary/60 hover:bg-muted/50",
+            archivo && "border-primary/60 bg-primary/5 text-foreground",
+          )}
+        >
+          {archivo ? (
+            <FileSpreadsheet className="h-5 w-5 shrink-0 text-emerald-600" />
+          ) : (
+            <FileUp className="h-5 w-5 shrink-0" />
+          )}
+          <span className="truncate">
+            {archivo ? archivo.name : "Selecciona un archivo CSV o Excel (.xlsx)"}
+          </span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            elegirArchivo(e.target.files?.[0] ?? null);
+            e.target.value = "";
+          }}
+        />
+
+        {enviando ? (
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Procesando el archivo...
+          </div>
+        ) : resultado ? (
+          <ResumenCarga resultado={resultado} />
+        ) : null}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {resultado ? "Cerrar" : "Cancelar"}
+          </Button>
+          <Button type="button" disabled={!archivo || enviando} onClick={subir} className="gap-1.5">
+            {enviando ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4" />
+            )}
+            {enviando ? "Procesando..." : resultado ? "Subir otro archivo" : "Subir y procesar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AdminUsuarios() {
   const [items, setItems] = useState<Usuario[]>([]);
   const [rol, setRol] = useState("");
   const [q, setQ] = useState("");
   const [cargando, setCargando] = useState(false);
   const [open, setOpen] = useState(false);
+  const [cargaAbierta, setCargaAbierta] = useState(false);
   const [editando, setEditando] = useState<Usuario | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -220,10 +466,16 @@ function AdminUsuarios() {
           <h2 className="text-lg font-bold tracking-tight">Usuarios</h2>
           <p className="text-sm text-muted-foreground">Gestiona cuentas del sistema por rol</p>
         </div>
-        <Button onClick={abrirCrear} className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Nuevo usuario
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCargaAbierta(true)} className="gap-1.5">
+            <FileSpreadsheet className="h-4 w-4" />
+            Carga Masiva
+          </Button>
+          <Button onClick={abrirCrear} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Nuevo usuario
+          </Button>
+        </div>
       </div>
 
       <Card className="border-border/50 shadow-sm rounded-xl">
@@ -421,6 +673,8 @@ function AdminUsuarios() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {cargaAbierta && <CargaMasivaModal onOpenChange={setCargaAbierta} onExito={() => load()} />}
     </div>
   );
 }

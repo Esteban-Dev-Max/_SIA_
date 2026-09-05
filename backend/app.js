@@ -15,6 +15,7 @@ import chatRoutes from "./routes/chat.js";
 import mensajesRoutes from "./routes/mensajes.js";
 import notificacionesRoutes from "./routes/notificaciones.js";
 import institucionesRoutes from "./routes/instituciones.js";
+import usuariosRoutes from "./routes/usuarios.js";
 import { isLanOrigin } from "./lib/lan.js";
 
 dotenv.config();
@@ -102,6 +103,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/mensajes", mensajesRoutes);
 app.use("/api/notificaciones", notificacionesRoutes);
 app.use("/api/instituciones", institucionesRoutes);
+app.use("/api/usuarios", usuariosRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
