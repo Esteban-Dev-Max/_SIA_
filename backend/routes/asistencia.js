@@ -343,21 +343,45 @@ r.post("/registrar", asyncHandler(async (req, res) => {
 // Resumen histórico consolidado de asistencia por estudiante para un grupo.
 // Usa la misma semántica que /resumen/estudiante: fallas = ausentes + tardes,
 // porcentaje sobre registros con estado (excluye fechas sin marcar).
+// Acepta un rango opcional ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD (sin filtro se
+// devuelve el histórico completo) e incluye el detalle por sesión en `registros`.
 r.get("/resumen/grupo/:grupo_id", asyncHandler(async (req, res) => {
   const grupoId = parseId(req.params.grupo_id);
   if (!grupoId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerGrupo(req, res, grupoId))) return;
+
+  const { desde, hasta } = req.query;
+  if ((desde && !fechaValida(desde)) || (hasta && !fechaValida(hasta))) {
+    return res.status(400).json({ error: "Rango de fechas inválido" });
+  }
+  if (desde && hasta && String(desde) > String(hasta)) {
+    return res.status(400).json({ error: "La fecha 'desde' no puede ser mayor que 'hasta'" });
+  }
+  let condicionRango = "";
+  const paramsRango = [];
+  if (desde && hasta) {
+    condicionRango = " AND a.fecha BETWEEN ? AND ?";
+    paramsRango.push(String(desde), String(hasta));
+  } else if (desde) {
+    condicionRango = " AND a.fecha >= ?";
+    paramsRango.push(String(desde));
+  } else if (hasta) {
+    condicionRango = " AND a.fecha <= ?";
+    paramsRango.push(String(hasta));
+  }
+
+  // Un registro por estudiante y fecha de sesión. El rango se aplica sobre el
+  // LEFT JOIN de asistencia: los estudiantes sin marcas en el rango siguen
+  // apareciendo, solo que con `registros` vacío.
   const [rows] = await pool.query(
     `SELECT u.id AS estudiante_id, u.nombre_completo AS estudiante,
-            u.correo, u.foto_url,
-            COALESCE(a.estado, 'sin_registro') AS estado, COUNT(*) AS total
+            u.correo, u.foto_url, a.fecha, a.estado, a.observacion
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
-     LEFT JOIN asistencia a ON a.matricula_id = mat.id
+     LEFT JOIN asistencia a ON a.matricula_id = mat.id${condicionRango}
      WHERE mat.grupo_id = ?
-     GROUP BY u.id, u.nombre_completo, u.correo, u.foto_url, a.estado
-     ORDER BY u.nombre_completo`,
-    [grupoId],
+     ORDER BY u.nombre_completo, a.fecha DESC`,
+    [...paramsRango, grupoId],
   );
 
   const map = new Map();
@@ -373,13 +397,20 @@ r.get("/resumen/grupo/:grupo_id", asyncHandler(async (req, res) => {
         tardes: 0,
         excusas: 0,
         total: 0,
+        registros: [],
       });
     }
     const e = map.get(row.estudiante_id);
-    if (row.estado === "presente") e.presentes += row.total;
-    else if (row.estado === "ausente") e.ausentes += row.total;
-    else if (row.estado === "tarde") e.tardes += row.total;
-    else if (row.estado === "excusa") e.excusas += row.total;
+    if (!row.estado) continue; // matrícula sin asistencia en el rango
+    if (row.estado === "presente") e.presentes += 1;
+    else if (row.estado === "ausente") e.ausentes += 1;
+    else if (row.estado === "tarde") e.tardes += 1;
+    else if (row.estado === "excusa") e.excusas += 1;
+    e.registros.push({
+      fecha: row.fecha,
+      estado: row.estado,
+      observacion: row.observacion,
+    });
   }
 
   const estudiantes = [...map.values()].map((e) => {
@@ -392,7 +423,7 @@ r.get("/resumen/grupo/:grupo_id", asyncHandler(async (req, res) => {
     };
   });
 
-  res.json({ estudiantes });
+  res.json({ estudiantes, desde: desde ?? null, hasta: hasta ?? null });
 }));
 
 // Resumen global de asistencia y fallas por materia de un estudiante.
