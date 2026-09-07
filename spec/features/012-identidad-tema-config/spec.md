@@ -15,7 +15,7 @@ Cierra el círculo de producto: una apariencia coherente con branding propio, pr
 - [x] El tema claro/oscuro se alterna desde la cabecera y persiste entre recargas y sesiones (clave `sia-theme`).
 - [x] La elección de tema aplica sin parpadeo al cargar la página.
 - [x] Logo y favicon SIA están en `frontend/public/` y se muestran en la app.
-- [x] La página `configuracion` (`/configuracion`) muestra y edita los datos del perfil del usuario autenticado.
+- [x] La página `configuracion` (`/configuracion`) muestra y edita los datos del perfil del usuario autenticado, incluida la **foto de perfil**.
 - [x] Los metros del panel (sidebar, cabecera, tablas) son responsive y se usan desde el celular.
 - [x] El código visual se apoya en los tokens de `frontend/src/styles.css` y en componentes shadcn/ui, sin estilos sueltos por pantalla.
 
@@ -23,4 +23,3 @@ Cierra el círculo de producto: una apariencia coherente con branding propio, pr
 
 - Multi-idioma (la app es solo español).
 - Personalización de color por institución (los temas son fijos claro/oscuro).
-- Avatar de usuario con foto subido (el campo `foto_url` existe, sin flujo de subida).

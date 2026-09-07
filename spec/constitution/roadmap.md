@@ -16,6 +16,9 @@ Orden y estado de las features de SIA. Cada entrada apunta a su carpeta en `feat
 10. **010 · Chatbot SIA** — asistente que responde preguntas académicas con datos reales del usuario.
 11. **011 · Portal acudiente** — monitoreo del rendimiento, alertas de inasistencia y boletín imprimible.
 12. **012 · Identidad, tema y configuración** — branding SIA, tema claro/oscuro y pantalla de configuración.
+13. **013 · Multi-tenant y superadmin (SaaS)** — rol `superadmin`, CRUD de instituciones con logo y estado (activo/inactivo), alta con admin inicial y aislamiento de datos por `institucion_id`.
+14. **014 · Carga masiva de usuarios** — alta de profesores/estudiantes/acudientes desde CSV/XLSX con validación por fila y reporte de errores.
+15. **015 · Perfil, avatares y archivos** — foto de perfil de usuarios (JPG/PNG/WEBP), subida de logos de institución y soportes (PDF/JPG/PNG) de excusas de asistencia.
 
 ## Siguiente 🔜
 
@@ -24,7 +27,7 @@ _No hay features en curso._
 ## Backlog / ideas 💡
 
 - **Boletín PDF por servidor** — reemplazar la impresión del navegador por un PDF generado desde el backend.
-- **Archivos adjuntos reales** — subida física de los archivos de entrega de tareas (hoy `archivo_url` es solo texto).
+- **Archivos adjuntos reales en tareas** — subida física de los archivos de entrega (hoy `archivo_url` es solo texto; el patrón de multer ya se usa en avatares/logos/excusas).
 - **Recuperación de contraseña** — flujo de restablecimiento por correo o preguntas de seguridad (hoy el admin la restablece manualmente).
 - **Reportes comparativos por periodo** — comparar rendimiento entre periodos académicos.
 

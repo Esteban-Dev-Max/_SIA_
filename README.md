@@ -8,15 +8,16 @@
 [![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com)
 [![TanStack](https://img.shields.io/badge/TanStack_Start-Router%20%2F%20Query-FF4154?style=flat&logo=tanstack&logoColor=white)](https://tanstack.com)
 
-> Plataforma web full-stack para instituciones educativas: centraliza la gestión de **estudiantes, profesores, carreras, materias, matrículas, notas, asistencia, tareas y comunicaciones** en una sola aplicación, con paneles dedicados por rol y accesible desde cualquier dispositivo de la red local.
+> Plataforma web full-stack para instituciones educativas: centraliza la gestión de **estudiantes, profesores, carreras, materias, matrículas, notas, asistencia, tareas, comunicaciones** e **instituciones** en una sola aplicación, con paneles dedicados por rol (incluido **Super Admin**) y accesible desde cualquier dispositivo de la red local o vía Tailscale Funnel.
 
 ---
 
 ## 📌 Descripción General
 
-**SIA** es un sistema cliente-servidor pensado para colegios, institutos y universidades pequeñas. Reemplaza las planillas en papel y las hojas de cálculo dispersas por una experiencia web moderna:
+**SIA** es un sistema cliente-servidor pensado para colegios, institutos y universidades pequeñas. Reemplaza las planillas en papel y las hojas de cálculo dispersas por una experiencia web moderna, con modelo **multi-tenant (SaaS)**: cada institución tiene sus datos aislados, su branding y su propio administrador, gestionados por un rol de **Super Admin**:
 
-- **Cuatro paneles especializados** según el rol del usuario: Administrador, Profesor, Estudiante y Acudiente.
+- **Cinco paneles especializados** según el rol del usuario: Super Admin, Administrador, Profesor, Estudiante y Acudiente.
+- **Multi-tenant**: cada institución opera con sus propios datos (estudiantes, materias, notas, etc.) sin mezclarlos; el Super Admin crea/activa/desactiva instituciones y sube su logo.
 - **Evaluación con ponderación automática** (25% + 25% + 20% + 30%) y **promedios calculados en tiempo real**.
 - **Comunicación integrada**: mensajería interna, notificaciones y un **chatbot asistente** que responde preguntas académicas frecuentes con datos reales del usuario.
 - **Corre en red local**: con XAMPP + MySQL y dos terminales, la aplicación es accesible desde el celular en la misma red WiFi.
@@ -33,8 +34,14 @@
 
 ## 🚀 Funcionalidades Principales
 
-### 👑 Administrador — `/admin`
-- **Usuarios**: CRUD completo (crear, listar, editar, activar/inactivar) con los 4 roles del sistema.
+### 👑 Super Admin — `/admin/instituciones`
+- **Instituciones**: CRUD completo de instituciones educativas (nombre, contacto, departamento/ciudad) con estado activo/inactivo y **logo propio** (PNG/JPG/SVG/WEBP).
+- **Alta por institución**: crea la institución y en la misma operación el administrador inicial para que arranque a trabajar solo.
+- **Control de acceso**: desactivar o reactivar una institución invalida las sesiones de sus usuarios y **notifica automáticamente** a sus administradores.
+- La **carga masiva de usuarios** también está disponible para el superadmin cuando tiene institución asociada.
+
+### 👨‍💼 Administrador — `/admin`
+- **Usuarios**: CRUD completo (crear, listar, buscar, editar, activar/inactivar) con los 4 roles de la institución, **foto de perfil** y **carga masiva desde CSV/XLSX** (columnas `nombre, correo, rol, password`; roles profesor/estudiante/acudiente; hasta 2000 filas con validación por fila y reporte de errores).
 - **Gestión académica**: CRUD de carreras/grados y materias (con créditos y asociación a carrera).
 - **Grupos**: creación de grupos por materia, profesor y periodo; asignación de horarios.
 - **Matrículas**: inscripción de estudiantes en grupos y eliminación de matrículas.
@@ -44,7 +51,8 @@
 
 ### 👨‍🏫 Profesor — `/profesor`
 - **Planilla de calificaciones**: registro de notas por grupo con **cálculo automático de la definitiva** según la ponderación: nota 1 (25%) + nota 2 (25%) + nota 3 (20%) + examen final (30%). Se aprueba con 3.0 o más.
-- **Toma de asistencia diaria**: marca *presente / ausente / tarde / excusa* por grupo y fecha, con observaciones.
+- **Toma de asistencia diaria**: marca *presente / ausente / tarde / excusa* por grupo y fecha, con observaciones y **soporte adjunto de la excusa** (PDF/JPG/PNG descargable por el docente).
+- **Resumen de asistencia**: porcentajes, fallas y conteos por materia y por estudiante con fecha.
 - **Tareas**: creación de tareas por grupo (título, descripción, fecha de entrega y puntaje máximo), revisión de entregas de cada estudiante y **calificación con retroalimentación**.
 - Cada acción relevante genera una **notificación automática** al estudiante.
 
@@ -62,7 +70,8 @@
 - **Boletín imprimible**: descarga/impresión del boletín del estudiante en PDF (vía impresión del navegador).
 
 ### 🔄 Módulos Transversales
-- **Autenticación JWT**: login con token de 8 horas, sesión persistente (`localStorage`) u opcional (`sessionStorage`), y **RBAC** (control de acceso por rol) en cada endpoint.
+- **Autenticación JWT**: login con token de 8 horas, sesión persistente (`localStorage`) u opcional (`sessionStorage`), **RBAC** (control de acceso por rol) en cada endpoint y bloqueo por fuerza bruta en el inicio de sesión.
+- **Configuración por usuario** (`/configuracion`): perfil con foto de avatar, apariencia (tema claro/oscuro) y seguridad (cambio de contraseña).
 - **Mensajería interna**: chat entre administradores, profesores, estudiantes y acudientes, con indicadores de leídos.
 - **Notificaciones en tiempo real**: alertas de *sistema, nota, tarea, mensaje y evento* con actualización periódica (polling cada 60 s) en la campana de la cabecera.
 
@@ -88,7 +97,16 @@
 | **mysql2/promise** | Pool de conexiones con sentencias preparadas |
 | **jsonwebtoken** | JWT (`expiresIn: "8h"`) |
 | **bcryptjs** | Hash de contraseñas (10 rondas) |
-| **cors + dotenv** | Orígenes permitidos y configuración |
+| **cors + dotenv** | Orígenes permitidos (red local + dinámicos por Host) y configuración |
+| **multer** | Subida de avatares, logos de institución y soportes de excusa |
+| **xlsx** | Carga masiva de usuarios desde CSV/XLSX |
+
+### Pruebas
+| Tecnología | Uso |
+|---|---|
+| **node --test** + **Supertest** | Unit e integración del backend (BD `academico_test`) |
+| **Vitest** + **Testing Library** | Tests del frontend (`npm test`) |
+| **Playwright** | Tests E2E en `e2e/` (`npm run test:e2e`) |
 
 ### Base de datos
 **MySQL 8** — base de datos `academico` con 14 tablas relacionales (mapeo completo en [AGENTS.md](AGENTS.md)).
@@ -100,17 +118,20 @@
 ```
 SIA/
 ├── backend/                     # API REST (puerto 3001)
-│   ├── index.js                 # App Express, CORS, montado de rutas y errores
+│   ├── index.js                 # Entrada: arranca el listener y chequea MySQL
+│   ├── app.js                   # App Express: CORS, estáticos (uploads/), rutas y errores
 │   ├── db.js                    # Pool de MySQL (decimalNumbers: true)
-│   ├── migrate.js               # Ejecuta migrations/001_init.sql
+│   ├── migrate.js               # Ejecuta migrations/001-003 en orden
 │   ├── seed.js                  # Datos demo (idempotente)
 │   ├── .env.example             # Plantilla de variables de entorno
-│   ├── migrations/001_init.sql  # Esquema completo de la BD
-│   ├── routes/                  # auth, admin, profesor, estudiante, acudiente,
-│   │                            # notas, asistencia, tareas, calendario, chatbot,
-│   │                            # mensajes, notificaciones
+│   ├── migrations/              # 001_init.sql, 002_multi_tenant.sql, 003_institucion_logo.sql
+│   ├── routes/                  # auth, admin, profesor, acudiente, notas, asistencia,
+│   │                            # tareas, calendario, chatbot, mensajes, notificaciones,
+│   │                            # instituciones, usuarios
 │   ├── middleware/              # verifyToken, requireRole, asyncHandler
-│   └── lib/                     # lan.js (CORS red local), notificar.js
+│   ├── lib/                     # notas, horario, rateLimit, lan, notificar, chatbotEngine
+│   ├── uploads/                 # avatares/, logos/, excusas/ (archivos subidos)
+│   └── tests/                   # unit/ e integration/ (node --test + Supertest)
 │
 ├── frontend/                    # UI React (puerto 8080)
 │   ├── vite.config.ts           # Alias @/, SSR, puerto 0.0.0.0:8080
@@ -119,16 +140,18 @@ SIA/
 │       ├── routes/              # Rutas por archivo (kebab-case)
 │       │   ├── index.tsx        # Landing pública
 │       │   ├── login.tsx
-│       │   ├── admin/           # Panel, usuarios, académico
-│       │   ├── profesor/        # Panel (notas+asistencia), tareas
+│       │   ├── admin/           # Panel, usuarios, instituciones, académico
+│       │   ├── profesor/        # Panel (notas+asistencia+resumen), tareas
 │       │   ├── estudiante/      # Panel (notas+asistencia), tareas
 │       │   ├── acudiente/       # Panel (boletín)
-│       │   ├── mensajes.tsx     # Mensajería interna
-│       │   └── calendario.tsx   # Calendario unificado
-│       ├── components/          # PanelShell, DataTable, StatCard,
-│       │   │                    # AuthGate, ChatbotWidget, NotificationBell
+│       │   ├── mensajes.tsx, calendario.tsx, configuracion.tsx
+│       ├── components/          # PanelShell, DataTable, StatCard, AuthGate,
+│       │   │                    # ChatbotWidget, NotificationBell, AsistenciaTab,
+│       │   │                    # HistorialAsistenciaTab, InstitucionModal
 │       │   └── ui/              # shadcn/ui (Radix)
 │       └── lib/                 # api.ts (fetch+JWT), guard.ts (RBAC), utils
+│
+└── e2e/                         # Tests Playwright (auth, superadmin)
 ```
 
 ---
@@ -183,7 +206,7 @@ npm install
 
 ```bash
 cd backend
-npm run migrate   # Crea la BD "academico" y las 14 tablas (esquema completo)
+npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos)
 npm run seed      # Inserta institución, usuarios demo, materias, grupos, notas, etc.
 ```
 
@@ -226,12 +249,13 @@ En el servidor de producción, SIA se publica con **Tailscale Funnel** en una UR
 
 | Rol | Email | Contraseña (dev) | Panel |
 |---|---|---|---|
-| 👑 Administrador | `admin@sia.edu.co` | `admin123` | `/admin` |
+| 👑 Super Admin | `superadmin@sia.edu.co` | `superadmin123` | `/admin/instituciones` |
+| 👨‍💼 Administrador | `admin@sia.edu.co` | `admin123` | `/admin` |
 | 👨‍🏫 Profesor | `profesor@sia.edu.co` | `prof123` | `/profesor` |
 | 🎓 Estudiante | `estudiante@sia.edu.co` | `est123` | `/estudiante` |
 | 🧑‍🤝‍🧑 Acudiente | `acudiente@sia.edu.co` | `acu123` | `/acudiente` |
 
-El seed incluye datos de ejemplo: 2 carreras, 3 materias, 3 grupos (periodo 2026-1), 2 matrículas con notas y asistencia, 1 tarea con entrega calificada, evento de calendario, mensajes y notificaciones.
+El seed incluye datos de ejemplo: 5 cuentas demo (incluye superadmin, sin institución), 1 institución, 2 carreras, 3 materias, 3 grupos (periodo 2026-1), 2 matrículas con notas y asistencia, 1 tarea con entrega calificada, evento de calendario, mensajes y notificaciones.
 
 ---
 
@@ -239,12 +263,18 @@ El seed incluye datos de ejemplo: 2 carreras, 3 materias, 3 grupos (periodo 2026
 
 ```bash
 # Backend (requiere MySQL activo)
-cd backend && npm run migrate && npm run seed   # esquema + datos demo
+cd backend && npm run migrate && npm run seed   # esquema (001-003) + datos demo
 
 # Frontend
 cd frontend
 npm run lint        # ESLint: 0 errores esperados
 npm run build       # Build de producción (TanStack Start + Nitro)
+
+# Pruebas (desde la raíz del repo)
+npm test                    # unit del backend (node --test) + Vitest del frontend
+npm run test:setup:db       # crea y siembra la BD academico_test
+npm run test:integration    # integración del backend (Supertest) + frontend
+npm run test:e2e            # E2E con Playwright (e2e/)
 ```
 
 ---

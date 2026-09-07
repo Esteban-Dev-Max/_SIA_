@@ -1,23 +1,25 @@
 # SIA — Sistema Integral Académico
 
-Aplicación web full-stack para instituciones educativas: centraliza la gestión de estudiantes, profesores, carreras, materias, notas, asistencia, tareas y comunicaciones, con paneles dedicados por rol y un chatbot. Los mensajes de la UI y los errores de la API están en **español**.
+Aplicación web full-stack para instituciones educativas: centraliza la gestión de estudiantes, profesores, carreras, materias, notas, asistencia, tareas y comunicaciones, con paneles dedicados por rol, un chatbot y soporte **multi-tenant** (SaaS: cada institución con sus datos aislados y un rol `superadmin` que las gestiona). Los mensajes de la UI y los errores de la API están en **español**.
 
 ## Stack
 - Lenguaje: JavaScript (backend) y TypeScript 5 estricto (frontend)
 - Framework / runtime: Node 20+ — Express 4 (backend, ESM) + React 19 con Vite 8 y TanStack Start/Router/Query (frontend)
 - Base de datos: MySQL 8 (XAMPP), accede con `mysql2/promise` y sentencias preparadas
-- Tests: no existe suite de pruebas
+- Tests: unidad + integración (backend `node --test` + Supertest, frontend Vitest) y E2E con Playwright
 
 ## Comandos
-- **Backend** (desde `backend/`): `npm run dev` — arranca la API en `http://localhost:3001` (`node --watch`). `npm run start` — `node index.js` (lo que corre PM2 en producción). `npm run migrate` — crea/borra y recrea todas las tablas (destructivo). `npm run seed` — inserta datos demo (idempotente).
+- **Backend** (desde `backend/`): `npm run dev` — arranca la API en `http://localhost:3001` (`node --watch`). `npm run start` — `node index.js` (lo que corre PM2 en producción). `npm run migrate` — aplica `migrations/001_init.sql` + `002_multi_tenant.sql` + `003_institucion_logo.sql` en orden (borra y recrea todas las tablas, destructivo). `npm run seed` — inserta datos demo (idempotente).
 - **Frontend** (desde `frontend/`): `npm run dev` — arranca la UI en `http://localhost:8080`.
 - `npm run lint` — revisa el estilo (ESLint + Prettier), 0 errores esperados. Se corre en `frontend/`.
 - `npm run build` — compila para producción (TanStack Start + Nitro, preset `node-server`). En el servidor PM2 corre directamente `frontend/.output/server/index.mjs`. Verificación de QA junto con `lint`.
 - **No hay script de typecheck**; `vite build` es la verificación más cercana del frontend.
+- **Tests** (scripts npm de la raíz): `npm test` — suite completa (backend + frontend). `npm run test:unit` — unit del backend + Vitest del frontend. `npm run test:setup:db` — crea y siembra la BD `academico_test`. `npm run test:integration` — integración del backend (Supertest) + frontend. `npm run test:e2e` — Playwright en `e2e/`. En `backend/`: `test`, `test:unit`, `test:setup`, `test:seed`, `test:integration`. En `frontend/`: `test` (Vitest) y `test:watch`.
 
 ## Estructura del proyecto
-- `backend/` — API REST Express. `index.js` (entrada, monta routers bajo `/api/*`; aborta solo si **falta** `JWT_SECRET`, no si es el placeholder), `db.js` (pool MySQL), `routes/` (auth, admin, profesor, acudiente, notas, asistencia, tareas, calendario, chatbot, chat, mensajes, notificaciones), `middleware/` (auth.js con `verifyToken`+`requireRole`, asyncHandler), `lib/` (notas.js — ponderación única, horario.js, rateLimit.js, lan.js, notificar.js, chatbotEngine.js), `migrations/001_init.sql`, `seed.js`.
+- `backend/` — API REST Express. `app.js` (construye la app: aborta si **falta** `JWT_SECRET`, CORS con orígenes de red local + `CORS_ORIGIN` + dinámicos por `Host` para túneles, `GET /health` y `GET /api/health`, archivos estáticos de `uploads/`, monta routers bajo `/api/*` y maneja errores 400/413/duplicados/claves foráneas) + `index.js` (entrada: solo arranca el listener y chequea MySQL). `db.js` (pool MySQL), `routes/` (auth, admin, profesor, acudiente, notas, asistencia, tareas, calendario, chatbot, chat, mensajes, notificaciones, instituciones, usuarios), `middleware/` (auth.js con `verifyToken`+`requireRole`, asyncHandler), `lib/` (notas.js — ponderación única, horario.js, rateLimit.js — también bloquea fuerza bruta en el login, lan.js, notificar.js, chatbotEngine.js), `migrations/001_init.sql` + `002_multi_tenant.sql` + `003_institucion_logo.sql`, `seed.js`, `tests/` (unit `node --test` + integración Supertest, usa la BD `academico_test`), `uploads/` (avatars, logos, excusas).
 - **No hay `routes/estudiante.js`**: los endpoints de estudiante viven dentro de `notas.js`, `asistencia.js`, `tareas.js`, etc., y ramifican con `if (req.user.rol === "estudiante")`.
+- **Super Admin / multi-tenant**: el rol `superadmin` gestiona instituciones desde `routes/instituciones.js` y su dashboard es `/admin/instituciones` (reutiliza el layout de admin con `requireRole("admin", "superadmin")`). Todo endpoint de datos filtra por `req.user.institucion_id`.
 - `frontend/` — React 19 + TanStack (SSR). Rutas por archivo en `src/routes/` (kebab-case), paneles por rol en `src/routes/<rol>/`, capa de datos/API en `src/lib/`, componentes en `src/components/` (incluye shadcn/ui en `ui/`).
 - Ejecuta backend y frontend desde **sus propios directorios** (dos terminales); son paquetes npm independientes con `node_modules` separados.
 
@@ -25,8 +27,8 @@ Aplicación web full-stack para instituciones educativas: centraliza la gestión
 - PM2 gestiona los procesos de la app: `sia-backend` (`backend/index.js`) y `sia-frontend` (`frontend/.output/server/index.mjs`).
 - La publicación pública la hace **Tailscale Funnel**: URL estable `https://sia.<tailnet>.ts.net` (sin dominio, no cambia al reiniciar). Corre como servicio systemd (NO en PM2). Config: `/` → `http://127.0.0.1:8080` y `/api` → `http://127.0.0.1:3001/api`. Ojo: Funnel **quita el prefijo del path** al enrutar, por eso el target del backend debe incluir `/api`. Se gestiona con `sudo tailscale funnel ...`; persiste entre reinicios.
 - Los antiguos túneles efímeros de Cloudflare (`sia-backend-tunnel`, `sia-frontend-tunnel`) están **detenidos** en PM2; rollback con `pm2 restart`.
-- Resolución de `api()` (`frontend/src/lib/api.ts`): navegador sobre **HTTPS** (Funnel) → paths **relativos** `/api/*` (misma-origen, sin CORS); navegador sobre **HTTP** (localhost/IP LAN) → `window.location.hostname:3001`; **SSR** → `VITE_API_URL` (ahora `http://localhost:3001`, loopback directo).
-- **Seguridad del despliegue público**: Funnel no tiene muro de autenticación (a diferencia de Cloudflare Access) — la URL expone la app a internet. Las cuentas del seed son **dev-only**: en producción se **rotan sus contraseñas** (no quedan como `admin123`). `/api/chat` y `/api/chatbot/pregunta` tienen límite por usuario (15 req/min, in-memory). Para un muro de acceso real se requiere un reverse proxy con basic auth o Cloudflare Access (necesita dominio).
+- Resolución de `api()` (`frontend/src/lib/api.ts`): navegador sobre **HTTPS** (Funnel) → paths **relativos** `/api/*` (misma-origen, sin CORS); navegador sobre **HTTP** (localhost/IP LAN) → `window.location.hostname:3001`; **SSR** → `VITE_API_URL` (ahora `http://localhost:3001`, loopback directo). `urlRecurso()` aplica el mismo criterio a avatares y logos guardados como paths del backend.
+- **Seguridad del despliegue público**: Funnel no tiene muro de autenticación (a diferencia de Cloudflare Access) — la URL expone la app a internet. Las cuentas del seed son **dev-only**: en producción se **rotan sus contraseñas** (no quedan como `admin123`). `/api/chat` y `/api/chatbot/pregunta` tienen límite por usuario (15 req/min, in-memory) y el login tiene bloqueo por fuerza bruta (correo+IP). Para un muro de acceso real se requiere un reverse proxy con basic auth o Cloudflare Access (necesita dominio).
 
 ## Chatbot / IA (Gemini)
 - `POST /api/chat` (`routes/chat.js`) llama a Gemini con `@google/generative-ai`; si no hay `GEMINI_API_KEY` o la llamada falla (404/429/timeout), **cae silenciosamente** al motor por palabras clave (`lib/chatbotEngine.js`) — nunca responde 500. Un modelo inválido o una key mala se notan como respuestas "de robot", sin error visible.
@@ -37,11 +39,14 @@ Aplicación web full-stack para instituciones educativas: centraliza la gestión
 - Backend **ESM**: usa extensiones `.js` explícitas en los imports relativos (p. ej. `import { pool } from "../db.js"`).
 - Todo acceso a BD usa el `pool` de `mysql2/promise` de `../db.js`, siempre con **sentencias preparadas** y placeholders `?`.
 - Envuelve cada handler async de ruta con `asyncHandler` de `../middleware/asyncHandler.js`; un handler async crudo puede tumbar el proceso.
-- Auth: cada router llama `r.use(verifyToken)` (`middleware/auth.js`) y controla el rol con `requireRole(...)`. `req.user.id` = id del usuario autenticado. `verifyToken` además revalida contra la BD (estado `activo` y rol actual) en cada request.
+- Auth: cada router llama `r.use(verifyToken)` (`middleware/auth.js`) y controla el rol con `requireRole(...)`. `req.user.id` = id del usuario autenticado. `verifyToken` además revalida contra la BD (estado `activo`, rol actual y estado de su institución) en cada request.
+- **Roles**: `superadmin | admin | profesor | estudiante | acudiente`. El `superadmin` no pertenece a ninguna institución (`institucion_id` null) y opera solo sobre `instituciones`.
+- **Multi-tenant**: las tablas de datos llevan `institucion_id`; todo endpoint de datos filtra por `req.user.institucion_id` (nunca consultes sin ese filtro o rompes el aislamiento).
 - Los errores son JSON `{ error: "<mensaje en español>" }`. Estados: 400 entrada inválida, 401 token ausente/inválido, 403 prohibido, 500 interno.
 - Emite notificaciones vía `notificar(usuario_id, titulo, mensaje, tipo)` de `../lib/notificar.js` (`tipo`: sistema|nota|tarea|mensaje|evento).
-- Frontend: alias de import `@` → `src`. Usa `api()` de `@/lib/api` para todos los fetch (SSR usa `VITE_API_URL`; el navegador, relative `/api` en HTTPS o `window.location.hostname:3001` en HTTP).
+- Frontend: alias de import `@` → `src`. Usa `api()` de `@/lib/api` para todos los fetch (SSR usa `VITE_API_URL`; el navegador, relative `/api` en HTTPS o `window.location.hostname:3001` en HTTP); `urlRecurso()` resuelve avatares/logos y `apiFetch()`/`apiBlob()`/`vistaArchivo()` sirven archivos con el token.
 - Las contraseñas siempre se almacenan con hash bcrypt (10 rondas). Token/usuario en `localStorage` (`token`, `user`) o `sessionStorage`; `getToken()` lee localStorage primero. Clave de tema: `sia-theme`.
+- Subidas con `multer`: avatares (`POST/PUT /api/admin/usuarios`, JPG/PNG/WEBP ≤3 MB), logos de institución (`POST /api/instituciones/:id/logo`, PNG/JPG/SVG/WEBP ≤2 MB) y excusas de asistencia (`POST /api/asistencia/excusa`, PDF/JPG/PNG ≤5 MB). Los de avatares/logos se sirven en `/uploads/*` y `/api/uploads/*`.
 - Prettier se aplica vía ESLint: printWidth **100**, comillas dobles, `;`.
 - Crea páginas protegidas con un layout `route.tsx` por rol: `route.tsx` con `requireRole("...")` en `beforeLoad` y envuelto en `<AuthGate>` + `<PanelShell>`.
 
@@ -50,9 +55,10 @@ Aplicación web full-stack para instituciones educativas: centraliza la gestión
 - No uses `localhost` en llamadas a la API (rompe el uso en red local); confía en la resolución automática de `@/lib/api`.
 - No importes `server-only` (ESLint lo prohíbe con `no-restricted-imports`). Para código solo-server usa `*.server.ts`.
 - No subas archivos `.env*` al repositorio. Ojo: **`frontend/.env` ya está versionado** (por el `VITE_API_URL` de SSR) y `backend/.env.example` llegó a contener una key real de Gemini — mantenlos sin secretos reales.
-- La ponderación de la nota (25% / 25% / 20% / 30%) tiene **dos** fuentes que deben mantenerse sincronizadas: `backend/lib/notas.js` (`PONDERACION`, única fuente del backend) y `frontend/src/routes/profesor/index.tsx:82` (fórmula hardcodeada). Cambia en ambas.
+- La ponderación de la nota (25% / 25% / 20% / 30%) tiene **dos** fuentes que deben mantenerse sincronizadas: `backend/lib/notas.js` (`PONDERACION`, única fuente del backend) y `frontend/src/routes/profesor/index.tsx` (fórmula hardcodeada, hoy en la línea ~140: `notas[0]*0.25 + notas[1]*0.25 + notas[2]*0.2 + notas[3]*0.3`). Cambia en ambas.
+- No consultes tablas de datos sin filtrar por `institucion_id`: rompe el aislamiento multi-tenant.
 - No cambies `migrate.js` para que deje de ser destructivo; `npm run migrate` borra y recrea todas las tablas a propósito.
-- No dejes `JWT_SECRET` con el valor del placeholder de `.env.example`: `index.js` solo aborta si la variable falta, no si es la predeterminada. En un despliegue público (túneles) cualquiera que lea el repo puede forjar tokens.
+- No dejes `JWT_SECRET` con el valor del placeholder de `.env.example`: `app.js` solo aborta si la variable falta, no si es la predeterminada. En un despliegue público (túneles) cualquiera que lea el repo puede forjar tokens.
 
 ## Flujo de trabajo
 - Antes de una tarea no trivial, propón un plan y espera mi OK.
@@ -62,4 +68,5 @@ Aplicación web full-stack para instituciones educativas: centraliza la gestión
 ## Documentación
 - `README.md` (raíz) — descripción general, instalación, cuentas demo y orden de arranque (MySQL/XAMPP → migrate → seed → dev).
 - `backend/README.md` — guía de red local/firewall.
-- `migrations/001_init.sql` — esquema relacional de la BD (borra y recrea tablas).
+- `migrations/001_init.sql` + `002_multi_tenant.sql` + `003_institucion_logo.sql` — esquema relacional de la BD (la 001 crea el esquema base; la 002 agrega `superadmin` y `institucion_id`; la 003 agrega `logo_url`).
+- `spec/` — documentación Spec Driven Development: `constitution/` (mission, tech-stack, roadmap) y `features/` (spec/plan/tasks por feature).

@@ -6,37 +6,42 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 
 - **Lenguaje:** JavaScript (backend, ESM) y TypeScript 5 estricto (frontend).
 - **Framework / runtime:** Node 20+ — Express 4 (backend) + React 19 con Vite 8 y TanStack Start/Router/Query (frontend).
-- **Base de datos:** MySQL 8 (XAMPP), acceso con `mysql2/promise` y sentencias preparadas; BD `academico` con 14 tablas.
-- **Tests:** no existe suite de pruebas. La validación es `npm run lint` + `npm run build` (frontend) y el flujo real `npm run migrate` + `npm run seed` + prueba manual por rol (backend).
-- **Despliegue:** entorno local de red — API en `:3001`, UI en `:8080`; accesible desde otros dispositivos de la misma red WiFi. Sin despliegue a producción pública.
+- **Base de datos:** MySQL 8 (XAMPP), acceso con `mysql2/promise` y sentencias preparadas; BD `academico` con soporte **multi-tenant** (`institucion_id` en las tablas de datos).
+- **Tests:** backend con `node --test` + Supertest (BD `academico_test`), frontend con Vitest + Testing Library y E2E con Playwright (`e2e/`). Scripts: `test`, `test:unit`, `test:setup:db`, `test:integration`, `test:e2e` en la raíz.
+- **Despliegue:** backend en `:3001`, UI en `:8080`; accesible desde otros dispositivos de la misma red WiFi. Además hay un despliegue público **multi-tenant** vía **Tailscale Funnel** (`https://sia.<tailnet>.ts.net`) donde un rol **superadmin** gestiona las instituciones.
 
 ## Archivos / módulos clave
 
-- `backend/index.js` — app Express: CORS, montado de routers bajo `/api/*` y manejo global de errores.
+- `backend/app.js` — app Express (factory): CORS (red local + `CORS_ORIGIN` + orígenes dinámicos por `Host` para túneles), `/health` y `/api/health`, estáticos de `uploads/`, montado de routers bajo `/api/*` y manejo global de errores (400/413/duplicados/claves foráneas). `backend/index.js` — entrada: arranca el listener y chequea MySQL.
 - `backend/db.js` — pool MySQL (`decimalNumbers: true`).
-- `backend/migrate.js` + `backend/migrations/001_init.sql` — esquema completo de la BD (borra y recrea las tablas a propósito).
-- `backend/seed.js` — datos demo idempotentes (institución, usuarios, materias, grupos, notas, asistencia, tareas, eventos, mensajes, notificaciones).
-- `backend/routes/` — `auth.js`, `admin.js`, `profesor.js`, `estudiante.js`, `acudiente.js`, `notas.js`, `asistencia.js`, `tareas.js`, `calendario.js`, `chatbot.js`, `mensajes.js`, `notificaciones.js`.
-- `backend/middleware/` — `auth.js` (verifyToken), `requireRole`, `asyncHandler`.
-- `backend/lib/` — `lan.js` (CORS de red local), `notificar.js` (crea notificaciones).
-- `frontend/src/routes/` — rutas por archivo en kebab-case; paneles por rol en `routes/<rol>/` con `route.tsx`.
-- `frontend/src/lib/` — `api.ts` (fetch + JWT, resuelve la API a `window.location.hostname:3001`), `guard.ts` (RBAC), `theme.ts`, `utils.ts`.
-- `frontend/src/components/` — `AuthGate`, `PanelShell`, `DataTable`, `StatCard`, `ChatbotWidget`, `NotificationBell`, `ThemeProvider`, `ThemeToggle` y `ui/` (shadcn/ui sobre Radix).
+- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql` — esquema base, multi-tenant/superadmin y logo de institución (borra y recrea las tablas a propósito).
+- `backend/seed.js` — datos demo idempotentes (institución, usuarios incl. superadmin, materias, grupos, notas, asistencia, tareas, eventos, mensajes, notificaciones).
+- `backend/routes/` — `auth.js`, `admin.js`, `profesor.js`, `acudiente.js`, `notas.js`, `asistencia.js`, `tareas.js`, `calendario.js`, `chatbot.js`, `chat.js`, `mensajes.js`, `notificaciones.js`, `instituciones.js` (solo superadmin), `usuarios.js` (admin/superadmin, incluida la carga masiva).
+- `backend/middleware/` — `auth.js` (verifyToken + requireRole), `asyncHandler`.
+- `backend/lib/` — `notas.js` (ponderación única), `horario.js` (choque de horarios), `rateLimit.js` (límites del chatbot y bloqueo por fuerza bruta en login), `lan.js` (CORS de red local), `notificar.js`, `chatbotEngine.js`.
+- `backend/uploads/` — `avatars/`, `logos/`, `excusas/` (archivos subidos con multer).
+- `backend/tests/` — `unit/` y `integration/` (Supertest, BD `academico_test`).
+- `frontend/src/routes/` — rutas por archivo en kebab-case; paneles por rol en `routes/<rol>/` con `route.tsx`. Extra: `admin/usuarios.tsx`, `admin/instituciones.tsx`, `admin/academico.tsx`, `configuracion.tsx` (perfil/foto, tema, contraseña).
+- `frontend/src/lib/` — `api.ts` (fetch + JWT, resuelve la API por protocolo/host, `urlRecurso()` para avatares/logos, `apiFetch()`/`apiBlob()`/`vistaArchivo()`), `guard.ts` (RBAC), `theme.ts`, `error-capture.ts`, `error-page.ts`, `utils.ts`.
+- `frontend/src/components/` — `AuthGate`, `PanelShell`, `DataTable`, `StatCard`, `ChatbotWidget`, `NotificationBell`, `AsistenciaTab`, `HistorialAsistenciaTab`, `InstitucionModal`, `ThemeProvider`, `ThemeToggle` y `ui/` (shadcn/ui sobre Radix).
+- `e2e/` — tests Playwright (`auth.spec.ts`, `superadmin.spec.ts`).
 
 ## Comandos
 
 - `backend/`: `npm run dev` — API en `http://localhost:3001` (`node --watch`).
-- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas (destructivo).
+- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-003 (destructivo).
 - `backend/`: `npm run seed` — inserta datos demo (idempotente).
 - `frontend/`: `npm run dev` — UI en `http://localhost:8080`.
 - `frontend/`: `npm run lint` — ESLint + Prettier, 0 errores esperados.
 - `frontend/`: `npm run build` — compila para producción (TanStack Start + Nitro).
+- Tests (raíz): `npm test`, `npm run test:unit`, `npm run test:setup:db`, `npm run test:integration`, `npm run test:e2e`.
 
 ## Modelo de datos / dominio
 
-- `usuarios.rol` — ENUM `admin|profesor|estudiante|acudiente`; `password` siempre hash bcrypt (10 rondas); `estado` activo/inactivo; correo único.
-- `notas` — 1 fila por matrícula (UNIQUE). Ponderación: `nota_1` 25% + `nota_2` 25% + `nota_3` 20% + `examen_final` 30%. La fórmula está **duplicada** en `routes/notas.js` y `seed.js`; mantener ambas sincronizadas. Se aprueba con 3.0.
-- `asistencia` — `estado` ENUM `presente|ausente|tarde|excusa`; único por (matrícula, fecha); con observación.
+- `usuarios.rol` — ENUM `superadmin|admin|profesor|estudiante|acudiente`; `password` siempre hash bcrypt (10 rondas); `estado` activo/inactivo; `institucion_id` NULL solo para `superadmin`; `foto_url` para el avatar.
+- `instituciones` — datos de la institución + `estado` (activo/inactivo, invalidan sesiones) y `logo_url` (branding multi-tenant).
+- `notas` — 1 fila por matrícula (UNIQUE). Ponderación: `nota_1` 25% + `nota_2` 25% + `nota_3` 20% + `examen_final` 30%. La fórmula está **duplicada** en `lib/notas.js` (fuente del backend) y `frontend/src/routes/profesor/index.tsx`; mantener ambas sincronizadas. Se aprueba con 3.0.
+- `asistencia` — `estado` ENUM `presente|ausente|tarde|excusa`; único por (matrícula, fecha); con observación y **soporte de excusa** (`archivo_ruta`, `archivo_mime`, `archivo_nombre`).
 - `grupos` — materia + profesor + periodo + horario. `matriculas` vincula estudiante↔grupo con clave única (estudiante, grupo).
 - `tareas` / `entregas_tareas` — tarea por grupo (puntaje máx. por defecto 10); entrega única por (tarea, estudiante) con `archivo_url` (texto, sin subida real), calificación y retroalimentación.
 - `eventos_calendario` — `tipo` ENUM `institucional|evaluacion|entrega|reunion`; `curso_id` opcional (FK a carreras_grados, SET NULL).
@@ -44,17 +49,17 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 - `notificaciones` — `tipo` ENUM `sistema|nota|tarea|mensaje|evento`, `leida` TINYINT.
 - `acudiente_estudiante` — N:M entre acudientes y estudiantes (único por par).
 - `carreras_grados` / `materias` — carrera con código único; materia con créditos y carrera opcional (FK SET NULL).
-- `instituciones` — datos generales de la institución (nombre, correo, teléfono, departamento, ciudad).
+- **Multi-tenant:** `institucion_id` en `usuarios`, `carreras_grados`, `materias`, `grupos`, `matriculas`, `eventos_calendario`, `mensajes`, `tareas` y `notificaciones`; todo query de datos filtra por `req.user.institucion_id`.
 
 ## Convenciones
 
 - Backend **ESM**: extensiones `.js` explícitas en los imports relativos (p. ej. `import { pool } from "../db.js"`).
 - Todo acceso a BD usa el `pool` de `mysql2/promise` de `../db.js`, siempre con sentencias preparadas y placeholders `?`.
 - Envuelve cada handler async de ruta con `asyncHandler`; un handler async crudo puede tumbar el proceso.
-- Cada router llama `router.use(verifyToken)` (`middleware/auth.js`) y controla el rol con `requireRole(...)`. `req.user.id` = id del usuario autenticado.
+- Cada router llama `router.use(verifyToken)` (`middleware/auth.js`) y controla el rol con `requireRole(...)`. `req.user.id` = id del usuario autenticado; `req.user` incluye `rol`, `institucion_id`, `institucion_logo`, `institucion_estado`, `institucion_nombre`.
 - Errores JSON `{ error: "<mensaje en español>" }`. Estados: 400 entrada inválida, 401 token ausente/inválido, 403 prohibido, 500 interno.
 - Emite notificaciones vía `notificar(usuario_id, titulo, mensaje, tipo)` de `../lib/notificar.js`.
-- Frontend: alias `@` → `src`; usa `api()` de `@/lib/api` para todos los fetch. Token/usuario en `localStorage` (`token`, `user`) o `sessionStorage`; `getToken()` lee localStorage primero. Clave de tema: `sia-theme`.
+- Frontend: alias `@` → `src`; usa `api()` de `@/lib/api` para todos los fetch y `urlRecurso()` para avatares/logos. Token/usuario en `localStorage` (`token`, `user`) o `sessionStorage`; `getToken()` lee localStorage primero. Clave de tema: `sia-theme`.
 - Prettier vía ESLint: printWidth 100, comillas dobles, punto y coma.
 - Páginas protegidas con layout `route.tsx` por rol: `requireRole("...")` en `beforeLoad` + `<AuthGate>` + `<PanelShell>`.
 - Toda la UI y los mensajes de error en **español**.
@@ -72,7 +77,9 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 - No editar a mano `routeTree.gen.ts` ni los contenidos de `.tanstack/` (generados por el dev server/plugin).
 - No usar `localhost` en llamadas a la API del frontend (rompe el uso en red local); confiar en la resolución automática de `@/lib/api`.
 - No importar `server-only` (ESLint lo prohíbe con `no-restricted-imports`); el código solo-server va en `*.server.ts`.
-- No subir archivos `.env*` al repositorio.
-- No cambiar la ponderación de la nota (25/25/20/30) en un solo lugar.
+- No subir archivos `.env*` al repositorio. Ojo: `frontend/.env` está versionado a propósito (VITE_API_URL para SSR) y `backend/.env.example` llegó a contener una key real de Gemini — mantenlos sin secretos.
+- No consultar tablas de datos sin filtrar por `institucion_id`: rompe el aislamiento multi-tenant.
+- No cambiar la ponderación de la nota (25/25/20/30) en un solo lugar: vive en `lib/notas.js` y en la fórmula del frontend (`profesor/index.tsx`).
 - No modificar `migrate.js` para que deje de ser destructivo: `npm run migrate` borra y recrea las tablas a propósito.
+- No dejar `JWT_SECRET` con el valor del placeholder de `.env.example`: `app.js` solo aborta si la variable falta, no si es la predeterminada.
 - No añadir dependencias ni frameworks nuevos sin avisar.
