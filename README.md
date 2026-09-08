@@ -70,7 +70,7 @@
 - **Boletín imprimible**: descarga/impresión del boletín del estudiante en PDF (vía impresión del navegador).
 
 ### 🔄 Módulos Transversales
-- **Autenticación JWT**: login con token de 8 horas, sesión persistente (`localStorage`) u opcional (`sessionStorage`), **RBAC** (control de acceso por rol) en cada endpoint y bloqueo por fuerza bruta en el inicio de sesión.
+- **Autenticación JWT**: login con token de 8 horas, sesión persistente (`localStorage`) u opcional (`sessionStorage`), **RBAC** (control de acceso por rol) en cada endpoint y bloqueo por fuerza bruta en el inicio de sesión. Recuperación de contraseña por correo (`/forgot-password` y `/reset-password`, público) para todos los roles.
 - **Configuración por usuario** (`/configuracion`): perfil con foto de avatar, apariencia (tema claro/oscuro) y seguridad (cambio de contraseña).
 - **Mensajería interna**: chat entre administradores, profesores, estudiantes y acudientes, con indicadores de leídos.
 - **Notificaciones en tiempo real**: alertas de *sistema, nota, tarea, mensaje y evento* con actualización periódica (polling cada 60 s) en la campana de la cabecera.
@@ -121,15 +121,17 @@ SIA/
 │   ├── index.js                 # Entrada: arranca el listener y chequea MySQL
 │   ├── app.js                   # App Express: CORS, estáticos (uploads/), rutas y errores
 │   ├── db.js                    # Pool de MySQL (decimalNumbers: true)
-│   ├── migrate.js               # Ejecuta migrations/001-003 en orden
+│   ├── migrate.js               # Ejecuta migrations/001-004 en orden
 │   ├── seed.js                  # Datos demo (idempotente)
 │   ├── .env.example             # Plantilla de variables de entorno
-│   ├── migrations/              # 001_init.sql, 002_multi_tenant.sql, 003_institucion_logo.sql
-│   ├── routes/                  # auth, admin, profesor, acudiente, notas, asistencia,
+│   ├── migrations/              # 001_init.sql, 002_multi_tenant.sql,
+│   │                            # 003_institucion_logo.sql, 004_password_reset.sql
+│   ├── routes/                  # auth (incluye recuperación de contraseña),
+│   │                            # admin, profesor, acudiente, notas, asistencia,
 │   │                            # tareas, calendario, chatbot, mensajes, notificaciones,
 │   │                            # instituciones, usuarios
 │   ├── middleware/              # verifyToken, requireRole, asyncHandler
-│   ├── lib/                     # notas, horario, rateLimit, lan, notificar, chatbotEngine
+│   ├── lib/                     # notas, horario, rateLimit, lan, notificar, mailer, chatbotEngine
 │   ├── uploads/                 # avatares/, logos/, excusas/ (archivos subidos)
 │   └── tests/                   # unit/ e integration/ (node --test + Supertest)
 │
@@ -180,6 +182,15 @@ DB_USER=root
 DB_PASSWORD=
 DB_NAME=academico
 JWT_SECRET=cambia_esto_por_una_cadena_larga_y_aleatoria
+# Recuperación de contraseña (SMTP). Sin SMTP, forgot-password imprime el
+# enlace en la consola en lugar de enviar el correo (suficiente para probar en dev).
+# SMTP_HOST=
+# SMTP_PORT=587
+# SMTP_SECURE=false
+# SMTP_USER=
+# SMTP_PASS=
+# SMTP_FROM="SIA <soporte@miapp.edu.co>"
+FRONTEND_URL=http://localhost:8080
 ```
 
 > 💡 **CORS en red local**: el backend permite automáticamente orígenes de `localhost` e IPs privadas (192.168.x.x, 10.x.x.x, 172.16-31.x.x) en el puerto del frontend. Solo agrega `CORS_ORIGIN` (separado por comas) para casos especiales.
@@ -206,7 +217,7 @@ npm install
 
 ```bash
 cd backend
-npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos)
+npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos) + 004 (recuperación de contraseña)
 npm run seed      # Inserta institución, usuarios demo, materias, grupos, notas, etc.
 ```
 
@@ -263,7 +274,7 @@ El seed incluye datos de ejemplo: 5 cuentas demo (incluye superadmin, sin instit
 
 ```bash
 # Backend (requiere MySQL activo)
-cd backend && npm run migrate && npm run seed   # esquema (001-003) + datos demo
+cd backend && npm run migrate && npm run seed   # esquema (001-004) + datos demo
 
 # Frontend
 cd frontend

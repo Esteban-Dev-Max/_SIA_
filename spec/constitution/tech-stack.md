@@ -14,14 +14,14 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 
 - `backend/app.js` — app Express (factory): CORS (red local + `CORS_ORIGIN` + orígenes dinámicos por `Host` para túneles), `/health` y `/api/health`, estáticos de `uploads/`, montado de routers bajo `/api/*` y manejo global de errores (400/413/duplicados/claves foráneas). `backend/index.js` — entrada: arranca el listener y chequea MySQL.
 - `backend/db.js` — pool MySQL (`decimalNumbers: true`).
-- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql` — esquema base, multi-tenant/superadmin y logo de institución (borra y recrea las tablas a propósito).
+- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql`, `004_password_reset.sql` — esquema base, multi-tenant/superadmin, logo de institución y tokens de recuperación de contraseña (borra y recrea las tablas a propósito).
 - `backend/seed.js` — datos demo idempotentes (institución, usuarios incl. superadmin, materias, grupos, notas, asistencia, tareas, eventos, mensajes, notificaciones).
-- `backend/routes/` — `auth.js`, `admin.js`, `profesor.js`, `acudiente.js`, `notas.js`, `asistencia.js`, `tareas.js`, `calendario.js`, `chatbot.js`, `chat.js`, `mensajes.js`, `notificaciones.js`, `instituciones.js` (solo superadmin), `usuarios.js` (admin/superadmin, incluida la carga masiva).
+- `backend/routes/` — `auth.js` (incluye `login`, `me`, `cambiar-password` y el flujo de recuperación `forgot-password`/`reset-password`), `admin.js`, `profesor.js`, `acudiente.js`, `notas.js`, `asistencia.js`, `tareas.js`, `calendario.js`, `chatbot.js`, `chat.js`, `mensajes.js`, `notificaciones.js`, `instituciones.js` (solo superadmin), `usuarios.js` (admin/superadmin, incluida la carga masiva).
 - `backend/middleware/` — `auth.js` (verifyToken + requireRole), `asyncHandler`.
-- `backend/lib/` — `notas.js` (ponderación única), `horario.js` (choque de horarios), `rateLimit.js` (límites del chatbot y bloqueo por fuerza bruta en login), `lan.js` (CORS de red local), `notificar.js`, `chatbotEngine.js`.
+- `backend/lib/` — `notas.js` (ponderación única), `horario.js` (choque de horarios), `rateLimit.js` (límites del chatbot, forgot-password y bloqueo por fuerza bruta en login), `lan.js` (CORS de red local), `notificar.js`, `mailer.js` (envío SMTP con respaldo dev), `chatbotEngine.js`.
 - `backend/uploads/` — `avatars/`, `logos/`, `excusas/` (archivos subidos con multer).
 - `backend/tests/` — `unit/` y `integration/` (Supertest, BD `academico_test`).
-- `frontend/src/routes/` — rutas por archivo en kebab-case; paneles por rol en `routes/<rol>/` con `route.tsx`. Extra: `admin/usuarios.tsx`, `admin/instituciones.tsx`, `admin/academico.tsx`, `configuracion.tsx` (perfil/foto, tema, contraseña).
+- `frontend/src/routes/` — rutas por archivo en kebab-case; paneles por rol en `routes/<rol>/` con `route.tsx`. Extra: `admin/usuarios.tsx`, `admin/instituciones.tsx`, `admin/academico.tsx`, `configuracion.tsx` (perfil/foto, tema, contraseña). Públicas: `login.tsx`, `forgot-password.tsx`, `reset-password.tsx`.
 - `frontend/src/lib/` — `api.ts` (fetch + JWT, resuelve la API por protocolo/host, `urlRecurso()` para avatares/logos, `apiFetch()`/`apiBlob()`/`vistaArchivo()`), `guard.ts` (RBAC), `theme.ts`, `error-capture.ts`, `error-page.ts`, `utils.ts`.
 - `frontend/src/components/` — `AuthGate`, `PanelShell`, `DataTable`, `StatCard`, `ChatbotWidget`, `NotificationBell`, `AsistenciaTab`, `HistorialAsistenciaTab`, `InstitucionModal`, `ThemeProvider`, `ThemeToggle` y `ui/` (shadcn/ui sobre Radix).
 - `e2e/` — tests Playwright (`auth.spec.ts`, `superadmin.spec.ts`).
@@ -29,7 +29,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 ## Comandos
 
 - `backend/`: `npm run dev` — API en `http://localhost:3001` (`node --watch`).
-- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-003 (destructivo).
+- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-004 (destructivo).
 - `backend/`: `npm run seed` — inserta datos demo (idempotente).
 - `frontend/`: `npm run dev` — UI en `http://localhost:8080`.
 - `frontend/`: `npm run lint` — ESLint + Prettier, 0 errores esperados.
@@ -48,6 +48,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 - `mensajes` — remitente/destinatario, contenido, `leido` TINYINT.
 - `notificaciones` — `tipo` ENUM `sistema|nota|tarea|mensaje|evento`, `leida` TINYINT.
 - `acudiente_estudiante` — N:M entre acudientes y estudiantes (único por par).
+- `password_resets` — tokens de recuperación: `token_hash` (sha256 del token, nunca el token plano), `expira_en` (+1 h), `usado` TINYINT y FK a `usuarios` con ON DELETE CASCADE.
 - `carreras_grados` / `materias` — carrera con código único; materia con créditos y carrera opcional (FK SET NULL).
 - **Multi-tenant:** `institucion_id` en `usuarios`, `carreras_grados`, `materias`, `grupos`, `matriculas`, `eventos_calendario`, `mensajes`, `tareas` y `notificaciones`; todo query de datos filtra por `req.user.institucion_id`.
 
@@ -57,6 +58,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 - Todo acceso a BD usa el `pool` de `mysql2/promise` de `../db.js`, siempre con sentencias preparadas y placeholders `?`.
 - Envuelve cada handler async de ruta con `asyncHandler`; un handler async crudo puede tumbar el proceso.
 - Cada router llama `router.use(verifyToken)` (`middleware/auth.js`) y controla el rol con `requireRole(...)`. `req.user.id` = id del usuario autenticado; `req.user` incluye `rol`, `institucion_id`, `institucion_logo`, `institucion_estado`, `institucion_nombre`.
+- Recuperación de contraseña (endpoints públicos): `POST /api/auth/forgot-password` responde siempre el mensaje genérico (no revela si un correo existe) y `POST /api/auth/reset-password` valida el token (1 hora, `password_resets`) y re-hashea con bcrypt. Envío con `lib/mailer.js` usando `SMTP_HOST/PORT/SECURE/USER/PASS/FROM`; sin SMTP el enlace se imprime en consola (dev). `FRONTEND_URL` construye el enlace del correo.
 - Errores JSON `{ error: "<mensaje en español>" }`. Estados: 400 entrada inválida, 401 token ausente/inválido, 403 prohibido, 500 interno.
 - Emite notificaciones vía `notificar(usuario_id, titulo, mensaje, tipo)` de `../lib/notificar.js`.
 - Frontend: alias `@` → `src`; usa `api()` de `@/lib/api` para todos los fetch y `urlRecurso()` para avatares/logos. Token/usuario en `localStorage` (`token`, `user`) o `sessionStorage`; `getToken()` lee localStorage primero. Clave de tema: `sia-theme`.

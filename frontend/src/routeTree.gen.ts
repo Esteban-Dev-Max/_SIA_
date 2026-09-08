@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as MensajesRouteImport } from './routes/mensajes'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ProfesorRouteRouteImport } from './routes/profesor/route'
@@ -28,6 +30,11 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
 import { Route as AdminInstitucionesRouteImport } from './routes/admin/instituciones'
 import { Route as AdminAcademicoRouteImport } from './routes/admin/academico'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MensajesRoute = MensajesRouteImport.update({
   id: '/mensajes',
   path: '/mensajes',
@@ -36,6 +43,11 @@ const MensajesRoute = MensajesRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracionRoute = ConfiguracionRouteImport.update({
@@ -127,8 +139,10 @@ export interface FileRoutesByFullPath {
   '/profesor': typeof ProfesorRouteRouteWithChildren
   '/calendario': typeof CalendarioRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/academico': typeof AdminAcademicoRoute
   '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -143,8 +157,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendario': typeof CalendarioRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/academico': typeof AdminAcademicoRoute
   '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -164,8 +180,10 @@ export interface FileRoutesById {
   '/profesor': typeof ProfesorRouteRouteWithChildren
   '/calendario': typeof CalendarioRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/mensajes': typeof MensajesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/academico': typeof AdminAcademicoRoute
   '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -186,8 +204,10 @@ export interface FileRouteTypes {
     | '/profesor'
     | '/calendario'
     | '/configuracion'
+    | '/forgot-password'
     | '/login'
     | '/mensajes'
+    | '/reset-password'
     | '/admin/academico'
     | '/admin/instituciones'
     | '/admin/usuarios'
@@ -202,8 +222,10 @@ export interface FileRouteTypes {
     | '/'
     | '/calendario'
     | '/configuracion'
+    | '/forgot-password'
     | '/login'
     | '/mensajes'
+    | '/reset-password'
     | '/admin/academico'
     | '/admin/instituciones'
     | '/admin/usuarios'
@@ -222,8 +244,10 @@ export interface FileRouteTypes {
     | '/profesor'
     | '/calendario'
     | '/configuracion'
+    | '/forgot-password'
     | '/login'
     | '/mensajes'
+    | '/reset-password'
     | '/admin/academico'
     | '/admin/instituciones'
     | '/admin/usuarios'
@@ -243,12 +267,21 @@ export interface RootRouteChildren {
   ProfesorRouteRoute: typeof ProfesorRouteRouteWithChildren
   CalendarioRoute: typeof CalendarioRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MensajesRoute: typeof MensajesRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mensajes': {
       id: '/mensajes'
       path: '/mensajes'
@@ -261,6 +294,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracion': {
@@ -444,8 +484,10 @@ const rootRouteChildren: RootRouteChildren = {
   ProfesorRouteRoute: ProfesorRouteRouteWithChildren,
   CalendarioRoute: CalendarioRoute,
   ConfiguracionRoute: ConfiguracionRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MensajesRoute: MensajesRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

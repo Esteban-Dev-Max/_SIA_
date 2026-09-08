@@ -241,6 +241,15 @@ function LoginPage() {
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {loading ? "Entrando..." : "Entrar"}
                 </Button>
+
+                <div className="text-center">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
               </form>
 
               <div className="mt-6">
