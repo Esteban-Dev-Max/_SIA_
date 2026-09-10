@@ -26,6 +26,7 @@ DROP TABLE IF EXISTS matriculas;
 DROP TABLE IF EXISTS grupos;
 DROP TABLE IF EXISTS materias;
 DROP TABLE IF EXISTS carreras_grados;
+DROP TABLE IF EXISTS password_resets;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS instituciones;
 

@@ -3,6 +3,7 @@ import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { notificar } from "../lib/notificar.js";
+import { COLUMNAS_NOTA, recalcularCasillero } from "../lib/notasTareas.js";
 
 const r = Router();
 r.use(verifyToken);
@@ -79,7 +80,7 @@ r.get(
     if (!grupoId) return res.status(400).json({ error: "ID inválido" });
     if (!(await puedeVerGrupo(req, res, grupoId))) return;
     const [rows] = await pool.query(
-      `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max,
+      `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max, t.columna_nota,
             m.nombre AS materia, g.periodo,
             (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = t.grupo_id) AS total_alumnos,
             (SELECT COUNT(*) FROM entregas_tareas e WHERE e.tarea_id = t.id) AS entregados
@@ -122,7 +123,7 @@ r.get(
 r.post(
   "/",
   asyncHandler(async (req, res) => {
-    const { grupo_id, titulo, descripcion, fecha_entrega, puntaje_max } =
+    const { grupo_id, titulo, descripcion, fecha_entrega, puntaje_max, columna_nota } =
       req.body;
     const grupoId = parseId(grupo_id);
     if (!grupoId || !titulo || typeof titulo !== "string" || !titulo.trim()) {
@@ -133,6 +134,11 @@ r.post(
     }
     if (!(await esProfesorDeGrupo(req, grupoId))) {
       return res.status(403).json({ error: "No autorizado" });
+    }
+
+    const columna = columna_nota ?? null;
+    if (columna !== null && !COLUMNAS_NOTA.includes(columna)) {
+      return res.status(400).json({ error: "Casillero de nota inválido" });
     }
 
     const puntaje =
@@ -149,14 +155,15 @@ r.post(
     const instId = grpRow?.institucion_id ?? req.user.institucion_id;
 
     const [result] = await pool.query(
-      `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max, institucion_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max, columna_nota, institucion_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         grupoId,
         titulo.trim(),
         typeof descripcion === "string" ? descripcion.trim() || null : null,
         fecha,
         puntaje,
+        columna,
         instId,
       ],
     );
@@ -223,7 +230,7 @@ r.get(
     const tareaId = parseId(req.params.tarea_id);
     if (!tareaId) return res.status(400).json({ error: "ID inválido" });
     const [[t]] = await pool.query(
-      "SELECT id, grupo_id, titulo, puntaje_max FROM tareas WHERE id = ?",
+      "SELECT id, grupo_id, titulo, puntaje_max, columna_nota FROM tareas WHERE id = ?",
       [tareaId],
     );
     if (!t) return res.status(404).json({ error: "Tarea no encontrada" });
@@ -281,17 +288,14 @@ r.post(
     }
 
     const [[e]] = await pool.query(
-      `SELECT e.id, e.tarea_id, t.puntaje_max
+      `SELECT e.id, e.estudiante_id, e.tarea_id, t.puntaje_max, t.columna_nota, t.grupo_id
      FROM entregas_tareas e
      JOIN tareas t ON t.id = e.tarea_id
      WHERE e.id = ?`,
       [entregaId],
     );
     if (!e) return res.status(404).json({ error: "Entrega no encontrada" });
-    const [[t]] = await pool.query("SELECT grupo_id FROM tareas WHERE id = ?", [
-      e.tarea_id,
-    ]);
-    if (!(await esProfesorDeGrupo(req, t.grupo_id))) {
+    if (!(await esProfesorDeGrupo(req, e.grupo_id))) {
       return res.status(403).json({ error: "No autorizado" });
     }
     if (nota !== null && nota > Number(e.puntaje_max)) {
@@ -302,6 +306,16 @@ r.post(
       "UPDATE entregas_tareas SET calificacion = ?, retroalimentacion = ? WHERE id = ?",
       [nota, retroalimentacion ?? null, entregaId],
     );
+
+    // Si la tarea está vinculada a un casillero de la planilla, sincroniza la
+    // nota del estudiante (promedio de tareas del casillero).
+    if (e.columna_nota) {
+      await recalcularCasillero({
+        estudianteId: e.estudiante_id,
+        grupoId: e.grupo_id,
+        columna: e.columna_nota,
+      });
+    }
     res.json({ ok: true });
   }),
 );

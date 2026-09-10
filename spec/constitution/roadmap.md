@@ -20,6 +20,7 @@ Orden y estado de las features de SIA. Cada entrada apunta a su carpeta en `feat
 14. **014 · Carga masiva de usuarios** — alta de profesores/estudiantes/acudientes desde CSV/XLSX con validación por fila y reporte de errores.
 15. **015 · Perfil, avatares y archivos** — foto de perfil de usuarios (JPG/PNG/WEBP), subida de logos de institución y soportes (PDF/JPG/PNG) de excusas de asistencia.
 16. **016 · Recuperación de contraseña** — flujo por correo (SMTP) para todos los roles: `forgot-password` con respuesta genérica y `reset-password` con token de 1 hora (tabla `password_resets`).
+17. **017 · Sincronización de tareas con notas** — las tareas pueden asignarse a un casillero de la planilla (`tareas.columna_nota`); al calificar las entregas, la nota se reescala de `0..puntaje_max` a `0.0–5.0` y se promedia automáticamente en el casillero (por estudiante), con notificación al estudiante. En la planilla, los casilleros gestionados por tareas salen de solo lectura con distintivo "Promedio tareas".
 
 ## Siguiente 🔜
 

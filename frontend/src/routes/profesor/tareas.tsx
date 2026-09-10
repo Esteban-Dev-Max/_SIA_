@@ -56,6 +56,7 @@ type TareaGrupo = {
   periodo: string;
   total_alumnos: number | string;
   entregados: number | string;
+  columna_nota: string | null;
 };
 
 type Entrega = {
@@ -71,10 +72,30 @@ type Entrega = {
 };
 
 type DetalleTarea = {
-  tarea: { id: number; titulo: string; puntaje_max: number | string };
+  tarea: {
+    id: number;
+    titulo: string;
+    puntaje_max: number | string;
+    columna_nota: string | null;
+  };
   total_alumnos: number | string;
   entregas: Entrega[];
   sin_entrega: { estudiante_id: number; estudiante: string; correo: string }[];
+};
+
+const CASILLEROS: { valor: string; etiqueta: string }[] = [
+  { valor: "", etiqueta: "Sin asignar" },
+  { valor: "nota_1", etiqueta: "Nota 1" },
+  { valor: "nota_2", etiqueta: "Nota 2" },
+  { valor: "nota_3", etiqueta: "Nota 3" },
+  { valor: "examen_final", etiqueta: "Examen Final" },
+];
+
+const ETIQUETA_CASILLERO: Record<string, string> = {
+  nota_1: "Nota 1",
+  nota_2: "Nota 2",
+  nota_3: "Nota 3",
+  examen_final: "Examen Final",
 };
 
 function fmtFecha(v: string | null): string {
@@ -92,6 +113,17 @@ function num(v: number | string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Reescala una calificación de tarea a la escala 0.0–5.0 de la planilla.
+function equivalenciaNota(
+  v: string | number | null,
+  puntaje: number | string | null,
+): number | null {
+  const c = num(typeof v === "string" ? v : v);
+  const p = num(puntaje);
+  if (c === null || p === null || p <= 0 || !Number.isFinite(c)) return null;
+  return Math.round((c / p) * 5 * 100) / 100;
+}
+
 function ProfesorTareas() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [sel, setSel] = useState<number | null>(null);
@@ -105,6 +137,7 @@ function ProfesorTareas() {
     descripcion: "",
     fecha_entrega: "",
     puntaje_max: "10",
+    columna_nota: "",
   });
 
   const [revTarea, setRevTarea] = useState<TareaGrupo | null>(null);
@@ -155,11 +188,18 @@ function ProfesorTareas() {
           descripcion: form.descripcion,
           fecha_entrega: form.fecha_entrega || null,
           puntaje_max: form.puntaje_max || "10",
+          columna_nota: form.columna_nota || null,
         }),
       });
       toast.success("Tarea creada");
       setOpenNueva(false);
-      setForm({ titulo: "", descripcion: "", fecha_entrega: "", puntaje_max: "10" });
+      setForm({
+        titulo: "",
+        descripcion: "",
+        fecha_entrega: "",
+        puntaje_max: "10",
+        columna_nota: "",
+      });
       cargarTareas();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al crear tarea");
@@ -274,11 +314,21 @@ function ProfesorTareas() {
           return [
             <div key="t" className="min-w-0">
               <div className="font-medium leading-snug">{t.titulo}</div>
-              {t.descripcion && (
-                <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                  {t.descripcion}
-                </div>
-              )}
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                {t.columna_nota && (
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-violet-200 bg-violet-500/10 px-2 py-0 text-[10px] font-medium text-violet-700"
+                  >
+                    → {ETIQUETA_CASILLERO[t.columna_nota]}
+                  </Badge>
+                )}
+                {t.descripcion && (
+                  <span className="line-clamp-1 text-xs text-muted-foreground">
+                    {t.descripcion}
+                  </span>
+                )}
+              </div>
             </div>,
             <Badge key="m" variant="outline" className="text-xs font-normal rounded-full px-2.5">
               {t.materia}
@@ -375,6 +425,27 @@ function ProfesorTareas() {
                   className="rounded-lg border-border/60"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="columna_nota">Asignar a casillero de nota</Label>
+              <select
+                id="columna_nota"
+                value={form.columna_nota}
+                onChange={(e) => setForm((f) => ({ ...f, columna_nota: e.target.value }))}
+                className="input-field w-full"
+              >
+                {CASILLEROS.map((c) => (
+                  <option key={c.valor} value={c.valor}>
+                    {c.etiqueta}
+                  </option>
+                ))}
+              </select>
+              {form.columna_nota && (
+                <p className="text-xs text-muted-foreground">
+                  La calificación de esta tarea se sincronizará al casillero{" "}
+                  {ETIQUETA_CASILLERO[form.columna_nota]} de la planilla (promedio de tareas).
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -483,6 +554,20 @@ function ProfesorTareas() {
                           }
                           className="h-9 rounded-lg border-border/60 text-sm"
                         />
+                        {revTarea?.columna_nota && (
+                          <p className="text-xs text-muted-foreground">
+                            {(() => {
+                              const eq = equivalenciaNota(
+                                e.calificacion,
+                                revTarea?.puntaje_max ?? null,
+                              );
+                              return eq !== null
+                                ? `Equivale a ${eq.toFixed(2)} / 5`
+                                : "Equivale a — / 5";
+                            })()}{" "}
+                            · se sincroniza a {ETIQUETA_CASILLERO[revTarea.columna_nota]}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Retroalimentación</Label>

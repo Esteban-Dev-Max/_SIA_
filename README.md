@@ -121,17 +121,18 @@ SIA/
 │   ├── index.js                 # Entrada: arranca el listener y chequea MySQL
 │   ├── app.js                   # App Express: CORS, estáticos (uploads/), rutas y errores
 │   ├── db.js                    # Pool de MySQL (decimalNumbers: true)
-│   ├── migrate.js               # Ejecuta migrations/001-004 en orden
+│   ├── migrate.js               # Ejecuta migrations/001-005 en orden
 │   ├── seed.js                  # Datos demo (idempotente)
 │   ├── .env.example             # Plantilla de variables de entorno
 │   ├── migrations/              # 001_init.sql, 002_multi_tenant.sql,
-│   │                            # 003_institucion_logo.sql, 004_password_reset.sql
+│   │                            # 003_institucion_logo.sql, 004_password_reset.sql,
+│   │                            # 005_tareas_columna_nota.sql
 │   ├── routes/                  # auth (incluye recuperación de contraseña),
 │   │                            # admin, profesor, acudiente, notas, asistencia,
 │   │                            # tareas, calendario, chatbot, mensajes, notificaciones,
 │   │                            # instituciones, usuarios
 │   ├── middleware/              # verifyToken, requireRole, asyncHandler
-│   ├── lib/                     # notas, horario, rateLimit, lan, notificar, mailer, chatbotEngine
+│   ├── lib/                     # notas, notasTareas, horario, rateLimit, lan, notificar, mailer, chatbotEngine
 │   ├── uploads/                 # avatares/, logos/, excusas/ (archivos subidos)
 │   └── tests/                   # unit/ e integration/ (node --test + Supertest)
 │
@@ -217,7 +218,7 @@ npm install
 
 ```bash
 cd backend
-npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos) + 004 (recuperación de contraseña)
+npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos) + 004 (recuperación de contraseña) + 005 (sincronización tareas→notas)
 npm run seed      # Inserta institución, usuarios demo, materias, grupos, notas, etc.
 ```
 
@@ -274,7 +275,7 @@ El seed incluye datos de ejemplo: 5 cuentas demo (incluye superadmin, sin instit
 
 ```bash
 # Backend (requiere MySQL activo)
-cd backend && npm run migrate && npm run seed   # esquema (001-004) + datos demo
+cd backend && npm run migrate && npm run seed   # esquema (001-005) + datos demo
 
 # Frontend
 cd frontend

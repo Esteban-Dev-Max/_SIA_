@@ -17,6 +17,7 @@ const MIGRACIONES = [
   "002_multi_tenant.sql",
   "003_institucion_logo.sql",
   "004_password_reset.sql",
+  "005_tareas_columna_nota.sql",
 ];
 
 const leer = (file) =>

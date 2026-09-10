@@ -3,7 +3,7 @@ import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { notificar } from "../lib/notificar.js";
-import { calcularDefinitiva } from "../lib/notas.js";
+import { calcularDefinitiva, CAMPOS_NOTA } from "../lib/notas.js";
 
 const r = Router();
 r.use(verifyToken);
@@ -113,7 +113,9 @@ r.get(
   }),
 );
 
-// Planilla de notas de todos los estudiantes de un grupo.
+// Planilla de notas de todos los estudiantes de un grupo. Incluye las columnas
+// gestionadas por tareas (columnas_tareas): en esos casilleros el valor proviene
+// del promedio de tareas y no debe editarse a mano en la planilla.
 r.get(
   "/grupo/:grupo_id",
   asyncHandler(async (req, res) => {
@@ -131,7 +133,11 @@ r.get(
      ORDER BY u.nombre_completo`,
       [grupoId],
     );
-    res.json(rows);
+    const [cols] = await pool.query(
+      "SELECT DISTINCT columna_nota FROM tareas WHERE grupo_id = ? AND columna_nota IS NOT NULL",
+      [grupoId],
+    );
+    res.json({ filas: rows, columnas_tareas: cols.map((c) => c.columna_nota) });
   }),
 );
 
@@ -166,13 +172,38 @@ r.post(
       if (!m) return res.status(403).json({ error: "No autorizado" });
     }
 
-    const a = limpiarNota(nota_1);
-    const b = limpiarNota(nota_2);
-    const c = limpiarNota(nota_3);
-    const d = limpiarNota(examen_final);
+    // Columnas gestionadas por tareas (casillero vinculado a tareas): el
+    // promedio de tareas manda, el ingreso manual no las pisa ni las borra.
+    const [[matricula]] = await pool.query(
+      "SELECT grupo_id FROM matriculas WHERE id = ?",
+      [matriculaId],
+    );
+    const [colsTareas] = await pool.query(
+      "SELECT DISTINCT columna_nota FROM tareas WHERE grupo_id = ? AND columna_nota IS NOT NULL",
+      [matricula.grupo_id],
+    );
+    const gestionadas = new Set(colsTareas.map((c) => c.columna_nota));
+
+    const [[actuales]] = await pool.query(
+      "SELECT nota_1, nota_2, nota_3, examen_final FROM notas WHERE matricula_id = ?",
+      [matriculaId],
+    );
+    const actual = actuales ?? {};
+
+    const manuales = { nota_1, nota_2, nota_3, examen_final };
+    const valores = {};
+    for (const campo of CAMPOS_NOTA) {
+      // Las columnas gestionadas conservan el valor que dejó la sincronización.
+      valores[campo] = gestionadas.has(campo)
+        ? actual[campo] ?? null
+        : limpiarNota(manuales[campo]);
+    }
+
     const enRango = (v) =>
       v === null || (Number.isFinite(v) && v >= 1 && v <= 5);
-    if (![a, b, c, d].every(enRango)) {
+    // Solo las columnas con ingreso manual se validan en 1–5; las gestionadas
+    // por tareas pueden quedar por debajo de 1 (escala 0.0–5.0).
+    if (!CAMPOS_NOTA.filter((c) => !gestionadas.has(c)).every((c) => enRango(valores[c]))) {
       return res
         .status(400)
         .json({ error: "Las notas deben estar entre 1 y 5" });
@@ -183,10 +214,10 @@ r.post(
         : null;
     // La definitiva solo se calcula con las 4 notas completas (ver lib/notas.js).
     const nota_definitiva = calcularDefinitiva({
-      nota_1: a,
-      nota_2: b,
-      nota_3: c,
-      examen_final: d,
+      nota_1: valores.nota_1,
+      nota_2: valores.nota_2,
+      nota_3: valores.nota_3,
+      examen_final: valores.examen_final,
     });
 
     await pool.query(
@@ -196,7 +227,15 @@ r.post(
        nota_1 = VALUES(nota_1), nota_2 = VALUES(nota_2), nota_3 = VALUES(nota_3),
        examen_final = VALUES(examen_final), nota_definitiva = VALUES(nota_definitiva),
        observaciones = VALUES(observaciones)`,
-      [matriculaId, a, b, c, d, nota_definitiva, observacionFinal],
+      [
+        matriculaId,
+        valores.nota_1,
+        valores.nota_2,
+        valores.nota_3,
+        valores.examen_final,
+        nota_definitiva,
+        observacionFinal,
+      ],
     );
 
     if (nota_definitiva !== null) {

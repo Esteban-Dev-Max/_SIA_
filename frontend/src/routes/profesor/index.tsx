@@ -129,11 +129,13 @@ function filaATexto(f: FilaNota): FilaPlanilla {
 
 function calcDefinitiva(...campos: string[]): number | null {
   // Mismo criterio que el backend (lib/notas.js): la definitiva solo se
-  // muestra/cuenta cuando las 4 notas están completas y en rango [1, 5].
+  // muestra/cuenta cuando las 4 notas están completas y en rango [0, 5].
+  // El mínimo es 0 (no 1) para que las columnas sincronizadas desde tareas
+  // (que pueden quedar por debajo de 1 en la escala 0.0–5.0) cuenten igual.
   const notas: number[] = [];
   for (const t of campos) {
     const n = notaDeTexto(t);
-    if (n === null || n < NOTA_MIN || n > NOTA_MAX) return null;
+    if (n === null || n < 0 || n > NOTA_MAX) return null;
     notas.push(n);
   }
   // Epsilon para que coincida con lib/notas.js del backend (3.975 -> 3.98).
@@ -203,6 +205,7 @@ function ProfesorPanel() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [planilla, setPlanilla] = useState<FilaPlanilla[]>([]);
+  const [columnasTareas, setColumnasTareas] = useState<CampoNota[]>([]);
   const [guardando, setGuardando] = useState<number | null>(null);
   const [cargandoPlanilla, setCargandoPlanilla] = useState(false);
 
@@ -219,9 +222,12 @@ function ProfesorPanel() {
     if (!sel) return;
     let activo = true;
     setCargandoPlanilla(true);
-    api<FilaNota[]>(`/api/notas/grupo/${sel}`)
+    api<{ filas: FilaNota[]; columnas_tareas: CampoNota[] }>(`/api/notas/grupo/${sel}`)
       .then((d) => {
-        if (activo) setPlanilla(d.map(filaATexto));
+        if (activo) {
+          setColumnasTareas(d.columnas_tareas);
+          setPlanilla(d.filas.map(filaATexto));
+        }
       })
       .catch((err) => {
         if (activo) toast.error(err instanceof Error ? err.message : "Error al cargar planilla");
@@ -256,26 +262,29 @@ function ProfesorPanel() {
   }
 
   async function guardarNota(f: FilaPlanilla) {
-    // Validar antes de enviar: un campo inválido no puede viajar como null,
-    // porque el upsert del backend borraría la nota ya guardada.
+    // Las columnas gestionadas por tareas se ignoran: su valor lo fija el
+    // promedio de tareas (puede estar por debajo de 1 y no pasa por la
+    // validación manual de rango 1–5 del backend).
+    const gestionada = (c: (typeof CAMPOS_NOTA)[number]) => columnasTareas.includes(c.key);
     for (const c of CAMPOS_NOTA) {
+      if (gestionada(c)) continue;
       if (!notaValida(f[c.key])) {
         toast.error(`Las notas deben estar entre ${NOTA_MIN} y ${NOTA_MAX}, con máx. 2 decimales`);
         return;
       }
     }
+    const body: Record<string, unknown> = {
+      matricula_id: f.matricula_id,
+      observaciones: f.observaciones,
+    };
+    for (const c of CAMPOS_NOTA) {
+      if (!gestionada(c)) body[c.key] = notaDeTexto(f[c.key]);
+    }
     setGuardando(f.matricula_id);
     try {
       const res = await api<{ nota_definitiva: number | null }>("/api/notas/guardar", {
         method: "POST",
-        body: JSON.stringify({
-          matricula_id: f.matricula_id,
-          nota_1: notaDeTexto(f.nota_1),
-          nota_2: notaDeTexto(f.nota_2),
-          nota_3: notaDeTexto(f.nota_3),
-          examen_final: notaDeTexto(f.examen_final),
-          observaciones: f.observaciones,
-        }),
+        body: JSON.stringify(body),
       });
       setPlanilla((prev) =>
         prev.map((x) =>
@@ -443,34 +452,55 @@ function ProfesorPanel() {
                         </TableCell>
                         {CAMPOS_NOTA.map((c) => {
                           const invalida = !notaValida(f[c.key]);
+                          const gestionada = columnasTareas.includes(c.key);
                           return (
                             <TableCell key={c.key} className="px-4 py-3">
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                pattern="[0-9]+([.,][0-9]{1,2})?"
-                                min={NOTA_MIN}
-                                max={NOTA_MAX}
-                                step="0.1"
-                                aria-invalid={invalida}
-                                title={
-                                  invalida
-                                    ? `Debe estar entre ${NOTA_MIN}.0 y ${NOTA_MAX}.0`
-                                    : undefined
-                                }
-                                value={f[c.key]}
-                                onChange={(e) =>
-                                  actualizarNota(f.matricula_id, c.key, filtrarNota(e.target.value))
-                                }
-                                onBlur={(e) =>
-                                  normalizarNotaAlSalir(f.matricula_id, c.key, e.target.value)
-                                }
-                                className={cn(
-                                  "w-20 h-9 rounded-lg border-border/60 text-center text-sm font-medium focus-visible:ring-primary/30",
-                                  invalida &&
-                                    "border-rose-400 bg-rose-500/5 focus-visible:ring-rose-300",
+                              <div className="flex flex-col items-center gap-1">
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  pattern="[0-9]+([.,][0-9]{1,2})?"
+                                  min={NOTA_MIN}
+                                  max={NOTA_MAX}
+                                  step="0.1"
+                                  disabled={gestionada}
+                                  aria-invalid={invalida}
+                                  title={
+                                    gestionada
+                                      ? "Este casillero se actualiza con el promedio de tareas"
+                                      : invalida
+                                        ? `Debe estar entre ${NOTA_MIN}.0 y ${NOTA_MAX}.0`
+                                        : undefined
+                                  }
+                                  value={f[c.key]}
+                                  placeholder={gestionada ? "—" : undefined}
+                                  onChange={(e) =>
+                                    actualizarNota(
+                                      f.matricula_id,
+                                      c.key,
+                                      filtrarNota(e.target.value),
+                                    )
+                                  }
+                                  onBlur={(e) =>
+                                    normalizarNotaAlSalir(f.matricula_id, c.key, e.target.value)
+                                  }
+                                  className={cn(
+                                    "w-20 h-9 rounded-lg border-border/60 text-center text-sm font-medium focus-visible:ring-primary/30",
+                                    gestionada &&
+                                      "border-violet-200 bg-violet-500/5 text-violet-800 cursor-default",
+                                    invalida &&
+                                      "border-rose-400 bg-rose-500/5 focus-visible:ring-rose-300",
+                                  )}
+                                />
+                                {gestionada && (
+                                  <Badge
+                                    variant="outline"
+                                    className="rounded-full border-violet-200 bg-violet-500/10 px-2 py-0 text-[10px] font-medium text-violet-700"
+                                  >
+                                    Promedio tareas
+                                  </Badge>
                                 )}
-                              />
+                              </div>
                             </TableCell>
                           );
                         })}
