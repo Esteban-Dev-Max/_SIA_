@@ -7,6 +7,14 @@ import multer from "multer";
 import { pool } from "../db.js";
 import { verifyToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { cargarResumenGrupo, construirRango } from "../lib/asistencia.js";
+import {
+  buildCsv,
+  buildPdf,
+  buildXlsxBuffer,
+  nombreArchivo as nombreArchivoReporte,
+} from "../lib/reportesAsistencia.js";
+import { notificar } from "../lib/notificar.js";
 
 const r = Router();
 r.use(verifyToken);
@@ -61,6 +69,10 @@ function parseId(value) {
 
 function fechaValida(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value));
+}
+
+function hoyLocal() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function rutaDisco(nombre) {
@@ -139,16 +151,91 @@ async function puedeVerEstudiante(req, res, estudianteId) {
   return false;
 }
 
+// Upsert de marcas de asistencia con trazabilidad: estampa quién marcó y cuándo,
+// exige justificación al editar días pasados y deja constancia en la bitácora.
+// Debe correr dentro de una transacción (recibe la conexión). A devuelve los
+// archivos de excusa que deben eliminarse del disco tras el commit.
+async function aplicarRegistros(conn, { registros, fecha, justificacion, usuarioId }) {
+  const hoy = hoyLocal();
+  const justificacionFinal =
+    typeof justificacion === "string" && justificacion.trim() ? justificacion.trim() : null;
+  const archivosEliminar = [];
+
+  for (const reg of registros) {
+    if (!reg.matricula_id || !ESTADOS.includes(reg.estado)) {
+      const err = new Error("Registro inválido");
+      err.status = 400;
+      throw err;
+    }
+    const [[prev]] = await conn.query(
+      `SELECT estado, observacion, archivo_ruta
+       FROM asistencia WHERE matricula_id = ? AND fecha = ?`,
+      [reg.matricula_id, fecha],
+    );
+    const estadoNuevo = reg.estado;
+    const observacion = reg.observacion ?? null;
+
+    // Editar una marca de un día anterior (cambio de estado u observación)
+    // exige una justificación; los marcados del día actual no la necesitan.
+    let requiereJustificacion = false;
+    if (prev && fecha < hoy) {
+      const cambioEstado = prev.estado !== estadoNuevo;
+      const cambioObservacion = (prev.observacion ?? null) !== observacion;
+      requiereJustificacion = cambioEstado || cambioObservacion;
+    }
+    if (requiereJustificacion && !justificacionFinal) {
+      const err = new Error(
+        "Se requiere una justificación al editar la asistencia de días anteriores",
+      );
+      err.status = 400;
+      throw err;
+    }
+
+    // Si deja de ser excusa se descarta el soporte adjunto asociado.
+    if (estadoNuevo !== "excusa" && prev?.archivo_ruta) {
+      archivosEliminar.push(prev.archivo_ruta);
+    }
+
+    await conn.query(
+      `INSERT INTO asistencia (matricula_id, fecha, estado, observacion,
+                               archivo_ruta, archivo_mime, archivo_nombre,
+                               marcado_por, hora_marcado)
+       VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         estado = VALUES(estado),
+         observacion = VALUES(observacion),
+         archivo_ruta = IF(VALUES(estado) = 'excusa', asistencia.archivo_ruta, NULL),
+         archivo_mime = IF(VALUES(estado) = 'excusa', asistencia.archivo_mime, NULL),
+         archivo_nombre = IF(VALUES(estado) = 'excusa', asistencia.archivo_nombre, NULL),
+         marcado_por = VALUES(marcado_por),
+         hora_marcado = VALUES(hora_marcado)`,
+      [reg.matricula_id, fecha, estadoNuevo, observacion, usuarioId],
+    );
+
+    // Auditoría: se registra todo cambio de estado y toda edición justificada.
+    if (prev && (prev.estado !== estadoNuevo || requiereJustificacion)) {
+      await conn.query(
+        `INSERT INTO asistencia_audit
+           (matricula_id, fecha, estado_anterior, estado_nuevo, justificacion, usuario_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [reg.matricula_id, fecha, prev.estado, estadoNuevo, justificacionFinal, usuarioId],
+      );
+    }
+  }
+
+  return { archivosEliminar };
+}
+
 // Registro de asistencia de un grupo en una fecha (la de hoy por defecto).
 r.get("/grupo/:grupo_id", asyncHandler(async (req, res) => {
   const grupoId = parseId(req.params.grupo_id);
   if (!grupoId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerGrupo(req, res, grupoId))) return;
   const qFecha = String(req.query.fecha ?? "");
-  const fecha = fechaValida(qFecha) ? qFecha : new Date().toISOString().slice(0, 10);
+  const fecha = fechaValida(qFecha) ? qFecha : hoyLocal();
   const [rows] = await pool.query(
     `SELECT mat.id AS matricula_id, u.id AS estudiante_id,
-            u.nombre_completo AS estudiante, u.correo, u.foto_url,
+            u.nombre_completo AS estudiante, u.correo, u.foto_url, u.codigo_carnet,
             a.id AS asistencia_id, a.fecha, a.estado, a.observacion,
             a.archivo_ruta, a.archivo_mime, a.archivo_nombre
      FROM matriculas mat
@@ -159,6 +246,47 @@ r.get("/grupo/:grupo_id", asyncHandler(async (req, res) => {
     [fecha, grupoId],
   );
   res.json({ fecha, registros: rows });
+}));
+
+// Registra el ingreso de un estudiante escaneando su carné (QR o lector USB).
+r.post("/escaneo", asyncHandler(async (req, res) => {
+  const grupoId = parseId(req.body.grupo_id);
+  const fecha = String(req.body.fecha ?? "");
+  const codigo = String(req.body.codigo_carnet ?? "").trim();
+  if (!grupoId || !fechaValida(fecha) || !codigo) {
+    return res.status(400).json({ error: "Datos inválidos" });
+  }
+  if (!(await puedeVerGrupo(req, res, grupoId))) return;
+
+  const [[mat]] = await pool.query(
+    `SELECT mat.id AS matricula_id, u.id AS estudiante_id, u.nombre_completo AS estudiante
+     FROM matriculas mat
+     JOIN usuarios u ON u.id = mat.estudiante_id
+     WHERE mat.grupo_id = ? AND u.codigo_carnet = ?`,
+    [grupoId, codigo],
+  );
+  if (!mat) {
+    return res.status(404).json({ error: "Carné no encontrado en este grupo" });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await aplicarRegistros(conn, {
+      registros: [{ matricula_id: mat.matricula_id, estado: "presente", observacion: null }],
+      fecha,
+      usuarioId: req.user.id,
+    });
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    conn.release();
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
+  conn.release();
+
+  res.json({ ok: true, estudiante: mat.estudiante });
 }));
 
 // Adjunta (o reemplaza) el soporte de la excusa de un estudiante en una fecha.
@@ -190,25 +318,26 @@ r.post("/excusa", subirArchivo, asyncHandler(async (req, res) => {
   }
 
   // Si ya existía un adjunto y se va a reemplazar, se borra del disco.
+  const [[prev]] = await pool.query(
+    "SELECT estado, archivo_ruta FROM asistencia WHERE matricula_id = ? AND fecha = ?",
+    [matriculaId, fecha],
+  );
   const archivoNuevo = req.file ?? null;
-  if (archivoNuevo) {
-    const [[prev]] = await pool.query(
-      "SELECT archivo_ruta FROM asistencia WHERE matricula_id = ? AND fecha = ?",
-      [matriculaId, fecha],
-    );
-    if (prev?.archivo_ruta) await eliminarArchivo(prev.archivo_ruta);
-  }
+  if (archivoNuevo && prev?.archivo_ruta) await eliminarArchivo(prev.archivo_ruta);
 
   await pool.query(
     `INSERT INTO asistencia (matricula_id, fecha, estado, observacion,
-                             archivo_ruta, archivo_mime, archivo_nombre)
-     VALUES (?, ?, 'excusa', ?, ?, ?, ?)
+                             archivo_ruta, archivo_mime, archivo_nombre,
+                             marcado_por, hora_marcado)
+     VALUES (?, ?, 'excusa', ?, ?, ?, ?, ?, NOW())
      ON DUPLICATE KEY UPDATE
        estado = 'excusa',
        observacion = VALUES(observacion),
        archivo_ruta = IF(VALUES(archivo_ruta) IS NULL, asistencia.archivo_ruta, VALUES(archivo_ruta)),
        archivo_mime = IF(VALUES(archivo_mime) IS NULL, asistencia.archivo_mime, VALUES(archivo_mime)),
-       archivo_nombre = IF(VALUES(archivo_nombre) IS NULL, asistencia.archivo_nombre, VALUES(archivo_nombre))`,
+       archivo_nombre = IF(VALUES(archivo_nombre) IS NULL, asistencia.archivo_nombre, VALUES(archivo_nombre)),
+       marcado_por = VALUES(marcado_por),
+       hora_marcado = VALUES(hora_marcado)`,
     [
       matriculaId,
       fecha,
@@ -216,8 +345,19 @@ r.post("/excusa", subirArchivo, asyncHandler(async (req, res) => {
       archivoNuevo ? archivoNuevo.filename : null,
       archivoNuevo ? archivoNuevo.mimetype : null,
       archivoNuevo ? archivoNuevo.originalname : null,
+      req.user.id,
     ],
   );
+
+  // Auditoría: pasar a 'excusa' desde otro estado queda registrado.
+  if (prev && prev.estado !== "excusa") {
+    await pool.query(
+      `INSERT INTO asistencia_audit
+         (matricula_id, fecha, estado_anterior, estado_nuevo, justificacion, usuario_id)
+       VALUES (?, ?, ?, 'excusa', ?, ?)`,
+      [matriculaId, fecha, prev.estado, observacion, req.user.id],
+    );
+  }
 
   res.json({ ok: true, fecha });
 }));
@@ -256,7 +396,7 @@ r.get("/excusa/descargar", asyncHandler(async (req, res) => {
 
 // Guarda la lista de asistencia del día para un grupo (arreglo de estudiantes).
 r.post("/registrar", asyncHandler(async (req, res) => {
-  const { grupo_id, fecha, registros } = req.body;
+  const { grupo_id, fecha, registros, justificacion } = req.body;
   const grupoId = parseId(grupo_id);
   if (!grupoId || !fecha || !Array.isArray(registros) || registros.length === 0) {
     return res.status(400).json({ error: "Faltan datos" });
@@ -297,133 +437,101 @@ r.post("/registrar", asyncHandler(async (req, res) => {
   }
 
   const conn = await pool.getConnection();
-  const archivosEliminar = [];
+  let archivosEliminar = [];
   try {
     await conn.beginTransaction();
-    for (const reg of registros) {
-      if (!reg.matricula_id || !ESTADOS.includes(reg.estado)) {
-        await conn.rollback();
-        conn.release();
-        return res.status(400).json({ error: "Registro inválido" });
-      }
-      // Si deja de ser excusa se descarta el soporte adjunto asociado.
-      if (reg.estado !== "excusa") {
-        const [[prev]] = await conn.query(
-          "SELECT archivo_ruta FROM asistencia WHERE matricula_id = ? AND fecha = ?",
-          [reg.matricula_id, fecha],
-        );
-        if (prev?.archivo_ruta) archivosEliminar.push(prev.archivo_ruta);
-      }
-      await conn.query(
-        `INSERT INTO asistencia (matricula_id, fecha, estado, observacion,
-                                 archivo_ruta, archivo_mime, archivo_nombre)
-         VALUES (?, ?, ?, ?, NULL, NULL, NULL)
-         ON DUPLICATE KEY UPDATE
-           estado = VALUES(estado),
-           observacion = VALUES(observacion),
-           archivo_ruta = IF(VALUES(estado) = 'excusa', asistencia.archivo_ruta, NULL),
-           archivo_mime = IF(VALUES(estado) = 'excusa', asistencia.archivo_mime, NULL),
-           archivo_nombre = IF(VALUES(estado) = 'excusa', asistencia.archivo_nombre, NULL)`,
-        [reg.matricula_id, fecha, reg.estado, reg.observacion ?? null],
-      );
-    }
+    const resultado = await aplicarRegistros(conn, {
+      registros,
+      fecha,
+      justificacion,
+      usuarioId: req.user.id,
+    });
+    archivosEliminar = resultado.archivosEliminar;
     await conn.commit();
   } catch (e) {
     await conn.rollback();
-    throw e;
-  } finally {
     conn.release();
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    throw e;
   }
+  conn.release();
   for (const archivo of archivosEliminar) {
     await eliminarArchivo(archivo);
   }
   res.json({ ok: true, fecha, guardados: registros.length });
 }));
 
+// Notifica por inasistencia a los estudiantes elegidos y a sus acudientes.
+r.post("/alerta/grupo/:grupo_id", asyncHandler(async (req, res) => {
+  const grupoId = parseId(req.params.grupo_id);
+  if (!grupoId) return res.status(400).json({ error: "ID inválido" });
+  if (!(await puedeVerGrupo(req, res, grupoId))) return;
+
+  const ids = Array.isArray(req.body.estudiante_ids) ? req.body.estudiante_ids.map(Number) : [];
+  if (ids.length === 0 || !ids.every((n) => Number.isInteger(n) && n > 0)) {
+    return res.status(400).json({ error: "Debes elegir al menos un estudiante" });
+  }
+  const unicos = [...new Set(ids)];
+
+  const [[grupo]] = await pool.query(
+    `SELECT g.codigo_grupo, m.nombre AS materia
+     FROM grupos g
+     JOIN materias m ON m.id = g.materia_id
+     WHERE g.id = ?`,
+    [grupoId],
+  );
+  if (!grupo) return res.status(404).json({ error: "Grupo no encontrado" });
+
+  const marcadores = unicos.map(() => "?").join(", ");
+  const [pertenecientes] = await pool.query(
+    `SELECT u.id AS estudiante_id
+     FROM matriculas mat
+     JOIN usuarios u ON u.id = mat.estudiante_id
+     WHERE mat.grupo_id = ? AND u.id IN (${marcadores})`,
+    [grupoId, ...unicos],
+  );
+  if (pertenecientes.length !== unicos.length) {
+    return res.status(400).json({ error: "Uno o más estudiantes no pertenecen a este grupo" });
+  }
+
+  const mensajeEstudiante =
+    `Tu asistencia en ${grupo.materia} (${grupo.codigo_grupo}) está en riesgo. ` +
+    "Revisa tu planilla de asistencia y ponte al día.";
+  const mensajeAcudiente =
+    `La asistencia de tu acudido en ${grupo.materia} (${grupo.codigo_grupo}) está en riesgo. ` +
+    "Se recomienda contacto con la coordinación académica.";
+
+  for (const estudianteId of unicos) {
+    await notificar(estudianteId, "Alerta de asistencia", mensajeEstudiante, "sistema");
+    const [acudientes] = await pool.query(
+      "SELECT acudiente_id FROM acudiente_estudiante WHERE estudiante_id = ?",
+      [estudianteId],
+    );
+    for (const a of acudientes) {
+      await notificar(a.acudiente_id, "Alerta de asistencia", mensajeAcudiente, "sistema");
+    }
+  }
+
+  res.json({ ok: true, notificados: unicos.length });
+}));
+
 // Resumen histórico consolidado de asistencia por estudiante para un grupo.
 // Usa la misma semántica que /resumen/estudiante: fallas = ausentes + tardes,
 // porcentaje sobre registros con estado (excluye fechas sin marcar).
 // Acepta un rango opcional ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD (sin filtro se
-// devuelve el histórico completo) e incluye el detalle por sesión en `registros`.
+// devuelve el histórico completo) e incluye nivel de riesgo por estudiante.
 r.get("/resumen/grupo/:grupo_id", asyncHandler(async (req, res) => {
   const grupoId = parseId(req.params.grupo_id);
   if (!grupoId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerGrupo(req, res, grupoId))) return;
 
   const { desde, hasta } = req.query;
-  if ((desde && !fechaValida(desde)) || (hasta && !fechaValida(hasta))) {
-    return res.status(400).json({ error: "Rango de fechas inválido" });
+  const resumen = await cargarResumenGrupo(grupoId, { desde, hasta });
+  if (!resumen) {
+    const invalido = construirRango(desde, hasta);
+    return res.status(400).json({ error: invalido.error || "Rango de fechas inválido" });
   }
-  if (desde && hasta && String(desde) > String(hasta)) {
-    return res.status(400).json({ error: "La fecha 'desde' no puede ser mayor que 'hasta'" });
-  }
-  let condicionRango = "";
-  const paramsRango = [];
-  if (desde && hasta) {
-    condicionRango = " AND a.fecha BETWEEN ? AND ?";
-    paramsRango.push(String(desde), String(hasta));
-  } else if (desde) {
-    condicionRango = " AND a.fecha >= ?";
-    paramsRango.push(String(desde));
-  } else if (hasta) {
-    condicionRango = " AND a.fecha <= ?";
-    paramsRango.push(String(hasta));
-  }
-
-  // Un registro por estudiante y fecha de sesión. El rango se aplica sobre el
-  // LEFT JOIN de asistencia: los estudiantes sin marcas en el rango siguen
-  // apareciendo, solo que con `registros` vacío.
-  const [rows] = await pool.query(
-    `SELECT u.id AS estudiante_id, u.nombre_completo AS estudiante,
-            u.correo, u.foto_url, a.fecha, a.estado, a.observacion
-     FROM matriculas mat
-     JOIN usuarios u ON u.id = mat.estudiante_id
-     LEFT JOIN asistencia a ON a.matricula_id = mat.id${condicionRango}
-     WHERE mat.grupo_id = ?
-     ORDER BY u.nombre_completo, a.fecha DESC`,
-    [...paramsRango, grupoId],
-  );
-
-  const map = new Map();
-  for (const row of rows) {
-    if (!map.has(row.estudiante_id)) {
-      map.set(row.estudiante_id, {
-        estudiante_id: row.estudiante_id,
-        estudiante: row.estudiante,
-        correo: row.correo,
-        foto_url: row.foto_url,
-        presentes: 0,
-        ausentes: 0,
-        tardes: 0,
-        excusas: 0,
-        total: 0,
-        registros: [],
-      });
-    }
-    const e = map.get(row.estudiante_id);
-    if (!row.estado) continue; // matrícula sin asistencia en el rango
-    if (row.estado === "presente") e.presentes += 1;
-    else if (row.estado === "ausente") e.ausentes += 1;
-    else if (row.estado === "tarde") e.tardes += 1;
-    else if (row.estado === "excusa") e.excusas += 1;
-    e.registros.push({
-      fecha: row.fecha,
-      estado: row.estado,
-      observacion: row.observacion,
-    });
-  }
-
-  const estudiantes = [...map.values()].map((e) => {
-    const registrados = e.presentes + e.ausentes + e.tardes + e.excusas;
-    e.total = registrados;
-    return {
-      ...e,
-      fallas: e.ausentes + e.tardes,
-      porcentaje: registrados > 0 ? Math.round((e.presentes / registrados) * 100) : null,
-    };
-  });
-
-  res.json({ estudiantes, desde: desde ?? null, hasta: hasta ?? null });
+  res.json(resumen);
 }));
 
 // Resumen global de asistencia y fallas por materia de un estudiante.
@@ -493,6 +601,109 @@ r.get("/resumen/estudiante/:estudiante_id", asyncHandler(async (req, res) => {
     total_fallas: ausentes + tardes,
     por_materia: porMateria,
   });
+}));
+
+// Reporte JSON de un grupo: grupo, estudiantes y totales con semáforo de riesgo.
+r.get("/reportes/grupo/:grupo_id", asyncHandler(async (req, res) => {
+  const grupoId = parseId(req.params.grupo_id);
+  if (!grupoId) return res.status(400).json({ error: "ID inválido" });
+  if (!(await puedeVerGrupo(req, res, grupoId))) return;
+  const { desde, hasta } = req.query;
+  const resumen = await cargarResumenGrupo(grupoId, { desde, hasta });
+  if (!resumen) return res.status(400).json({ error: "Rango de fechas inválido" });
+  res.json(resumen);
+}));
+
+// Exportación del reporte en xlsx o csv (Con BOM). Otros formatos → 400.
+r.get("/reportes/grupo/:grupo_id/exportar", asyncHandler(async (req, res) => {
+  const grupoId = parseId(req.params.grupo_id);
+  if (!grupoId) return res.status(400).json({ error: "ID inválido" });
+  if (!(await puedeVerGrupo(req, res, grupoId))) return;
+
+  const formato = String(req.query.formato ?? "xlsx");
+  const { desde, hasta } = req.query;
+  const resumen = await cargarResumenGrupo(grupoId, { desde, hasta });
+  if (!resumen) return res.status(400).json({ error: "Rango de fechas inválido" });
+
+  if (formato === "xlsx") {
+    const buffer = buildXlsxBuffer(resumen);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${nombreArchivoReporte(resumen.grupo, resumen.desde, resumen.hasta, "xlsx")}"`,
+    );
+    return res.send(buffer);
+  }
+  if (formato === "csv") {
+    const csv = buildCsv(resumen);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${nombreArchivoReporte(resumen.grupo, resumen.desde, resumen.hasta, "csv")}"`,
+    );
+    return res.send(csv);
+  }
+  res.status(400).json({ error: "Formato no soportado. Usa xlsx o csv" });
+}));
+
+// Reporte en PDF con membrete de la institución y desglose de fallas.
+r.get("/reportes/grupo/:grupo_id/pdf", asyncHandler(async (req, res) => {
+  const grupoId = parseId(req.params.grupo_id);
+  if (!grupoId) return res.status(400).json({ error: "ID inválido" });
+  if (!(await puedeVerGrupo(req, res, grupoId))) return;
+  const { desde, hasta } = req.query;
+  const resumen = await cargarResumenGrupo(grupoId, { desde, hasta });
+  if (!resumen) return res.status(400).json({ error: "Rango de fechas inválido" });
+
+  const buffer = await buildPdf(resumen);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${nombreArchivoReporte(resumen.grupo, resumen.desde, resumen.hasta, "pdf")}"`,
+  );
+  res.send(buffer);
+}));
+
+// Panel administrativo de análisis preventivo: agregados por grupo/ficha.
+r.get("/panorama", asyncHandler(async (req, res) => {
+  if (req.user.rol !== "admin") {
+    return res.status(403).json({ error: "No autorizado" });
+  }
+  const { desde, hasta, grupo_id } = req.query;
+  const rango = construirRango(desde, hasta);
+  if (rango.error) return res.status(400).json({ error: rango.error });
+
+  const params = [req.user.institucion_id];
+  let filtroGrupo = "";
+  if (grupo_id && parseId(grupo_id)) {
+    filtroGrupo = " AND g.id = ?";
+    params.push(parseId(grupo_id));
+  }
+  const [grupos] = await pool.query(
+    `SELECT g.id FROM grupos g WHERE g.institucion_id = ?${filtroGrupo} ORDER BY g.id`,
+    params,
+  );
+
+  const filas = [];
+  for (const grupo of grupos) {
+    const resumen = await cargarResumenGrupo(grupo.id, { desde, hasta });
+    if (!resumen) continue;
+    filas.push({
+      id: resumen.grupo.id,
+      codigo_grupo: resumen.grupo.codigo_grupo,
+      materia: resumen.grupo.materia,
+      materia_codigo: resumen.grupo.materia_codigo,
+      periodo: resumen.grupo.periodo,
+      horario: resumen.grupo.horario,
+      alumnos: resumen.estudiantes.length,
+      totales: resumen.totales,
+    });
+  }
+
+  res.json({ grupos: filas, desde: rango.desde, hasta: rango.hasta });
 }));
 
 export default r;

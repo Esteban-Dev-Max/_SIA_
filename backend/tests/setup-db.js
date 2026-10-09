@@ -18,6 +18,7 @@ const MIGRACIONES = [
   "003_institucion_logo.sql",
   "004_password_reset.sql",
   "005_tareas_columna_nota.sql",
+  "006_trazabilidad_asistencia.sql",
 ];
 
 const leer = (file) =>

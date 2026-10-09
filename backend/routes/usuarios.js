@@ -192,6 +192,12 @@ r.post(
              VALUES (?, ?, ?, ?, ?)`,
             [v.nombre, v.correo, hash, v.rol, institucion_id],
           );
+          if (v.rol === "estudiante") {
+            await conn.query("UPDATE usuarios SET codigo_carnet = ? WHERE id = ?", [
+              `EST-${String(result.insertId).padStart(5, "0")}`,
+              result.insertId,
+            ]);
+          }
           exitosos.push({
             fila: v.fila,
             id: result.insertId,

@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS mensajes;
 DROP TABLE IF EXISTS eventos_calendario;
 DROP TABLE IF EXISTS entregas_tareas;
 DROP TABLE IF EXISTS tareas;
+DROP TABLE IF EXISTS asistencia_audit;
 DROP TABLE IF EXISTS asistencia;
 DROP TABLE IF EXISTS notas;
 DROP TABLE IF EXISTS matriculas;

@@ -19,10 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { AsistenciaTab } from "@/components/AsistenciaTab";
-import { HistorialAsistenciaTab } from "@/components/HistorialAsistenciaTab";
+import { AsistenciaPanel } from "@/components/AsistenciaPanel";
 import {
-  BarChart3,
   BookOpen,
   CalendarClock,
   CalendarDays,
@@ -69,7 +67,7 @@ const CAMPOS_NOTA = [
   { key: "examen_final", label: "Examen (30%)" },
 ] as const;
 
-const TABS_PROFESOR = ["inicio", "planilla", "asistencia", "resumen-asistencia"] as const;
+const TABS_PROFESOR = ["inicio", "planilla", "asistencia"] as const;
 
 const NOTA_MIN = 1;
 const NOTA_MAX = 5;
@@ -316,11 +314,7 @@ function ProfesorPanel() {
         </TabsTrigger>
         <TabsTrigger value="asistencia" className="gap-1.5 px-4 py-2 rounded-lg">
           <CalendarDays className="h-4 w-4" />
-          Toma de Asistencia
-        </TabsTrigger>
-        <TabsTrigger value="resumen-asistencia" className="gap-1.5 px-4 py-2 rounded-lg">
-          <BarChart3 className="h-4 w-4" />
-          Resumen de Asistencia
+          Asistencia
         </TabsTrigger>
       </TabsList>
 
@@ -560,16 +554,19 @@ function ProfesorPanel() {
         </Card>
       </TabsContent>
 
-      {/* Toma de Asistencia */}
+      {/* Asistencia: toma + resumen/reportes (hub con pestañas internas) */}
       <TabsContent value="asistencia">
         <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
-        <AsistenciaTab sel={sel} />
-      </TabsContent>
-
-      {/* Resumen histórico de asistencia por estudiante */}
-      <TabsContent value="resumen-asistencia">
-        <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
-        <HistorialAsistenciaTab sel={sel} />
+        <AsistenciaPanel
+          sel={sel}
+          grupoLabel={
+            grupos.find((g) => g.id === sel)
+              ? `${grupos.find((g) => g.id === sel)!.codigo_grupo} · ${
+                  grupos.find((g) => g.id === sel)!.materia
+                }`
+              : undefined
+          }
+        />
       </TabsContent>
     </Tabs>
   );

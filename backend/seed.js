@@ -46,17 +46,24 @@ async function main() {
   // 3) Usuarios demo (contraseñas encriptadas con bcrypt).
   // El superadmin NO pertenece a ninguna institución (institucion_id = NULL);
   // el resto de usuarios se vincula a la institución demo.
-  const userIds = {};
-  for (const u of DEMO_USERS) {
-    const hash = await bcrypt.hash(u.password, 10);
-    const instId = u.rol === "superadmin" ? null : institucionId;
-    userIds[u.rol] = await insert(
-      `INSERT INTO usuarios (nombre_completo, correo, \`password\`, rol, estado, institucion_id)
-       VALUES (?, ?, ?, ?, 'activo', ?)`,
-      [u.nombre_completo, u.correo, hash, u.rol, instId],
-    );
-  }
-  log("OK", "5 usuarios demo creados con bcrypt");
+const userIds = {};
+    for (const u of DEMO_USERS) {
+      const hash = await bcrypt.hash(u.password, 10);
+      const instId = u.rol === "superadmin" ? null : institucionId;
+      const id = await insert(
+        `INSERT INTO usuarios (nombre_completo, correo, \`password\`, rol, estado, institucion_id)
+         VALUES (?, ?, ?, ?, 'activo', ?)`,
+        [u.nombre_completo, u.correo, hash, u.rol, instId],
+      );
+      if (u.rol === "estudiante") {
+        await pool.query("UPDATE usuarios SET codigo_carnet = ? WHERE id = ?", [
+          `SP-${String(id).padStart(5, "0")}`,
+          id,
+        ]);
+      }
+      userIds[u.rol] = id;
+    }
+    log("OK", "5 usuarios demo creados con bcrypt");
 
   // 4) Relación acudiente -> estudiante.
   await insert(

@@ -197,6 +197,12 @@ r.post(
           req.user.institucion_id,
         ],
       );
+      if (rol === "estudiante") {
+        await pool.query(
+          "UPDATE usuarios SET codigo_carnet = ? WHERE id = ?",
+          [`EST-${String(result.insertId).padStart(5, "0")}`, result.insertId],
+        );
+      }
       res.json({ ok: true, id: result.insertId });
     } catch (e) {
       if (e.code === "ER_DUP_ENTRY") {

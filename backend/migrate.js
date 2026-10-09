@@ -10,14 +10,17 @@ const leer = (file) =>
 // Migraciones en orden. 001 crea el esquema base, 002 aplica el soporte
 // multi-tenant (institucion_id, rol superadmin, estado en instituciones),
 // 003 agrega logo_url a instituciones para branding multi-tenant,
-// 004 crea password_resets para la recuperación de contraseña y
-// 005 vincula tareas con la planilla de notas (columna_nota).
+// 004 crea password_resets para la recuperación de contraseña,
+// 005 vincula tareas con la planilla de notas (columna_nota) y
+// 006 agrega trazabilidad/auditoría a la asistencia (codigo_carnet,
+// marcado_por, hora_marcado y la bitácora asistencia_audit).
 const migraciones = [
   "001_init.sql",
   "002_multi_tenant.sql",
   "003_institucion_logo.sql",
   "004_password_reset.sql",
   "005_tareas_columna_nota.sql",
+  "006_trazabilidad_asistencia.sql",
 ];
 
 const conn = await mysql.createConnection({

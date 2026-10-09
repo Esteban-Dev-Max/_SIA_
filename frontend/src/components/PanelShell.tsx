@@ -116,6 +116,11 @@ const roleNav: Record<Rol, { label: string; items: NavItem[] }[]> = {
           hash: "acudientes",
           icon: <HeartHandshake className="h-4 w-4" />,
         },
+        {
+          label: "Asistencia",
+          to: "/admin/asistencia",
+          icon: <CalendarCheck className="h-4 w-4" />,
+        },
       ],
     },
     { label: "General", items: generalNav },
@@ -320,55 +325,55 @@ export function PanelShell({ title, children }: { title: string; children: React
             <div className="flex items-center gap-1.5 sm:gap-2">
               <ThemeToggle />
               <NotificationBell />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50 sm:pl-2.5"
-                >
-                  <Avatar className="size-8 rounded-lg border border-border/60">
-                    {user?.foto_url ? (
-                      <AvatarImage src={urlRecurso(user.foto_url)} alt={user.nombre} />
-                    ) : (
-                      <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary/15 to-violet-500/15 text-primary text-xs font-bold">
-                        {user ? initials(user.nombre) : "U"}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div className="hidden text-left sm:block">
-                    <p className="max-w-[10rem] truncate text-sm font-semibold leading-tight">
-                      {user?.nombre}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50 sm:pl-2.5"
+                  >
+                    <Avatar className="size-8 rounded-lg border border-border/60">
+                      {user?.foto_url ? (
+                        <AvatarImage src={urlRecurso(user.foto_url)} alt={user.nombre} />
+                      ) : (
+                        <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary/15 to-violet-500/15 text-primary text-xs font-bold">
+                          {user ? initials(user.nombre) : "U"}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="hidden text-left sm:block">
+                      <p className="max-w-[10rem] truncate text-sm font-semibold leading-tight">
+                        {user?.nombre}
+                      </p>
+                      <p className="text-[11px] leading-tight text-muted-foreground">
+                        {user?.rol ? rolLabels[user.rol] : ""}
+                      </p>
+                    </div>
+                    <ChevronDown className="hidden size-4 text-muted-foreground sm:block" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60 rounded-xl border-border/60 p-1.5">
+                  <DropdownMenuLabel className="px-2 py-1.5">
+                    <p className="text-sm font-semibold">{user?.nombre}</p>
+                    <p className="truncate text-xs font-normal text-muted-foreground">
+                      {user?.correo}
                     </p>
-                    <p className="text-[11px] leading-tight text-muted-foreground">
-                      {user?.rol ? rolLabels[user.rol] : ""}
-                    </p>
-                  </div>
-                  <ChevronDown className="hidden size-4 text-muted-foreground sm:block" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60 rounded-xl border-border/60 p-1.5">
-                <DropdownMenuLabel className="px-2 py-1.5">
-                  <p className="text-sm font-semibold">{user?.nombre}</p>
-                  <p className="truncate text-xs font-normal text-muted-foreground">
-                    {user?.correo}
-                  </p>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-border/50" />
-                <DropdownMenuItem asChild className="gap-2.5 rounded-lg px-2 py-2 cursor-pointer">
-                  <Link to="/configuracion">
-                    <Settings className="size-4" />
-                    <span>Configuración</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border/50" />
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="gap-2.5 rounded-lg px-2 py-2 text-destructive focus:text-destructive cursor-pointer"
-                >
-                  <LogOut className="size-4" />
-                  <span>Cerrar sesión</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-border/50" />
+                  <DropdownMenuItem asChild className="gap-2.5 rounded-lg px-2 py-2 cursor-pointer">
+                    <Link to="/configuracion">
+                      <Settings className="size-4" />
+                      <span>Configuración</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border/50" />
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="gap-2.5 rounded-lg px-2 py-2 text-destructive focus:text-destructive cursor-pointer"
+                  >
+                    <LogOut className="size-4" />
+                    <span>Cerrar sesión</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
@@ -386,13 +391,15 @@ export function PanelShell({ title, children }: { title: string; children: React
               Institución desactivada
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed text-muted-foreground">
-              Tu institución fue desactivada por el superadministrador. En este momento
-              los accesos están restringidos. Si crees que es un error, contacta con el
-              soporte de la plataforma.
+              Tu institución fue desactivada por el superadministrador. En este momento los accesos
+              están restringidos. Si crees que es un error, contacta con el soporte de la
+              plataforma.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setAlertaInactiva(false)}>Entendido</AlertDialogAction>
+            <AlertDialogAction onClick={() => setAlertaInactiva(false)}>
+              Entendido
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
