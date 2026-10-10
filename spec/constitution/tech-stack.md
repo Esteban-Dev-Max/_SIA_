@@ -14,7 +14,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 
 - `backend/app.js` — app Express (factory): CORS (red local + `CORS_ORIGIN` + orígenes dinámicos por `Host` para túneles), `/health` y `/api/health`, estáticos de `uploads/`, montado de routers bajo `/api/*` y manejo global de errores (400/413/duplicados/claves foráneas). `backend/index.js` — entrada: arranca el listener y chequea MySQL.
 - `backend/db.js` — pool MySQL (`decimalNumbers: true`).
-- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql`, `004_password_reset.sql`, `005_tareas_columna_nota.sql` — esquema base, multi-tenant/superadmin, logo de institución, tokens de recuperación de contraseña y vínculo de tareas con la planilla de notas (borra y recrea las tablas a propósito).
+- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql`, `004_password_reset.sql`, `005_tareas_columna_nota.sql`, `006_trazabilidad_asistencia.sql`, `007_quitar_creditos.sql` — esquema base, multi-tenant/superadmin, logo de institución, tokens de recuperación de contraseña, vínculo de tareas con la planilla de notas, trazabilidad de asistencia y retiro de créditos (borra y recrea las tablas a propósito).
 - `backend/seed.js` — datos demo idempotentes (institución, usuarios incl. superadmin, materias, grupos, notas, asistencia, tareas, eventos, mensajes, notificaciones).
 - `backend/routes/` — `auth.js` (incluye `login`, `me`, `cambiar-password` y el flujo de recuperación `forgot-password`/`reset-password`), `admin.js`, `profesor.js`, `acudiente.js`, `notas.js`, `asistencia.js`, `tareas.js`, `calendario.js`, `chatbot.js`, `chat.js`, `mensajes.js`, `notificaciones.js`, `instituciones.js` (solo superadmin), `usuarios.js` (admin/superadmin, incluida la carga masiva).
 - `backend/middleware/` — `auth.js` (verifyToken + requireRole), `asyncHandler`.
@@ -29,7 +29,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 ## Comandos
 
 - `backend/`: `npm run dev` — API en `http://localhost:3001` (`node --watch`).
-- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-005 (destructivo).
+- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-007 (destructivo).
 - `backend/`: `npm run seed` — inserta datos demo (idempotente).
 - `frontend/`: `npm run dev` — UI en `http://localhost:8080`.
 - `frontend/`: `npm run lint` — ESLint + Prettier, 0 errores esperados.
@@ -49,7 +49,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 - `notificaciones` — `tipo` ENUM `sistema|nota|tarea|mensaje|evento`, `leida` TINYINT.
 - `acudiente_estudiante` — N:M entre acudientes y estudiantes (único por par).
 - `password_resets` — tokens de recuperación: `token_hash` (sha256 del token, nunca el token plano), `expira_en` (+1 h), `usado` TINYINT y FK a `usuarios` con ON DELETE CASCADE.
-- `carreras_grados` / `materias` — carrera con código único; materia con créditos y carrera opcional (FK SET NULL).
+- `carreras_grados` / `materias` — carrera con código único; materia con carrera opcional (FK SET NULL).
 - **Multi-tenant:** `institucion_id` en `usuarios`, `carreras_grados`, `materias`, `grupos`, `matriculas`, `eventos_calendario`, `mensajes`, `tareas` y `notificaciones`; todo query de datos filtra por `req.user.institucion_id`.
 
 ## Convenciones

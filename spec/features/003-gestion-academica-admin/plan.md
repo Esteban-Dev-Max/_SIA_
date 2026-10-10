@@ -9,7 +9,7 @@ Módulo administrador como CRUD tradicional sobre tablas del esquema, en `backen
 ## Implementación
 
 1. **Usuarios** — CRUD en `routes/admin.js`: crear (hash bcrypt de la contraseña), listar con filtro por rol, editar y activar/inactivar (`usuarios.estado`). Frontend en `frontend/src/routes/admin/usuarios.tsx`.
-2. **Carreras y materias** — CRUD de `carreras_grados` (nombre, código único) y `materias` (nombre, código único, créditos, carrera opcional).
+2. **Carreras y materias** — CRUD de `carreras_grados` (nombre, código único) y `materias` (nombre, código único, carrera opcional).
 3. **Grupos** — creación de `grupos` por materia, profesor y periodo, con horario; verificación de que profesor y materia existen.
 4. **Matrículas** — inscribir estudiante en grupo (`matriculas` con `fecha_matricula`) y eliminar matrículas; clave única (estudiante, grupo).
 5. **Acudientes** — vinculación N:M en `acudiente_estudiante` (par único).

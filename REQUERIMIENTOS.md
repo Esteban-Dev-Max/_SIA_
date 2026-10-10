@@ -17,7 +17,7 @@ El **SIA (Sistema Integral Académico)** es una plataforma web full-stack diseñ
 ### 2.2 Módulo de Administración
 - **RF2.1 Dashboard Administrativo:** Visualización de métricas globales (conteo de usuarios por rol, materias, grupos y matrículas).
 - **RF2.2 Gestión de Usuarios:** CRUD completo de cuentas, incluyendo asignación de estado (activo/inactivo) y carga de foto de perfil (JPG/PNG/WEBP < 3MB).
-- **RF2.3 Gestión de Oferta Académica:** Administración de Carreras/Grados y Materias (con asignación de créditos y códigos únicos).
+- **RF2.3 Gestión de Oferta Académica:** Administración de Carreras/Grados y Materias (con códigos únicos).
 - **RF2.4 Gestión de Grupos:** Creación de secciones para materias vinculando profesor, periodo académico y horario.
 - **RF2.5 Matrículas:** Registro de estudiantes en grupos con validación de:
   - No duplicidad de materia en el mismo periodo.

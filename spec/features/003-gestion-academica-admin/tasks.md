@@ -3,7 +3,7 @@
 Checklist derivada del `plan.md`. Todo el trabajo está terminado; los criterios de la spec se cumplen.
 
 - [x] CRUD de usuarios en `backend/routes/admin.js` y `frontend/src/routes/admin/usuarios.tsx` (bcrypt al crear, activar/inactivar, filtro por rol).
-- [x] CRUD de carreras/grados y materias (códigos únicos, créditos, carrera opcional).
+- [x] CRUD de carreras/grados y materias (códigos únicos, carrera opcional).
 - [x] Creación de grupos (materia + profesor + periodo + horario) con validación de existencia.
 - [x] Matrículas con clave única (estudiante, grupo) y fecha de matrícula; eliminación con confirmación.
 - [x] Vinculación acudiente-estudiante con par único.

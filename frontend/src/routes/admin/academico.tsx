@@ -54,7 +54,6 @@ type Materia = {
   id: number;
   nombre: string;
   codigo: string;
-  creditos: number;
   carrera_id: number | null;
   carrera_nombre: string | null;
 };
@@ -203,7 +202,6 @@ function AdminAcademico() {
   const [materiaForm, setMateriaForm] = useState({
     nombre: "",
     codigo: "",
-    creditos: "3",
     carrera_id: "",
   });
   const [grupoForm, setGrupoForm] = useState({
@@ -226,7 +224,6 @@ function AdminAcademico() {
   const [materiaEdit, setMateriaEdit] = useState({
     nombre: "",
     codigo: "",
-    creditos: "3",
     carrera_id: "",
   });
   const [editandoGrupo, setEditandoGrupo] = useState<Grupo | null>(null);
@@ -342,7 +339,6 @@ function AdminAcademico() {
     setMateriaEdit({
       nombre: m.nombre,
       codigo: m.codigo,
-      creditos: String(m.creditos),
       carrera_id: m.carrera_id ? String(m.carrera_id) : "",
     });
   }
@@ -555,7 +551,6 @@ function AdminAcademico() {
                     {
                       nombre: materiaForm.nombre,
                       codigo: materiaForm.codigo,
-                      creditos: Number(materiaForm.creditos) || 0,
                       carrera_id: materiaForm.carrera_id ? Number(materiaForm.carrera_id) : null,
                     },
                     "Materia creada",
@@ -564,11 +559,10 @@ function AdminAcademico() {
                     ...materiaForm,
                     nombre: "",
                     codigo: "",
-                    creditos: "3",
                     carrera_id: "",
                   });
                 }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-4"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-3"
               >
                 <Input
                   required
@@ -582,14 +576,6 @@ function AdminAcademico() {
                   value={materiaForm.codigo}
                   onChange={(e) => setMateriaForm({ ...materiaForm, codigo: e.target.value })}
                 />
-                <Input
-                  type="number"
-                  min={0}
-                  max={5}
-                  placeholder="Créditos"
-                  value={materiaForm.creditos}
-                  onChange={(e) => setMateriaForm({ ...materiaForm, creditos: e.target.value })}
-                />
                 <select
                   value={materiaForm.carrera_id}
                   onChange={(e) => setMateriaForm({ ...materiaForm, carrera_id: e.target.value })}
@@ -602,7 +588,7 @@ function AdminAcademico() {
                     </option>
                   ))}
                 </select>
-                <Button type="submit" className="gap-1.5 sm:col-span-4 sm:w-fit">
+                <Button type="submit" className="gap-1.5 sm:col-span-3 sm:w-fit">
                   <Plus className="h-4 w-4" />
                   Agregar materia
                 </Button>
@@ -618,7 +604,7 @@ function AdminAcademico() {
           </div>
           <DataTable
             loading={cargando}
-            headers={["ID", "Nombre", "Código", "Créditos", "Carrera", ""]}
+            headers={["ID", "Nombre", "Código", "Carrera", ""]}
             rows={materiasFiltradas.map((m) => [
               m.id,
               <span key="n" className="font-medium">
@@ -627,7 +613,6 @@ function AdminAcademico() {
               <Badge key="c" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
                 {m.codigo}
               </Badge>,
-              m.creditos,
               m.carrera_nombre ?? "—",
               <div key="a" className="flex gap-1">
                 <Button
@@ -675,7 +660,6 @@ function AdminAcademico() {
                       {
                         nombre: materiaEdit.nombre,
                         codigo: materiaEdit.codigo,
-                        creditos: Number(materiaEdit.creditos) || 0,
                         carrera_id: materiaEdit.carrera_id ? Number(materiaEdit.carrera_id) : null,
                       },
                       "Materia actualizada",
@@ -695,27 +679,15 @@ function AdminAcademico() {
                     onChange={(e) => setMateriaEdit({ ...materiaEdit, nombre: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="editar-materia-codigo">Código</Label>
-                    <Input
-                      id="editar-materia-codigo"
-                      required
-                      placeholder="SIS-101"
-                      value={materiaEdit.codigo}
-                      onChange={(e) => setMateriaEdit({ ...materiaEdit, codigo: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="editar-materia-creditos">Créditos</Label>
-                    <Input
-                      id="editar-materia-creditos"
-                      type="number"
-                      min={0}
-                      value={materiaEdit.creditos}
-                      onChange={(e) => setMateriaEdit({ ...materiaEdit, creditos: e.target.value })}
-                    />
-                  </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="editar-materia-codigo">Código</Label>
+                  <Input
+                    id="editar-materia-codigo"
+                    required
+                    placeholder="SIS-101"
+                    value={materiaEdit.codigo}
+                    onChange={(e) => setMateriaEdit({ ...materiaEdit, codigo: e.target.value })}
+                  />
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="editar-materia-carrera">Carrera</Label>

@@ -57,7 +57,7 @@ before(async () => {
   institucionId = p.institucion_id;
 
   const [m] = await pool.query(
-    "INSERT INTO materias (nombre, codigo, creditos, institucion_id) VALUES (?, ?, 0, ?)",
+    "INSERT INTO materias (nombre, codigo, institucion_id) VALUES (?, ?, ?)",
     ["Asistencia Reportes", `MAT-ASIS-${Date.now()}`, institucionId],
   );
   materiaId = m.insertId;

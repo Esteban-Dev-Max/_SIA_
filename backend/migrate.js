@@ -13,7 +13,8 @@ const leer = (file) =>
 // 004 crea password_resets para la recuperación de contraseña,
 // 005 vincula tareas con la planilla de notas (columna_nota) y
 // 006 agrega trazabilidad/auditoría a la asistencia (codigo_carnet,
-// marcado_por, hora_marcado y la bitácora asistencia_audit).
+// marcado_por, hora_marcado y la bitácora asistencia_audit),
+// 007 elimina la columna creditos de materias (función retirada).
 const migraciones = [
   "001_init.sql",
   "002_multi_tenant.sql",
@@ -21,6 +22,7 @@ const migraciones = [
   "004_password_reset.sql",
   "005_tareas_columna_nota.sql",
   "006_trazabilidad_asistencia.sql",
+  "007_quitar_creditos.sql",
 ];
 
 const conn = await mysql.createConnection({

@@ -83,16 +83,16 @@ const userIds = {};
 
   // 6) Materias.
   const matSis101 = await insert(
-    `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
-    ["Sistemas de Información", "SIS-101", 3, ingSoftId, institucionId],
+    `INSERT INTO materias (nombre, codigo, carrera_id, institucion_id) VALUES (?, ?, ?, ?)`,
+    ["Sistemas de Información", "SIS-101", ingSoftId, institucionId],
   );
   const matFund = await insert(
-    `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
-    ["Fundamentos de Programación", "SIS-201", 3, ingSoftId, institucionId],
+    `INSERT INTO materias (nombre, codigo, carrera_id, institucion_id) VALUES (?, ?, ?, ?)`,
+    ["Fundamentos de Programación", "SIS-201", ingSoftId, institucionId],
   );
   const matWeb = await insert(
-    `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
-    ["Desarrollo Web", "SIS-301", 3, tecSolId, institucionId],
+    `INSERT INTO materias (nombre, codigo, carrera_id, institucion_id) VALUES (?, ?, ?, ?)`,
+    ["Desarrollo Web", "SIS-301", tecSolId, institucionId],
   );
 
   // 7) Grupos (materia + código/ficha + profesor + periodo).

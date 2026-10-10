@@ -42,7 +42,7 @@
 
 ### 👨‍💼 Administrador — `/admin`
 - **Usuarios**: CRUD completo (crear, listar, buscar, editar, activar/inactivar) con los 4 roles de la institución, **foto de perfil** y **carga masiva desde CSV/XLSX** (columnas `nombre, correo, rol, password`; roles profesor/estudiante/acudiente; hasta 2000 filas con validación por fila y reporte de errores).
-- **Gestión académica**: CRUD de carreras/grados y materias (con créditos y asociación a carrera).
+- **Gestión académica**: CRUD de carreras/grados y materias (con asociación a carrera).
 - **Grupos**: creación de grupos por materia, profesor y periodo; asignación de horarios.
 - **Matrículas**: inscripción de estudiantes en grupos y eliminación de matrículas.
 - **Acudientes**: vinculación de acudientes con estudiantes a cargo.
@@ -121,12 +121,13 @@ SIA/
 │   ├── index.js                 # Entrada: arranca el listener y chequea MySQL
 │   ├── app.js                   # App Express: CORS, estáticos (uploads/), rutas y errores
 │   ├── db.js                    # Pool de MySQL (decimalNumbers: true)
-│   ├── migrate.js               # Ejecuta migrations/001-005 en orden
+│   ├── migrate.js               # Ejecuta migrations/001-007 en orden
 │   ├── seed.js                  # Datos demo (idempotente)
 │   ├── .env.example             # Plantilla de variables de entorno
 │   ├── migrations/              # 001_init.sql, 002_multi_tenant.sql,
 │   │                            # 003_institucion_logo.sql, 004_password_reset.sql,
-│   │                            # 005_tareas_columna_nota.sql
+│   │                            # 005_tareas_columna_nota.sql,
+│   │                            # 006_trazabilidad_asistencia.sql, 007_quitar_creditos.sql
 │   ├── routes/                  # auth (incluye recuperación de contraseña),
 │   │                            # admin, profesor, acudiente, notas, asistencia,
 │   │                            # tareas, calendario, chatbot, mensajes, notificaciones,
@@ -218,7 +219,7 @@ npm install
 
 ```bash
 cd backend
-npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos) + 004 (recuperación de contraseña) + 005 (sincronización tareas→notas)
+npm run migrate   # Aplica 001 (esquema base) + 002 (multi-tenant/superadmin) + 003 (logos) + 004 (recuperación de contraseña) + 005 (sincronización tareas→notas) + 006 (trazabilidad asistencia) + 007 (quita créditos)
 npm run seed      # Inserta institución, usuarios demo, materias, grupos, notas, etc.
 ```
 
@@ -275,7 +276,7 @@ El seed incluye datos de ejemplo: 5 cuentas demo (incluye superadmin, sin instit
 
 ```bash
 # Backend (requiere MySQL activo)
-cd backend && npm run migrate && npm run seed   # esquema (001-005) + datos demo
+cd backend && npm run migrate && npm run seed   # esquema (001-007) + datos demo
 
 # Frontend
 cd frontend

@@ -74,7 +74,6 @@ CREATE TABLE IF NOT EXISTS materias (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
   codigo VARCHAR(30) NOT NULL UNIQUE,
-  creditos INT NOT NULL DEFAULT 0,
   carrera_id INT DEFAULT NULL,
   CONSTRAINT fk_materias_carrera
     FOREIGN KEY (carrera_id) REFERENCES carreras_grados(id) ON DELETE SET NULL

@@ -383,11 +383,11 @@ r.get(
   "/materias",
   asyncHandler(async (req, res) => {
     const [rows] = await pool.query(
-      `SELECT m.id, m.nombre, m.codigo, m.creditos, m.carrera_id, c.nombre AS carrera_nombre
+      `SELECT m.id, m.nombre, m.codigo, m.carrera_id, c.nombre AS carrera_nombre
      FROM materias m
-     LEFT JOIN carreras_grados c ON c.id = m.carrera_id
-     WHERE m.institucion_id = ?
-     ORDER BY m.nombre`,
+      LEFT JOIN carreras_grados c ON c.id = m.carrera_id
+      WHERE m.institucion_id = ?
+      ORDER BY m.nombre`,
       [req.user.institucion_id],
     );
     res.json(rows);
@@ -397,16 +397,15 @@ r.get(
 r.post(
   "/materias",
   asyncHandler(async (req, res) => {
-    const { nombre, codigo, creditos, carrera_id } = req.body;
+    const { nombre, codigo, carrera_id } = req.body;
     if (!nombre || !codigo)
       return res.status(400).json({ error: "Faltan datos" });
     try {
       const [result] = await pool.query(
-        `INSERT INTO materias (nombre, codigo, creditos, carrera_id, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO materias (nombre, codigo, carrera_id, institucion_id) VALUES (?, ?, ?, ?)`,
         [
           nombre.trim(),
           codigo.trim().toUpperCase(),
-          Number(creditos) || 0,
           carrera_id ? Number(carrera_id) : null,
           req.user.institucion_id,
         ],
@@ -425,16 +424,15 @@ r.put(
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "ID inválido" });
-    const { nombre, codigo, creditos, carrera_id } = req.body;
+    const { nombre, codigo, carrera_id } = req.body;
     if (!nombre || !codigo)
       return res.status(400).json({ error: "Faltan datos" });
     try {
       await pool.query(
-        `UPDATE materias SET nombre = ?, codigo = ?, creditos = ?, carrera_id = ? WHERE id = ? AND institucion_id = ?`,
+        `UPDATE materias SET nombre = ?, codigo = ?, carrera_id = ? WHERE id = ? AND institucion_id = ?`,
         [
           nombre.trim(),
           codigo.trim().toUpperCase(),
-          Number(creditos) || 0,
           carrera_id ? Number(carrera_id) : null,
           id,
           req.user.institucion_id,
@@ -447,7 +445,7 @@ r.put(
     }
     // Entidad actualizada (con el nombre de carrera resuelto).
     const [[row]] = await pool.query(
-      `SELECT m.id, m.nombre, m.codigo, m.creditos, m.carrera_id, c.nombre AS carrera_nombre
+      `SELECT m.id, m.nombre, m.codigo, m.carrera_id, c.nombre AS carrera_nombre
        FROM materias m
        LEFT JOIN carreras_grados c ON c.id = m.carrera_id
        WHERE m.id = ? AND m.institucion_id = ?`,
