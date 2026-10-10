@@ -152,7 +152,7 @@ function EstudiantePanel() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard
-            label="Materias inscritas"
+            label="Asignaturas inscritas"
             value={materias.length}
             icon={BookOpen}
             accent="primary"
@@ -196,7 +196,7 @@ function EstudiantePanel() {
 
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatCard
-              label="Materias inscritas"
+              label="Asignaturas inscritas"
               value={materias.length}
               icon={BookOpen}
               accent="primary"
@@ -208,7 +208,7 @@ function EstudiantePanel() {
               accent={promedio >= 3 ? "emerald" : "rose"}
             />
             <StatCard
-              label="Materias aprobadas"
+              label="Asignaturas aprobadas"
               value={`${aprobadas}/${notasDefinitivas.length}`}
               icon={Award}
               accent={aprobadas >= 3 ? "emerald" : "amber"}
@@ -217,7 +217,15 @@ function EstudiantePanel() {
 
           <DataTable
             loading={cargando}
-            headers={["Materia", "Periodo", "Nota 1", "Nota 2", "Nota 3", "Examen", "Definitiva"]}
+            headers={[
+              "Asignatura",
+              "Periodo",
+              "Nota 1",
+              "Nota 2",
+              "Nota 3",
+              "Examen",
+              "Definitiva",
+            ]}
             rows={materias.map((m) => [
               <span key="m" className="font-medium">
                 {m.materia}

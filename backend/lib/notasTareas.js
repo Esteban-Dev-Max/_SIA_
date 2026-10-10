@@ -46,14 +46,16 @@ export function promedioNotas(entregas) {
 }
 
 /** Recalcula el casillero de un estudiante a partir de sus entregas calificadas
- * en las tareas del grupo vinculadas a esa columna, escribe el resultado en la
- * tabla `notas` (con la definitiva recalculada) y notifica al estudiante si el
- * valor cambió. Devuelve el valor escrito (o null si no hay matrícula/columna). */
+ * en las tareas de la asignación vinculadas a esa columna, escribe el resultado
+ * en la tabla `notas` (con la definitiva recalculada) y notifica al estudiante
+ * si el valor cambió. Devuelve el valor escrito (o null si no hay matrícula/columna).
+ * (Se conserva el nombre del parámetro grupoId por compatibilidad: es el id de
+ * la asignación.) */
 export async function recalcularCasillero({ estudianteId, grupoId, columna }) {
   if (!COLUMNAS_NOTA.includes(columna)) return null;
 
   const [[mat]] = await pool.query(
-    "SELECT id FROM matriculas WHERE estudiante_id = ? AND grupo_id = ?",
+    "SELECT id FROM matriculas WHERE estudiante_id = ? AND asignacion_id = ?",
     [estudianteId, grupoId],
   );
   if (!mat) return null;
@@ -62,7 +64,7 @@ export async function recalcularCasillero({ estudianteId, grupoId, columna }) {
     `SELECT e.calificacion, t.puntaje_max
      FROM entregas_tareas e
      JOIN tareas t ON t.id = e.tarea_id
-     WHERE e.estudiante_id = ? AND t.grupo_id = ? AND t.columna_nota = ? AND e.calificacion IS NOT NULL`,
+     WHERE e.estudiante_id = ? AND t.asignacion_id = ? AND t.columna_nota = ? AND e.calificacion IS NOT NULL`,
     [estudianteId, grupoId, columna],
   );
   const promedio = promedioNotas(entregas);
@@ -94,13 +96,13 @@ export async function recalcularCasillero({ estudianteId, grupoId, columna }) {
 
   if (promedio !== null) {
     const [[g]] = await pool.query(
-      `SELECT m.nombre AS materia FROM grupos g JOIN materias m ON m.id = g.materia_id WHERE g.id = ?`,
+      `SELECT s.nombre AS materia FROM asignaciones a JOIN asignaturas s ON s.id = a.asignatura_id WHERE a.id = ?`,
       [grupoId],
     );
     await notificar(
       estudianteId,
       "Nota actualizada desde tareas",
-      `Tu nota de ${ETIQUETA[columna]} en ${g?.materia ?? "la materia"} se actualizó a ${promedio.toFixed(2)} (promedio de tareas)`,
+      `Tu nota de ${ETIQUETA[columna]} en ${g?.materia ?? "la asignatura"} se actualizó a ${promedio.toFixed(2)} (promedio de tareas)`,
       "nota",
     );
   }

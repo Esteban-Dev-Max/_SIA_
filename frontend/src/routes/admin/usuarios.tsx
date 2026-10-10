@@ -48,7 +48,7 @@ type Usuario = {
 
 const ROLES: { value: Usuario["rol"]; label: string }[] = [
   { value: "admin", label: "Administrador" },
-  { value: "profesor", label: "Profesor" },
+  { value: "profesor", label: "Docente" },
   { value: "estudiante", label: "Estudiante" },
   { value: "acudiente", label: "Acudiente" },
 ];
@@ -62,7 +62,7 @@ const rolBadge: Record<Usuario["rol"], string> = {
 
 const rolLabel: Record<Usuario["rol"], string> = {
   admin: "Admin",
-  profesor: "Profesor",
+  profesor: "Docente",
   estudiante: "Estudiante",
   acudiente: "Acudiente",
 };

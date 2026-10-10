@@ -166,7 +166,7 @@ export function InstitucionModal({ open, onOpenChange, editando, onSaved }: Prop
               required
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              placeholder="Ej. Instituto Técnico Nacional"
+              placeholder="Ej. Colegio San José"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

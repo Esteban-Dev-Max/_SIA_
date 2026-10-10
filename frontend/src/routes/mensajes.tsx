@@ -52,7 +52,7 @@ type Mensaje = {
 
 const rolLabels: Record<Rol, string> = {
   admin: "Admin",
-  profesor: "Profesor",
+  profesor: "Docente",
   estudiante: "Estudiante",
   acudiente: "Acudiente",
 };

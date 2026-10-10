@@ -31,7 +31,7 @@ test("GET /api/instituciones devuelve la institución demo", async () => {
     .set(auth(superToken));
   assert.equal(res.status, 200);
   assert.ok(Array.isArray(res.body));
-  const demo = res.body.find((i) => i.nombre === "Instituto Demostración SIA");
+  const demo = res.body.find((i) => i.nombre === "Colegio Demostración SIA");
   assert.ok(demo, "debe existir la institución demo");
   assert.equal(demo.estado, "activo");
 });

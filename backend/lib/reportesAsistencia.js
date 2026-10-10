@@ -244,7 +244,7 @@ export async function buildPdf(resumen) {
   doc.fillColor(gris).fontSize(10).font("Helvetica");
   doc.text(`Rango: ${rangoTexto(resumen.desde, resumen.hasta)}    Generado: ${new Date().toISOString().slice(0, 10)}`);
   doc.fillColor("#1e293b").font("Helvetica-Bold").fontSize(12).text(
-    `Asistencia general del grupo: ${totales.porcentaje_general == null ? "sin registros" : `${totales.porcentaje_general}%`}`,
+    `Asistencia general de la clase: ${totales.porcentaje_general == null ? "sin registros" : `${totales.porcentaje_general}%`}`,
   );
   doc.fillColor(gris).font("Helvetica").fontSize(10).text(
     `Estudiantes: ${estudiantes.length}   En riesgo: ${totales.en_riesgo}   Fallas críticas: ${totales.fallas_criticas}`,

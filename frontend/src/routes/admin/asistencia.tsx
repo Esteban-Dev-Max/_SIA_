@@ -195,12 +195,12 @@ function AdminAsistencia() {
       <div className="mb-6">
         <h2 className="text-lg font-bold tracking-tight">Asistencia institucional</h2>
         <p className="text-sm text-muted-foreground">
-          Semáforo de riesgo por ficha y notificaciones preventivas
+          Semáforo de riesgo por clase y notificaciones preventivas
         </p>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <StatCard label="Fichas" value={g.length || "—"} icon={QrCode} accent="primary" />
+        <StatCard label="Clases" value={g.length || "—"} icon={QrCode} accent="primary" />
         <StatCard
           label="Asistencia global"
           value={pctGlobal != null ? `${pctGlobal}%` : "—"}
@@ -247,7 +247,7 @@ function AdminAsistencia() {
           <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-base">
             <span className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-emerald-600" />
-              Panorama de riesgo por ficha
+              Panorama de riesgo por clase
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2">
@@ -312,14 +312,14 @@ function AdminAsistencia() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
                 <Inbox className="h-6 w-6 opacity-40" />
               </div>
-              <span className="text-sm font-medium">Sin fichas con registros en el rango.</span>
+              <span className="text-sm font-medium">Sin clases con registros en el rango.</span>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="bg-gradient-to-r from-muted/60 to-muted/30 hover:from-muted/60 hover:to-muted/30">
                   <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Ficha
+                    Clase
                   </TableHead>
                   <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Alumnos

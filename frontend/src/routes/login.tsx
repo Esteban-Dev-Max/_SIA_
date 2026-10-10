@@ -55,7 +55,7 @@ const demoAccounts = [
     bg: "bg-violet-50 dark:bg-violet-500/10",
   },
   {
-    rol: "Profesor",
+    rol: "Docente",
     email: "profesor@sia.edu.co",
     pass: "prof123",
     icon: User,
@@ -138,7 +138,7 @@ function LoginPage() {
                 tu rol y comienza a trabajar.
               </p>
               <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {["Admin", "Profesor", "Estudiante", "Acudiente"].map((role) => (
+                {["Admin", "Docente", "Estudiante", "Acudiente"].map((role) => (
                   <div key={role} className="rounded-xl bg-muted/30 p-3 text-center">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {role}

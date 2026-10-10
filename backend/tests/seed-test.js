@@ -13,7 +13,7 @@ dotenv.config();
 const DEMO_USERS = [
   { nombre_completo: "Super Admin SIA", correo: "superadmin@sia.edu.co", password: "superadmin123", rol: "superadmin", institucion_id: null },
   { nombre_completo: "Administrador SIA", correo: "admin@sia.edu.co", password: "admin123", rol: "admin" },
-  { nombre_completo: "Profesor Demo", correo: "profesor@sia.edu.co", password: "prof123", rol: "profesor" },
+  { nombre_completo: "Docente Demo", correo: "profesor@sia.edu.co", password: "prof123", rol: "profesor" },
   { nombre_completo: "Estudiante Demo", correo: "estudiante@sia.edu.co", password: "est123", rol: "estudiante" },
   { nombre_completo: "Acudiente Demo", correo: "acudiente@sia.edu.co", password: "acu123", rol: "acudiente" },
 ];
@@ -28,13 +28,13 @@ async function main() {
   for (const u of DEMO_USERS) {
     await pool.query("DELETE FROM usuarios WHERE correo = ?", [u.correo]);
   }
-  await pool.query("DELETE FROM instituciones WHERE nombre = ?", ["Instituto Demostración SIA"]);
+  await pool.query("DELETE FROM instituciones WHERE nombre = ?", ["Colegio Demostración SIA"]);
 
   // Institución demo.
   const institucionId = await insert(
     `INSERT INTO instituciones (nombre, correo, telefono, departamento, ciudad, estado)
      VALUES (?, ?, ?, ?, ?, 'activo')`,
-    ["Instituto Demostración SIA", "info@sia.edu.co", "601 1234567", "Cundinamarca", "Bogotá"],
+    ["Colegio Demostración SIA", "info@colegiodemo.edu.co", "601 1234567", "Cundinamarca", "Bogotá"],
   );
 
   // Usuarios demo con bcrypt.

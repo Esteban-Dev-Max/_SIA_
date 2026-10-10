@@ -23,30 +23,31 @@ function aDatetime(value) {
   return String(value).replace("T", " ").slice(0, 19);
 }
 
-// Un admin todo lo puede. Un profesor solo sobre sus propios grupos y un
-// estudiante únicamente sobre los grupos donde está matriculado.
+// Un admin todo lo puede. Un docente solo sobre sus propias asignaciones y un
+// estudiante únicamente sobre las asignaciones donde está matriculado.
+// (Se conserva el contrato externo grupo_id = id de la asignación.)
 async function puedeVerGrupo(req, res, grupoId) {
   if (req.user.rol === "admin") {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND institucion_id = ?",
       [grupoId, req.user.institucion_id],
     );
-    if (g) return true;
+    if (a) return true;
     res.status(403).json({ error: "No autorizado" });
     return false;
   }
   if (req.user.rol === "profesor") {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND docente_id = ?",
       [grupoId, req.user.id],
     );
-    if (g) return true;
+    if (a) return true;
     res.status(403).json({ error: "No autorizado" });
     return false;
   }
   if (req.user.rol === "estudiante") {
     const [[m]] = await pool.query(
-      "SELECT id FROM matriculas WHERE estudiante_id = ? AND grupo_id = ?",
+      "SELECT id FROM matriculas WHERE estudiante_id = ? AND asignacion_id = ?",
       [req.user.id, grupoId],
     );
     if (m) return true;
@@ -59,20 +60,20 @@ async function puedeVerGrupo(req, res, grupoId) {
 
 async function esProfesorDeGrupo(req, grupoId) {
   if (req.user.rol === "admin") {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND institucion_id = ?",
       [grupoId, req.user.institucion_id],
     );
-    return !!g;
+    return !!a;
   }
-  const [[g]] = await pool.query(
-    "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
+  const [[a]] = await pool.query(
+    "SELECT id FROM asignaciones WHERE id = ? AND docente_id = ?",
     [grupoId, req.user.id],
   );
-  return !!g;
+  return !!a;
 }
 
-// Tareas de un grupo con indicadores de entregas (profesor/estudiante del grupo).
+// Tareas de una asignación con indicadores de entregas (docente/estudiante).
 r.get(
   "/grupo/:grupo_id",
   asyncHandler(async (req, res) => {
@@ -81,13 +82,13 @@ r.get(
     if (!(await puedeVerGrupo(req, res, grupoId))) return;
     const [rows] = await pool.query(
       `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max, t.columna_nota,
-            m.nombre AS materia, g.periodo,
-            (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = t.grupo_id) AS total_alumnos,
+            s.nombre AS materia, a.periodo,
+            (SELECT COUNT(*) FROM matriculas mat WHERE mat.asignacion_id = t.asignacion_id) AS total_alumnos,
             (SELECT COUNT(*) FROM entregas_tareas e WHERE e.tarea_id = t.id) AS entregados
      FROM tareas t
-     JOIN grupos g ON g.id = t.grupo_id
-     JOIN materias m ON m.id = g.materia_id
-     WHERE t.grupo_id = ?
+     JOIN asignaciones a ON a.id = t.asignacion_id
+     JOIN asignaturas s ON s.id = a.asignatura_id
+     WHERE t.asignacion_id = ?
      ORDER BY t.fecha_entrega`,
       [grupoId],
     );
@@ -95,7 +96,7 @@ r.get(
   }),
 );
 
-// Tareas de todas las materias de un estudiante (con su entrega, si existe).
+// Tareas de todas las asignaturas de un estudiante (con su entrega, si existe).
 r.get(
   "/estudiante",
   asyncHandler(async (req, res) => {
@@ -103,13 +104,13 @@ r.get(
       return res.status(403).json({ error: "Prohibido" });
     const [rows] = await pool.query(
       `SELECT t.id AS tarea_id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max,
-            m.nombre AS materia, m.codigo AS materia_codigo, g.periodo, g.id AS grupo_id,
+            s.nombre AS materia, s.codigo AS materia_codigo, a.periodo, a.id AS grupo_id,
             e.id AS entrega_id, e.archivo_url, e.fecha_entrega AS fecha_entrega_entrega,
             e.calificacion, e.comentario, e.retroalimentacion
      FROM matriculas mat
-     JOIN grupos g ON g.id = mat.grupo_id
-     JOIN materias m ON m.id = g.materia_id
-     JOIN tareas t ON t.grupo_id = g.id
+     JOIN asignaciones a ON a.id = mat.asignacion_id
+     JOIN asignaturas s ON s.id = a.asignatura_id
+     JOIN tareas t ON t.asignacion_id = a.id
      LEFT JOIN entregas_tareas e ON e.tarea_id = t.id AND e.estudiante_id = mat.estudiante_id
      WHERE mat.estudiante_id = ?
      ORDER BY t.fecha_entrega`,
@@ -119,7 +120,7 @@ r.get(
   }),
 );
 
-// Crea una tarea para un grupo (profesor del grupo o admin).
+// Crea una tarea para una asignación (docente de la asignación o admin).
 r.post(
   "/",
   asyncHandler(async (req, res) => {
@@ -151,11 +152,11 @@ r.post(
       return res.status(400).json({ error: "Fecha inválida" });
     }
 
-    const [[grpRow]] = await pool.query("SELECT institucion_id FROM grupos WHERE id = ?", [grupoId]);
+    const [[grpRow]] = await pool.query("SELECT institucion_id FROM asignaciones WHERE id = ?", [grupoId]);
     const instId = grpRow?.institucion_id ?? req.user.institucion_id;
 
     const [result] = await pool.query(
-      `INSERT INTO tareas (grupo_id, titulo, descripcion, fecha_entrega, puntaje_max, columna_nota, institucion_id)
+      `INSERT INTO tareas (asignacion_id, titulo, descripcion, fecha_entrega, puntaje_max, columna_nota, institucion_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         grupoId,
@@ -169,7 +170,7 @@ r.post(
     );
 
     const [alumnos] = await pool.query(
-      `SELECT mat.estudiante_id FROM matriculas mat WHERE mat.grupo_id = ?`,
+      `SELECT mat.estudiante_id FROM matriculas mat WHERE mat.asignacion_id = ?`,
       [grupoId],
     );
     if (alumnos.length > 0) {
@@ -187,7 +188,7 @@ r.post(
   }),
 );
 
-// Entrega de un estudiante para una tarea de sus materias (upsert).
+// Entrega de un estudiante para una tarea de sus asignaturas (upsert).
 r.post(
   "/:tarea_id/entregar",
   asyncHandler(async (req, res) => {
@@ -203,13 +204,13 @@ r.post(
     ) {
       return res.status(400).json({ error: "Faltan datos" });
     }
-    const [[t]] = await pool.query("SELECT grupo_id FROM tareas WHERE id = ?", [
+    const [[t]] = await pool.query("SELECT asignacion_id FROM tareas WHERE id = ?", [
       tareaId,
     ]);
     if (!t) return res.status(404).json({ error: "Tarea no encontrada" });
     const [[m]] = await pool.query(
-      "SELECT id FROM matriculas WHERE estudiante_id = ? AND grupo_id = ?",
-      [req.user.id, t.grupo_id],
+      "SELECT id FROM matriculas WHERE estudiante_id = ? AND asignacion_id = ?",
+      [req.user.id, t.asignacion_id],
     );
     if (!m) return res.status(403).json({ error: "No autorizado" });
 
@@ -223,24 +224,26 @@ r.post(
   }),
 );
 
-// Entregas de una tarea + alumnos que aún no han entregado (revisión profesor).
+// Entregas de una tarea + alumnos que aún no han entregado (revisión docente).
 r.get(
   "/:tarea_id/entregas",
   asyncHandler(async (req, res) => {
     const tareaId = parseId(req.params.tarea_id);
     if (!tareaId) return res.status(400).json({ error: "ID inválido" });
     const [[t]] = await pool.query(
-      "SELECT id, grupo_id, titulo, puntaje_max, columna_nota FROM tareas WHERE id = ?",
+      "SELECT id, asignacion_id, titulo, puntaje_max, columna_nota FROM tareas WHERE id = ?",
       [tareaId],
     );
     if (!t) return res.status(404).json({ error: "Tarea no encontrada" });
-    if (!(await esProfesorDeGrupo(req, t.grupo_id))) {
+    // Se expone como grupo_id por compatibilidad con el panel.
+    t.grupo_id = t.asignacion_id;
+    if (!(await esProfesorDeGrupo(req, t.asignacion_id))) {
       return res.status(403).json({ error: "No autorizado" });
     }
 
     const [[{ total }]] = await pool.query(
-      "SELECT COUNT(*) AS total FROM matriculas WHERE grupo_id = ?",
-      [t.grupo_id],
+      "SELECT COUNT(*) AS total FROM matriculas WHERE asignacion_id = ?",
+      [t.asignacion_id],
     );
     const [entregas] = await pool.query(
       `SELECT e.id AS entrega_id, e.estudiante_id, u.nombre_completo AS estudiante, u.correo,
@@ -255,10 +258,10 @@ r.get(
       `SELECT u.id AS estudiante_id, u.nombre_completo AS estudiante, u.correo
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
-     WHERE mat.grupo_id = ?
+     WHERE mat.asignacion_id = ?
        AND mat.estudiante_id NOT IN (SELECT estudiante_id FROM entregas_tareas WHERE tarea_id = ?)
      ORDER BY u.nombre_completo`,
-      [t.grupo_id, tareaId],
+      [t.asignacion_id, tareaId],
     );
     res.json({
       tarea: t,
@@ -288,14 +291,16 @@ r.post(
     }
 
     const [[e]] = await pool.query(
-      `SELECT e.id, e.estudiante_id, e.tarea_id, t.puntaje_max, t.columna_nota, t.grupo_id
+      `SELECT e.id, e.estudiante_id, e.tarea_id, t.puntaje_max, t.columna_nota, t.asignacion_id
      FROM entregas_tareas e
      JOIN tareas t ON t.id = e.tarea_id
      WHERE e.id = ?`,
       [entregaId],
     );
     if (!e) return res.status(404).json({ error: "Entrega no encontrada" });
-    if (!(await esProfesorDeGrupo(req, e.grupo_id))) {
+    // Se expone como grupo_id por compatibilidad con la sincronización.
+    e.grupo_id = e.asignacion_id;
+    if (!(await esProfesorDeGrupo(req, e.asignacion_id))) {
       return res.status(403).json({ error: "No autorizado" });
     }
     if (nota !== null && nota > Number(e.puntaje_max)) {

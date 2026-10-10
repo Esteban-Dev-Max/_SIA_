@@ -4,8 +4,9 @@
 -- Ejecuta con `npm run migrate` desde la carpeta backend/.
 --
 -- Esquema relacional completo para los módulos del sistema:
---   usuarios, académico (carreras_grados, materias, grupos, matriculas),
---   notas, asistencia, tareas, eventos, mensajes e instituciones.
+--   usuarios, académico de colegio (grados, asignaturas, cursos, asignaciones,
+--   matriculas, matriculas_curso), notas, asistencia, tareas, eventos,
+--   mensajes e instituciones.
 -- =============================================================================
 
 CREATE DATABASE IF NOT EXISTS academico
@@ -23,10 +24,15 @@ DROP TABLE IF EXISTS tareas;
 DROP TABLE IF EXISTS asistencia_audit;
 DROP TABLE IF EXISTS asistencia;
 DROP TABLE IF EXISTS notas;
+DROP TABLE IF EXISTS matriculas_curso;
 DROP TABLE IF EXISTS matriculas;
-DROP TABLE IF EXISTS grupos;
-DROP TABLE IF EXISTS materias;
-DROP TABLE IF EXISTS carreras_grados;
+DROP TABLE IF EXISTS asignaciones;
+DROP TABLE IF EXISTS grupos; -- legado pre-008 (ver 008_colegios.sql)
+DROP TABLE IF EXISTS materias; -- legado pre-008
+DROP TABLE IF EXISTS carreras_grados; -- legado pre-008
+DROP TABLE IF EXISTS cursos;
+DROP TABLE IF EXISTS asignaturas;
+DROP TABLE IF EXISTS grados;
 DROP TABLE IF EXISTS password_resets;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS instituciones;
@@ -59,57 +65,95 @@ CREATE TABLE IF NOT EXISTS usuarios (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- carreras_grados: carreras o grados ofrecidos por la institución.
+-- grados: grados escolares ofrecidos por la institución (preescolar, primaria,
+-- secundaria y media). `orden` permite listarlos de menor a mayor (ej. 6).
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS carreras_grados (
+CREATE TABLE IF NOT EXISTS grados (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(150) NOT NULL,
-  codigo VARCHAR(30) NOT NULL UNIQUE
+  nombre VARCHAR(100) NOT NULL,
+  nivel ENUM('preescolar','primaria','secundaria','media') NOT NULL DEFAULT 'primaria',
+  orden INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- materias: asignaturas pertenecientes a una carrera o grado.
+-- asignaturas: áreas/asignaturas dictadas en un grado (ej. Matemáticas de 6°).
+-- `codigo` es un alias corto y opcional (ej. MAT-6).
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS materias (
+CREATE TABLE IF NOT EXISTS asignaturas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
-  codigo VARCHAR(30) NOT NULL UNIQUE,
-  carrera_id INT DEFAULT NULL,
-  CONSTRAINT fk_materias_carrera
-    FOREIGN KEY (carrera_id) REFERENCES carreras_grados(id) ON DELETE SET NULL
+  codigo VARCHAR(20) DEFAULT NULL,
+  grado_id INT DEFAULT NULL,
+  CONSTRAINT fk_asignaturas_grado
+    FOREIGN KEY (grado_id) REFERENCES grados(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- grupos: agrupación de una materia dictada por un profesor en un periodo.
--- codigo_grupo: código o ficha que identifica al grupo dentro de la materia
--- (permite varios grupos/fichas para una misma asignatura, ej. 1003, 801).
+-- cursos: cada sección de un grado en un año lectivo (ej. 6A de 2026), con su
+-- director de grupo (docente). Los estudiantes se matriculan al curso por año.
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS grupos (
+CREATE TABLE IF NOT EXISTS cursos (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  materia_id INT NOT NULL,
-  codigo_grupo VARCHAR(30) NOT NULL,
-  profesor_id INT NOT NULL,
+  grado_id INT NOT NULL,
+  nombre VARCHAR(10) NOT NULL,
+  director_id INT DEFAULT NULL,
+  ano_lectivo INT NOT NULL,
+  CONSTRAINT fk_cursos_grado
+    FOREIGN KEY (grado_id) REFERENCES grados(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cursos_director
+    FOREIGN KEY (director_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- asignaciones: una asignatura dictada a un curso por un docente en un periodo
+-- del año lectivo. `periodo` usa el formato AAAA-PN (ej. 2026-P1, P1..P4).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS asignaciones (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  curso_id INT NOT NULL,
+  asignatura_id INT NOT NULL,
+  docente_id INT NOT NULL,
   periodo VARCHAR(20) NOT NULL,
   horario VARCHAR(120) DEFAULT NULL,
-  CONSTRAINT fk_grupos_materia
-    FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE CASCADE,
-  CONSTRAINT fk_grupos_profesor
-    FOREIGN KEY (profesor_id) REFERENCES usuarios(id) ON DELETE CASCADE
+  CONSTRAINT fk_asignaciones_curso
+    FOREIGN KEY (curso_id) REFERENCES cursos(id) ON DELETE CASCADE,
+  CONSTRAINT fk_asignaciones_asignatura
+    FOREIGN KEY (asignatura_id) REFERENCES asignaturas(id) ON DELETE CASCADE,
+  CONSTRAINT fk_asignaciones_docente
+    FOREIGN KEY (docente_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- matriculas: vinculan a un estudiante (usuario) con un grupo.
+-- matriculas_curso: matrícula anual de un estudiante a un curso (ej. 6A 2026).
+-- Al matricular, el sistema genera las matriculas por asignación del curso.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS matriculas_curso (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  estudiante_id INT NOT NULL,
+  curso_id INT NOT NULL,
+  ano_lectivo INT NOT NULL,
+  fecha_matricula DATE NOT NULL,
+  UNIQUE KEY uq_matricula_curso (estudiante_id, curso_id),
+  CONSTRAINT fk_matriculas_curso_estudiante
+    FOREIGN KEY (estudiante_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+  CONSTRAINT fk_matriculas_curso_curso
+    FOREIGN KEY (curso_id) REFERENCES cursos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- matriculas: vinculan a un estudiante con una asignación (asignatura de su
+-- curso en un periodo). Se generan automáticamente desde la matrícula anual.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS matriculas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   estudiante_id INT NOT NULL,
-  grupo_id INT NOT NULL,
+  asignacion_id INT NOT NULL,
   fecha_matricula DATE NOT NULL,
-  UNIQUE KEY uq_matricula (estudiante_id, grupo_id),
+  UNIQUE KEY uq_matricula (estudiante_id, asignacion_id),
   CONSTRAINT fk_matriculas_estudiante
     FOREIGN KEY (estudiante_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-  CONSTRAINT fk_matriculas_grupo
-    FOREIGN KEY (grupo_id) REFERENCES grupos(id) ON DELETE CASCADE
+  CONSTRAINT fk_matriculas_asignacion
+    FOREIGN KEY (asignacion_id) REFERENCES asignaciones(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
@@ -147,17 +191,17 @@ CREATE TABLE IF NOT EXISTS asistencia (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- tareas: actividades asignadas a un grupo.
+-- tareas: actividades asignadas a una asignación (asignatura de un curso).
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tareas (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  grupo_id INT NOT NULL,
+  asignacion_id INT NOT NULL,
   titulo VARCHAR(200) NOT NULL,
   descripcion TEXT DEFAULT NULL,
   fecha_entrega DATETIME DEFAULT NULL,
   puntaje_max DECIMAL(5,2) NOT NULL DEFAULT 10,
-  CONSTRAINT fk_tareas_grupo
-    FOREIGN KEY (grupo_id) REFERENCES grupos(id) ON DELETE CASCADE
+  CONSTRAINT fk_tareas_asignacion
+    FOREIGN KEY (asignacion_id) REFERENCES asignaciones(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
@@ -190,8 +234,8 @@ CREATE TABLE IF NOT EXISTS eventos_calendario (
   fecha_fin DATETIME DEFAULT NULL,
   tipo ENUM('institucional','evaluacion','entrega','reunion') NOT NULL DEFAULT 'institucional',
   curso_id INT DEFAULT NULL,
-  CONSTRAINT fk_eventos_carrera
-    FOREIGN KEY (curso_id) REFERENCES carreras_grados(id) ON DELETE SET NULL
+  CONSTRAINT fk_eventos_grado
+    FOREIGN KEY (curso_id) REFERENCES grados(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------

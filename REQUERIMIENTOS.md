@@ -1,7 +1,7 @@
 # REQUERIMIENTOS DEL SISTEMA — SIA
 
 ## 1. INFORMACIÓN GENERAL Y OBJETIVO DEL SISTEMA
-El **SIA (Sistema Integral Académico)** es una plataforma web full-stack diseñada para centralizar y optimizar la gestión académica y administrativa de instituciones educativas. Su objetivo principal es facilitar la interacción entre administradores, docentes, estudiantes y acudientes, proporcionando herramientas para el seguimiento del rendimiento escolar, control de asistencia, y comunicación interna.
+El **SIA (Sistema Integral Académico)** es una plataforma web full-stack diseñada para centralizar y optimizar la gestión académica y administrativa de colegios (preescolar, primaria, secundaria y media). Su objetivo principal es facilitar la interacción entre administradores, docentes, estudiantes y acudientes, proporcionando herramientas para el seguimiento del rendimiento escolar, control de asistencia, y comunicación interna.
 
 ---
 
@@ -11,30 +11,32 @@ El **SIA (Sistema Integral Académico)** es una plataforma web full-stack diseñ
 - **RF1.1 Inicio de Sesión:** El sistema debe permitir el acceso mediante correo electrónico y contraseña (hasheada con bcrypt).
 - **RF1.2 Gestión de Sesiones (JWT):** Generación de tokens con expiración de 8 horas.
 - **RF1.3 Revalidación de Token:** El sistema debe verificar en cada petición que el usuario esté activo y mantenga el mismo rol en la base de datos.
-- **RF1.4 Control de Acceso (RBAC):** Restricción de acceso a rutas y endpoints según el rol (Admin, Profesor, Estudiante, Acudiente).
+- **RF1.4 Control de Acceso (RBAC):** Restricción de acceso a rutas y endpoints según el rol (Admin, Docente, Estudiante, Acudiente). El rol `profesor` se presenta como "Docente" en la interfaz.
 - **RF1.5 Cambio de Contraseña:** Los usuarios deben poder actualizar su credencial validando su contraseña actual.
 
 ### 2.2 Módulo de Administración
-- **RF2.1 Dashboard Administrativo:** Visualización de métricas globales (conteo de usuarios por rol, materias, grupos y matrículas).
+- **RF2.1 Dashboard Administrativo:** Visualización de métricas globales (conteo de usuarios por rol, grados, asignaturas, cursos y matrículas).
 - **RF2.2 Gestión de Usuarios:** CRUD completo de cuentas, incluyendo asignación de estado (activo/inactivo) y carga de foto de perfil (JPG/PNG/WEBP < 3MB).
-- **RF2.3 Gestión de Oferta Académica:** Administración de Carreras/Grados y Materias (con códigos únicos).
-- **RF2.4 Gestión de Grupos:** Creación de secciones para materias vinculando profesor, periodo académico y horario.
-- **RF2.5 Matrículas:** Registro de estudiantes en grupos con validación de:
-  - No duplicidad de materia en el mismo periodo.
-  - No cruce de horarios con otros grupos matriculados.
-- **RF2.6 Vinculación de Acudientes:** Relación de uno o más acudientes con estudiantes específicos para el seguimiento académico.
+- **RF2.3 Gestión de Grados:** Administración de grados con nivel (preescolar, primaria, secundaria, media) y orden.
+- **RF2.4 Gestión de Asignaturas:** Administración de asignaturas con código corto opcional y grado asociado.
+- **RF2.5 Gestión de Cursos:** Creación de cursos por grado, letra, director de grupo y año lectivo.
+- **RF2.6 Asignación Docente:** Asignación de docentes a cada asignatura del curso por periodo académico (`AAAA-PN`, 4 periodos por año) y horario, con control de choques de horario del docente.
+- **RF2.7 Matrículas:** Matrícula anual del estudiante al curso, con inscripción automática en sus asignaturas. Validaciones:
+  - No duplicidad de matrícula en el mismo curso.
+  - El cambio o retiro se bloquea si ya hay notas o asistencia registradas.
+- **RF2.8 Vinculación de Acudientes:** Relación de uno o más acudientes con estudiantes específicos para el seguimiento académico.
 
-### 2.3 Módulo del Profesor
+### 2.3 Módulo del Docente
 - **RF3.1 Planilla de Calificaciones:** Registro de notas en escala de 1.0 a 5.0.
 - **RF3.2 Ponderación Automática:** Cálculo de la nota definitiva basado en:
   - Nota 1 (25%), Nota 2 (25%), Nota 3 (20%) y Examen Final (30%).
 - **RF3.3 Registro de Asistencia:** Control diario de presencia con estados: *Presente, Ausente, Tarde, Excusa*.
 - **RF3.4 Gestión de Soportes:** Carga y descarga de documentos (PDF/JPG/PNG) para justificar inasistencias bajo el estado "Excusa".
-- **RF3.5 Reportes de Grupo:** Visualización de promedios de asistencia y alertas por fallas acumuladas.
+- **RF3.5 Reportes de Clase:** Visualización de promedios de asistencia y alertas por fallas acumuladas.
 
 ### 2.4 Módulo del Estudiante
-- **RF4.1 Consulta Académica:** Visualización del historial de notas por materia y periodo.
-- **RF4.2 Seguimiento de Asistencia:** Acceso al resumen de inasistencias y porcentaje de cumplimiento por materia.
+- **RF4.1 Consulta Académica:** Visualización del historial de notas por asignatura y periodo.
+- **RF4.2 Seguimiento de Asistencia:** Acceso al resumen de inasistencias y porcentaje de cumplimiento por asignatura.
 - **RF4.3 Notificaciones:** Recepción de alertas del sistema ante la publicación de nuevas calificaciones definitivas.
 
 ### 2.5 Módulo del Acudiente
@@ -68,9 +70,9 @@ El **SIA (Sistema Integral Académico)** es una plataforma web full-stack diseñ
 | :--- | :---: | :---: | :---: | :---: |
 | Login y Seguridad (JWT) | X | X | X | X |
 | Gestión de Usuarios y Roles | X | | | |
-| Configuración de Carreras y Materias | X | | | |
-| Creación de Grupos y Horarios | X | | | |
-| Matrícula de Estudiantes | X | | | |
+| Configuración de Grados y Asignaturas | X | | | |
+| Creación de Cursos y Asignaciones | X | | | |
+| Matrícula anual de Estudiantes | X | | | |
 | Vinculación Acudiente-Estudiante | X | | | |
 | Registro de Notas (Planilla) | X | X | | |
 | Registro de Asistencia y Excusas | X | X | | |

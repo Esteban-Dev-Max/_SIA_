@@ -22,47 +22,47 @@ test.describe("Panel superadmin · Instituciones", () => {
   });
 
   test("abre el diálogo de edición precargado y guarda cambios", async ({ page }) => {
-    const filaNombre = page.getByRole("cell").filter({ hasText: "Instituto Demostración SIA" });
+    const filaNombre = page.getByRole("cell").filter({ hasText: "Colegio Demostración SIA" });
     await expect(filaNombre.first()).toBeVisible();
 
     // Botón "Editar" de esa fila.
     await page
       .getByRole("row")
-      .filter({ hasText: "Instituto Demostración SIA" })
+      .filter({ hasText: "Colegio Demostración SIA" })
       .getByRole("button", { name: "Editar" })
       .click();
 
     const nombreInput = page.locator("#nombre");
-    await expect(nombreInput).toHaveValue("Instituto Demostración SIA");
-    await nombreInput.fill("Instituto Demostración SIA (Editado E2E)");
+    await expect(nombreInput).toHaveValue("Colegio Demostración SIA");
+    await nombreInput.fill("Colegio Demostración SIA (Editado E2E)");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
 
     // Revertimos el cambio para no ensuciar el seed, reeditando.
     await expect(
-      page.getByRole("cell").filter({ hasText: "Instituto Demostración SIA (Editado E2E)" }).first(),
+      page.getByRole("cell").filter({ hasText: "Colegio Demostración SIA (Editado E2E)" }).first(),
     ).toBeVisible();
     await page
       .getByRole("row")
-      .filter({ hasText: "Instituto Demostración SIA (Editado E2E)" })
+      .filter({ hasText: "Colegio Demostración SIA (Editado E2E)" })
       .getByRole("button", { name: "Editar" })
       .click();
-    await nombreInput.fill("Instituto Demostración SIA");
+    await nombreInput.fill("Colegio Demostración SIA");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(filaNombre.first()).toBeVisible();
   });
 
   test("desactiva y reactiva una institución", async ({ page }) => {
-    const fila = page.getByRole("row").filter({ hasText: "Instituto Demostración SIA" });
+    const fila = page.getByRole("row").filter({ hasText: "Colegio Demostración SIA" });
     await fila.getByRole("button", { name: "Desactivar" }).click();
     await expect(page.getByText("Institución desactivada")).toBeVisible();
     await expect(
-      page.getByRole("row").filter({ hasText: "Instituto Demostración SIA" }).getByText("Inactiva"),
+      page.getByRole("row").filter({ hasText: "Colegio Demostración SIA" }).getByText("Inactiva"),
     ).toBeVisible();
 
     // Reactivamos para dejar el seed intacto.
     await page
       .getByRole("row")
-      .filter({ hasText: "Instituto Demostración SIA" })
+      .filter({ hasText: "Colegio Demostración SIA" })
       .getByRole("button", { name: "Activar" })
       .click();
     await expect(page.getByText("Institución activada")).toBeVisible();

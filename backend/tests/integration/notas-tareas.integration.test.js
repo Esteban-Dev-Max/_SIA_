@@ -19,6 +19,8 @@ let profToken;
 let estudianteToken;
 let estudianteId;
 let institucionId;
+let gradoId;
+let cursoId;
 let materiaId;
 let grupoId;
 let matriculaId;
@@ -41,28 +43,49 @@ before(async () => {
   estudianteId = e.id;
   institucionId = p.institucion_id;
 
+  const [gr] = await pool.query(
+    "INSERT INTO grados (nombre, nivel, orden, institucion_id) VALUES (?, 'secundaria', 6, ?)",
+    [`Grado Sync ${Date.now()}`, institucionId],
+  );
+  gradoId = gr.insertId;
+
   const [m] = await pool.query(
-    "INSERT INTO materias (nombre, codigo, institucion_id) VALUES (?, ?, ?)",
-    ["Matemáticas Sincronización", `MAT-SYNC-${Date.now()}`, institucionId],
+    "INSERT INTO asignaturas (nombre, codigo, grado_id, institucion_id) VALUES (?, ?, ?, ?)",
+    ["Matemáticas Sincronización", `SYNC-${Date.now()}`, gradoId, institucionId],
   );
   materiaId = m.insertId;
 
+  const [cu] = await pool.query(
+    "INSERT INTO cursos (grado_id, nombre, director_id, ano_lectivo, institucion_id) VALUES (?, 'A', ?, 2026, ?)",
+    [gradoId, idProf, institucionId],
+  );
+  cursoId = cu.insertId;
+
   const [g] = await pool.query(
-    "INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, institucion_id) VALUES (?, ?, ?, '2026-1', ?)",
-    [materiaId, "SYNC-1", idProf, institucionId],
+    "INSERT INTO asignaciones (curso_id, asignatura_id, docente_id, periodo, institucion_id) VALUES (?, ?, ?, '2026-P1', ?)",
+    [cursoId, materiaId, idProf, institucionId],
   );
   grupoId = g.insertId;
 
   const [mat] = await pool.query(
-    "INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula, institucion_id) VALUES (?, ?, CURDATE(), ?)",
+    "INSERT INTO matriculas (estudiante_id, asignacion_id, fecha_matricula, institucion_id) VALUES (?, ?, CURDATE(), ?)",
     [estudianteId, grupoId, institucionId],
   );
   matriculaId = mat.insertId;
 });
 
 after(async () => {
+  if (grupoId) {
+    await pool.query("DELETE FROM asignaciones WHERE id = ?", [grupoId]);
+  }
+  if (cursoId) {
+    await pool.query("DELETE FROM cursos WHERE id = ?", [cursoId]);
+  }
   if (materiaId) {
-    await pool.query("DELETE FROM materias WHERE id = ?", [materiaId]);
+    await pool.query("DELETE FROM asignaturas WHERE id = ?", [materiaId]);
+  }
+  if (gradoId) {
+    await pool.query("DELETE FROM grados WHERE id = ?", [gradoId]);
   }
   if (estudianteId) {
     await pool.query(

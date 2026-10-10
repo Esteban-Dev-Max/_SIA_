@@ -21,6 +21,7 @@ let profToken;
 let institucionId;
 let materiaId;
 let grupoId;
+let cursoEsperado;
 let idsEstudiantes = [];
 
 const FECHAS = ["2026-01-05", "2026-01-08", "2026-01-12"];
@@ -56,15 +57,27 @@ before(async () => {
   ]);
   institucionId = p.institucion_id;
 
+  const [gr] = await pool.query(
+    "INSERT INTO grados (nombre, nivel, orden, institucion_id) VALUES (?, 'secundaria', 8, ?)",
+    [`Grado Asis ${Date.now()}`, institucionId],
+  );
+  const gradoId = gr.insertId;
+
   const [m] = await pool.query(
-    "INSERT INTO materias (nombre, codigo, institucion_id) VALUES (?, ?, ?)",
-    ["Asistencia Reportes", `MAT-ASIS-${Date.now()}`, institucionId],
+    "INSERT INTO asignaturas (nombre, codigo, grado_id, institucion_id) VALUES (?, ?, ?, ?)",
+    ["Asistencia Reportes", `ASIS-${Date.now()}`, gradoId, institucionId],
   );
   materiaId = m.insertId;
 
+  const [cu] = await pool.query(
+    "INSERT INTO cursos (grado_id, nombre, director_id, ano_lectivo, institucion_id) VALUES (?, 'B', ?, 2026, ?)",
+    [gradoId, p.id, institucionId],
+  );
+  const cursoId = cu.insertId;
+
   const [g] = await pool.query(
-    "INSERT INTO grupos (materia_id, codigo_grupo, profesor_id, periodo, horario, institucion_id) VALUES (?, ?, ?, '2026-1', 'Lun 7:00-9:00', ?)",
-    [materiaId, "ASIS-1", p.id, institucionId],
+    "INSERT INTO asignaciones (curso_id, asignatura_id, docente_id, periodo, horario, institucion_id) VALUES (?, ?, ?, '2026-P1', 'Lun 7:00-9:00', ?)",
+    [cursoId, materiaId, p.id, institucionId],
   );
   grupoId = g.insertId;
 
@@ -77,17 +90,19 @@ before(async () => {
       [`${nombre} ${sufijo}`, `asist-${sufijo}@test.sia`, hash, institucionId],
     );
     const [ma] = await pool.query(
-      "INSERT INTO matriculas (estudiante_id, grupo_id, fecha_matricula, institucion_id) VALUES (?, ?, CURDATE(), ?)",
+      "INSERT INTO matriculas (estudiante_id, asignacion_id, fecha_matricula, institucion_id) VALUES (?, ?, CURDATE(), ?)",
       [u.insertId, grupoId, institucionId],
     );
     idsEstudiantes.push({ estudiante_id: u.insertId, matricula_id: ma.insertId, nombre });
   }
   await sembrarAsistencia();
+  const [[grRow]] = await pool.query("SELECT nombre FROM grados WHERE id = ?", [gradoId]);
+  cursoEsperado = `${grRow.nombre} B`;
 });
 
 after(async () => {
-  if (grupoId) await pool.query("DELETE FROM grupos WHERE id = ?", [grupoId]);
-  if (materiaId) await pool.query("DELETE FROM materias WHERE id = ?", [materiaId]);
+  if (grupoId) await pool.query("DELETE FROM asignaciones WHERE id = ?", [grupoId]);
+  if (materiaId) await pool.query("DELETE FROM asignaturas WHERE id = ?", [materiaId]);
   await pool.query("DELETE FROM notificaciones WHERE institucion_id = ?", [institucionId]);
   if (institucionId) {
     await pool.query(
@@ -110,7 +125,7 @@ describe("resumen de asistencia por grupo", () => {
     assert.equal(res.status, 200);
 
     const { grupo, estudiantes } = res.body;
-    assert.equal(grupo.codigo_grupo, "ASIS-1");
+    assert.equal(grupo.codigo_grupo, cursoEsperado);
     assert.equal(grupo.materia, "Asistencia Reportes");
     assert.ok(grupo.institucion_nombre);
 
@@ -416,11 +431,11 @@ describe("panorama administrativo de riesgo", () => {
     assert.equal(res.status, 401);
   });
 
-  test("devuelve agregados por grupo/ficha", async () => {
+  test("devuelve agregados por asignación", async () => {
     const admin = await tokenAdmin();
     const res = await request(app).get("/api/asistencia/panorama").set(auth(admin));
     assert.equal(res.status, 200);
-    const grupo = res.body.grupos.find((g) => g.codigo_grupo === "ASIS-1");
+    const grupo = res.body.grupos.find((g) => g.codigo_grupo === cursoEsperado);
     assert.ok(grupo);
     assert.equal(grupo.alumnos, 4);
     assert.equal(grupo.totales.en_riesgo, 3);
@@ -436,7 +451,7 @@ describe("panorama administrativo de riesgo", () => {
       .set(auth(admin));
     assert.equal(res.status, 200);
     assert.equal(res.body.grupos.length, 1);
-    assert.equal(res.body.grupos[0].codigo_grupo, "ASIS-1");
+    assert.equal(res.body.grupos[0].codigo_grupo, cursoEsperado);
   });
 });
 

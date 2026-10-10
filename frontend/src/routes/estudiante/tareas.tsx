@@ -394,7 +394,7 @@ function EstudianteTareas() {
                 id="comentario"
                 value={envio.comentario}
                 onChange={(e) => setEnvio((s) => ({ ...s, comentario: e.target.value }))}
-                placeholder="Notas para el profesor sobre tu entrega…"
+                placeholder="Notas para el docente sobre tu entrega…"
                 className="rounded-lg border-border/60"
               />
             </div>

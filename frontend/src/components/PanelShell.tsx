@@ -87,22 +87,28 @@ const roleNav: Record<Rol, { label: string; items: NavItem[] }[]> = {
         { label: "Inicio", to: "/admin", icon: <LayoutDashboard className="h-4 w-4" /> },
         { label: "Usuarios", to: "/admin/usuarios", icon: <Users className="h-4 w-4" /> },
         {
-          label: "Carreras",
+          label: "Grados",
           to: "/admin/academico",
-          hash: "carreras",
+          hash: "grados",
           icon: <School className="h-4 w-4" />,
         },
         {
-          label: "Materias",
+          label: "Asignaturas",
           to: "/admin/academico",
-          hash: "materias",
+          hash: "asignaturas",
           icon: <BookOpen className="h-4 w-4" />,
         },
         {
-          label: "Grupos",
+          label: "Cursos",
           to: "/admin/academico",
-          hash: "grupos",
+          hash: "cursos",
           icon: <Layers className="h-4 w-4" />,
+        },
+        {
+          label: "Asignaciones",
+          to: "/admin/academico",
+          hash: "asignaciones",
+          icon: <ClipboardCheck className="h-4 w-4" />,
         },
         {
           label: "Matrículas",
@@ -193,7 +199,7 @@ const roleNav: Record<Rol, { label: string; items: NavItem[] }[]> = {
 const rolLabels: Record<Rol, string> = {
   superadmin: "Super Admin",
   admin: "Administrador",
-  profesor: "Profesor",
+  profesor: "Docente",
   estudiante: "Estudiante",
   acudiente: "Acudiente",
 };

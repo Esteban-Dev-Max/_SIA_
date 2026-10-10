@@ -14,7 +14,9 @@ const leer = (file) =>
 // 005 vincula tareas con la planilla de notas (columna_nota) y
 // 006 agrega trazabilidad/auditoría a la asistencia (codigo_carnet,
 // marcado_por, hora_marcado y la bitácora asistencia_audit),
-// 007 elimina la columna creditos de materias (función retirada).
+// 007 elimina la columna creditos de materias (función retirada),
+// 008 adapta el modelo de instituto al de colegio (grados, asignaturas,
+// cursos, asignaciones y matrícula anual).
 const migraciones = [
   "001_init.sql",
   "002_multi_tenant.sql",
@@ -23,6 +25,7 @@ const migraciones = [
   "005_tareas_columna_nota.sql",
   "006_trazabilidad_asistencia.sql",
   "007_quitar_creditos.sql",
+  "008_colegios.sql",
 ];
 
 const conn = await mysql.createConnection({

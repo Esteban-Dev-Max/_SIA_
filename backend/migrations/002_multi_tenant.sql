@@ -16,17 +16,25 @@ ALTER TABLE instituciones ADD COLUMN estado ENUM('activo', 'inactivo') NOT NULL 
 ALTER TABLE usuarios ADD COLUMN institucion_id INT DEFAULT NULL;
 ALTER TABLE usuarios ADD CONSTRAINT fk_usuarios_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE SET NULL;
 
--- carreras_grados
-ALTER TABLE carreras_grados ADD COLUMN institucion_id INT DEFAULT NULL;
-ALTER TABLE carreras_grados ADD CONSTRAINT fk_carreras_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
+-- grados
+ALTER TABLE grados ADD COLUMN institucion_id INT DEFAULT NULL;
+ALTER TABLE grados ADD CONSTRAINT fk_grados_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
 
--- materias
-ALTER TABLE materias ADD COLUMN institucion_id INT DEFAULT NULL;
-ALTER TABLE materias ADD CONSTRAINT fk_materias_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
+-- asignaturas
+ALTER TABLE asignaturas ADD COLUMN institucion_id INT DEFAULT NULL;
+ALTER TABLE asignaturas ADD CONSTRAINT fk_asignaturas_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
 
--- grupos
-ALTER TABLE grupos ADD COLUMN institucion_id INT DEFAULT NULL;
-ALTER TABLE grupos ADD CONSTRAINT fk_grupos_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
+-- cursos
+ALTER TABLE cursos ADD COLUMN institucion_id INT DEFAULT NULL;
+ALTER TABLE cursos ADD CONSTRAINT fk_cursos_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
+
+-- asignaciones
+ALTER TABLE asignaciones ADD COLUMN institucion_id INT DEFAULT NULL;
+ALTER TABLE asignaciones ADD CONSTRAINT fk_asignaciones_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
+
+-- matriculas_curso
+ALTER TABLE matriculas_curso ADD COLUMN institucion_id INT DEFAULT NULL;
+ALTER TABLE matriculas_curso ADD CONSTRAINT fk_matriculas_curso_institucion FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE;
 
 -- matriculas
 ALTER TABLE matriculas ADD COLUMN institucion_id INT DEFAULT NULL;
@@ -52,9 +60,11 @@ ALTER TABLE notificaciones ADD CONSTRAINT fk_notificaciones_institucion FOREIGN 
 -- Esto evita errores de integridad en datos huerfanos.
 SET @first_inst = (SELECT id FROM instituciones LIMIT 1);
 UPDATE usuarios SET institucion_id = @first_inst WHERE rol <> 'superadmin' AND institucion_id IS NULL;
-UPDATE carreras_grados SET institucion_id = @first_inst WHERE institucion_id IS NULL;
-UPDATE materias SET institucion_id = @first_inst WHERE institucion_id IS NULL;
-UPDATE grupos SET institucion_id = @first_inst WHERE institucion_id IS NULL;
+UPDATE grados SET institucion_id = @first_inst WHERE institucion_id IS NULL;
+UPDATE asignaturas SET institucion_id = @first_inst WHERE institucion_id IS NULL;
+UPDATE cursos SET institucion_id = @first_inst WHERE institucion_id IS NULL;
+UPDATE asignaciones SET institucion_id = @first_inst WHERE institucion_id IS NULL;
+UPDATE matriculas_curso SET institucion_id = @first_inst WHERE institucion_id IS NULL;
 UPDATE matriculas SET institucion_id = @first_inst WHERE institucion_id IS NULL;
 UPDATE eventos_calendario SET institucion_id = @first_inst WHERE institucion_id IS NULL;
 UPDATE mensajes SET institucion_id = @first_inst WHERE institucion_id IS NULL;
@@ -62,9 +72,11 @@ UPDATE tareas SET institucion_id = @first_inst WHERE institucion_id IS NULL;
 UPDATE notificaciones SET institucion_id = @first_inst WHERE institucion_id IS NULL;
 
 -- 4. Hacer institucion_id NOT NULL donde sea obligatorio (excepto usuarios para superadmin)
-ALTER TABLE carreras_grados MODIFY COLUMN institucion_id INT NOT NULL;
-ALTER TABLE materias MODIFY COLUMN institucion_id INT NOT NULL;
-ALTER TABLE grupos MODIFY COLUMN institucion_id INT NOT NULL;
+ALTER TABLE grados MODIFY COLUMN institucion_id INT NOT NULL;
+ALTER TABLE asignaturas MODIFY COLUMN institucion_id INT NOT NULL;
+ALTER TABLE cursos MODIFY COLUMN institucion_id INT NOT NULL;
+ALTER TABLE asignaciones MODIFY COLUMN institucion_id INT NOT NULL;
+ALTER TABLE matriculas_curso MODIFY COLUMN institucion_id INT NOT NULL;
 ALTER TABLE matriculas MODIFY COLUMN institucion_id INT NOT NULL;
 ALTER TABLE mensajes MODIFY COLUMN institucion_id INT NOT NULL;
 ALTER TABLE tareas MODIFY COLUMN institucion_id INT NOT NULL;

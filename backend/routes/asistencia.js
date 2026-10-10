@@ -92,21 +92,21 @@ async function eliminarArchivo(nombre) {
 
 async function puedeVerGrupo(req, res, grupoId) {
   if (req.user.rol === "admin") {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND institucion_id = ?",
       [grupoId, req.user.institucion_id],
     );
-    if (!g) {
+    if (!a) {
       res.status(403).json({ error: "No autorizado" });
       return false;
     }
     return true;
   }
-  const [[g]] = await pool.query(
-    "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
+  const [[a]] = await pool.query(
+    "SELECT id FROM asignaciones WHERE id = ? AND docente_id = ?",
     [grupoId, req.user.id],
   );
-  if (!g) {
+  if (!a) {
     res.status(403).json({ error: "No autorizado" });
     return false;
   }
@@ -136,8 +136,8 @@ async function puedeVerEstudiante(req, res, estudianteId) {
   if (rol === "profesor") {
     const [[p]] = await pool.query(
       `SELECT mat.id FROM matriculas mat
-       JOIN grupos g ON g.id = mat.grupo_id
-       WHERE mat.estudiante_id = ? AND g.profesor_id = ?
+       JOIN asignaciones a ON a.id = mat.asignacion_id
+       WHERE mat.estudiante_id = ? AND a.docente_id = ?
        LIMIT 1`,
       [estudianteId, id],
     );
@@ -241,7 +241,7 @@ r.get("/grupo/:grupo_id", asyncHandler(async (req, res) => {
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
      LEFT JOIN asistencia a ON a.matricula_id = mat.id AND a.fecha = ?
-     WHERE mat.grupo_id = ?
+     WHERE mat.asignacion_id = ?
      ORDER BY u.nombre_completo`,
     [fecha, grupoId],
   );
@@ -262,11 +262,11 @@ r.post("/escaneo", asyncHandler(async (req, res) => {
     `SELECT mat.id AS matricula_id, u.id AS estudiante_id, u.nombre_completo AS estudiante
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
-     WHERE mat.grupo_id = ? AND u.codigo_carnet = ?`,
+     WHERE mat.asignacion_id = ? AND u.codigo_carnet = ?`,
     [grupoId, codigo],
   );
   if (!mat) {
-    return res.status(404).json({ error: "Carné no encontrado en este grupo" });
+    return res.status(404).json({ error: "Carné no encontrado en esta clase" });
   }
 
   const conn = await pool.getConnection();
@@ -302,9 +302,9 @@ r.post("/excusa", subirArchivo, asyncHandler(async (req, res) => {
       : null;
 
   const [[mat]] = await pool.query(
-    `SELECT m.id, m.institucion_id, g.profesor_id
+    `SELECT m.id, m.institucion_id, a.docente_id
      FROM matriculas m
-     JOIN grupos g ON g.id = m.grupo_id
+     JOIN asignaciones a ON a.id = m.asignacion_id
      WHERE m.id = ?`,
     [matriculaId],
   );
@@ -313,7 +313,7 @@ r.post("/excusa", subirArchivo, asyncHandler(async (req, res) => {
     if (mat.institucion_id !== req.user.institucion_id) {
       return res.status(403).json({ error: "No autorizado" });
     }
-  } else if (mat.profesor_id !== req.user.id) {
+  } else if (mat.docente_id !== req.user.id) {
     return res.status(403).json({ error: "No autorizado" });
   }
 
@@ -370,10 +370,10 @@ r.get("/excusa/descargar", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Parámetros inválidos" });
   }
   const [[a]] = await pool.query(
-    `SELECT a.archivo_ruta, a.archivo_nombre, m.institucion_id, g.profesor_id
+    `SELECT a.archivo_ruta, a.archivo_nombre, m.institucion_id, g.docente_id
      FROM asistencia a
      JOIN matriculas m ON m.id = a.matricula_id
-     JOIN grupos g ON g.id = m.grupo_id
+     JOIN asignaciones g ON g.id = m.asignacion_id
      WHERE a.matricula_id = ? AND a.fecha = ?`,
     [matriculaId, fecha],
   );
@@ -382,7 +382,7 @@ r.get("/excusa/descargar", asyncHandler(async (req, res) => {
     if (a.institucion_id !== req.user.institucion_id) {
       return res.status(403).json({ error: "No autorizado" });
     }
-  } else if (a.profesor_id !== req.user.id) {
+  } else if (a.docente_id !== req.user.id) {
     return res.status(403).json({ error: "No autorizado" });
   }
   const ruta = rutaDisco(a.archivo_ruta);
@@ -405,20 +405,20 @@ r.post("/registrar", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Fecha inválida" });
   }
   if (req.user.rol === "admin") {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND institucion_id = ?",
       [grupoId, req.user.institucion_id],
     );
-    if (!g) return res.status(403).json({ error: "No autorizado" });
+    if (!a) return res.status(403).json({ error: "No autorizado" });
   } else {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND docente_id = ?",
       [grupoId, req.user.id],
     );
-    if (!g) return res.status(403).json({ error: "No autorizado" });
+    if (!a) return res.status(403).json({ error: "No autorizado" });
   }
 
-  // Cada matrícula debe pertenecer al grupo (evita inyectar asistencia ajena)
+  // Cada matrícula debe pertenecer a la clase (evita inyectar asistencia ajena)
   // y no puede repetirse dentro de la lista.
   const ids = registros.map((reg) => Number(reg.matricula_id));
   const idsValidos = ids.every((n) => Number.isInteger(n) && n > 0);
@@ -427,12 +427,12 @@ r.post("/registrar", asyncHandler(async (req, res) => {
   }
   const marcadores = ids.map(() => "?").join(", ");
   const [pertenecientes] = await pool.query(
-    `SELECT id FROM matriculas WHERE grupo_id = ? AND id IN (${marcadores})`,
+    `SELECT id FROM matriculas WHERE asignacion_id = ? AND id IN (${marcadores})`,
     [grupoId, ...ids],
   );
   if (pertenecientes.length !== ids.length) {
     return res.status(400).json({
-      error: "Uno o más estudiantes no pertenecen a este grupo",
+      error: "Uno o más estudiantes no pertenecen a esta clase",
     });
   }
 
@@ -474,10 +474,12 @@ r.post("/alerta/grupo/:grupo_id", asyncHandler(async (req, res) => {
   const unicos = [...new Set(ids)];
 
   const [[grupo]] = await pool.query(
-    `SELECT g.codigo_grupo, m.nombre AS materia
-     FROM grupos g
-     JOIN materias m ON m.id = g.materia_id
-     WHERE g.id = ?`,
+    `SELECT CONCAT(gr.nombre, ' ', c.nombre) AS codigo_grupo, s.nombre AS materia
+     FROM asignaciones a
+     JOIN cursos c ON c.id = a.curso_id
+     JOIN grados gr ON gr.id = c.grado_id
+     JOIN asignaturas s ON s.id = a.asignatura_id
+     WHERE a.id = ?`,
     [grupoId],
   );
   if (!grupo) return res.status(404).json({ error: "Grupo no encontrado" });
@@ -487,11 +489,11 @@ r.post("/alerta/grupo/:grupo_id", asyncHandler(async (req, res) => {
     `SELECT u.id AS estudiante_id
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
-     WHERE mat.grupo_id = ? AND u.id IN (${marcadores})`,
+     WHERE mat.asignacion_id = ? AND u.id IN (${marcadores})`,
     [grupoId, ...unicos],
   );
   if (pertenecientes.length !== unicos.length) {
-    return res.status(400).json({ error: "Uno o más estudiantes no pertenecen a este grupo" });
+    return res.status(400).json({ error: "Uno o más estudiantes no pertenecen a esta clase" });
   }
 
   const mensajeEstudiante =
@@ -534,26 +536,26 @@ r.get("/resumen/grupo/:grupo_id", asyncHandler(async (req, res) => {
   res.json(resumen);
 }));
 
-// Resumen global de asistencia y fallas por materia de un estudiante.
-// Un profesor solo ve las materias que dicta a ese estudiante (sin fuga entre
-// materias/carreras); admin y el propio estudiante ven el histórico completo.
+// Resumen global de asistencia y fallas por asignatura de un estudiante.
+// Un docente solo ve las asignaturas que dicta a ese estudiante (sin fuga entre
+// asignaturas/cursos); admin y el propio estudiante ven el histórico completo.
 r.get("/resumen/estudiante/:estudiante_id", asyncHandler(async (req, res) => {
   const estudianteId = parseId(req.params.estudiante_id);
   if (!estudianteId) return res.status(400).json({ error: "ID inválido" });
   if (!(await puedeVerEstudiante(req, res, estudianteId))) return;
   const params = [estudianteId];
   const filtroProfesor =
-    req.user.rol === "profesor" ? " AND g.profesor_id = ?" : "";
+    req.user.rol === "profesor" ? " AND a.docente_id = ?" : "";
   if (filtroProfesor) params.push(req.user.id);
   const [rows] = await pool.query(
-    `SELECT m.nombre AS materia, COALESCE(a.estado, 'sin_registro') AS estado, COUNT(*) AS total
+    `SELECT s.nombre AS materia, COALESCE(aa.estado, 'sin_registro') AS estado, COUNT(*) AS total
      FROM matriculas mat
-     JOIN grupos g ON g.id = mat.grupo_id
-     JOIN materias m ON m.id = g.materia_id
-     LEFT JOIN asistencia a ON a.matricula_id = mat.id
+     JOIN asignaciones a ON a.id = mat.asignacion_id
+     JOIN asignaturas s ON s.id = a.asignatura_id
+     LEFT JOIN asistencia aa ON aa.matricula_id = mat.id
      WHERE mat.estudiante_id = ?${filtroProfesor}
-     GROUP BY m.nombre, a.estado
-     ORDER BY m.nombre`,
+     GROUP BY s.nombre, aa.estado
+     ORDER BY s.nombre`,
     params,
   );
 
@@ -667,7 +669,7 @@ r.get("/reportes/grupo/:grupo_id/pdf", asyncHandler(async (req, res) => {
   res.send(buffer);
 }));
 
-// Panel administrativo de análisis preventivo: agregados por grupo/ficha.
+// Panel administrativo de análisis preventivo: agregados por asignación.
 r.get("/panorama", asyncHandler(async (req, res) => {
   if (req.user.rol !== "admin") {
     return res.status(403).json({ error: "No autorizado" });
@@ -679,11 +681,11 @@ r.get("/panorama", asyncHandler(async (req, res) => {
   const params = [req.user.institucion_id];
   let filtroGrupo = "";
   if (grupo_id && parseId(grupo_id)) {
-    filtroGrupo = " AND g.id = ?";
+    filtroGrupo = " AND a.id = ?";
     params.push(parseId(grupo_id));
   }
   const [grupos] = await pool.query(
-    `SELECT g.id FROM grupos g WHERE g.institucion_id = ?${filtroGrupo} ORDER BY g.id`,
+    `SELECT a.id FROM asignaciones a WHERE a.institucion_id = ?${filtroGrupo} ORDER BY a.id`,
     params,
   );
 

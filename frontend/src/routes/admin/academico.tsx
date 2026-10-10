@@ -34,6 +34,7 @@ import {
   BookOpen,
   Layers,
   ClipboardList,
+  ClipboardCheck,
   HeartHandshake,
   Plus,
   Trash2,
@@ -49,24 +50,38 @@ export const Route = createFileRoute("/admin/academico")({
   component: AdminAcademico,
 });
 
-type Carrera = { id: number; nombre: string; codigo: string };
-type Materia = {
+type Grado = { id: number; nombre: string; nivel: string; orden: number };
+type Asignatura = {
   id: number;
   nombre: string;
-  codigo: string;
-  carrera_id: number | null;
-  carrera_nombre: string | null;
+  codigo: string | null;
+  grado_id: number | null;
+  grado_nombre: string | null;
+  grado_nivel: string | null;
 };
-type Grupo = {
+type Curso = {
   id: number;
-  materia_id: number;
-  codigo_grupo: string;
+  grado_id: number;
+  nombre: string;
+  ano_lectivo: number;
+  grado_nombre: string;
+  grado_nivel: string;
+  director_id: number | null;
+  director: string | null;
+  alumnos: number;
+};
+type Asignacion = {
+  id: number;
+  curso_id: number;
+  asignatura_id: number;
   periodo: string;
   horario: string | null;
-  materia: string;
-  materia_codigo: string;
-  profesor_id: number;
-  profesor: string | null;
+  curso: string;
+  ano_lectivo: number;
+  asignatura: string;
+  asignatura_codigo: string | null;
+  docente_id: number;
+  docente: string | null;
   alumnos: number;
 };
 type Matricula = {
@@ -74,11 +89,12 @@ type Matricula = {
   estudiante_id: number;
   estudiante: string;
   correo: string;
-  grupo_id: number;
-  codigo_grupo: string;
-  materia: string;
-  periodo: string;
+  curso_id: number;
+  curso: string;
+  ano_lectivo: number;
+  grado_nivel: string;
   fecha_matricula: string;
+  asignaturas: number;
 };
 type Usuario = { id: number; nombre_completo: string; correo: string; rol: string };
 type Vinculo = {
@@ -91,7 +107,28 @@ type Vinculo = {
   estudiante_correo: string;
 };
 
-const TABS_ACADEMICO = ["carreras", "materias", "grupos", "matriculas", "acudientes"] as const;
+const TABS_ACADEMICO = [
+  "grados",
+  "asignaturas",
+  "cursos",
+  "asignaciones",
+  "matriculas",
+  "acudientes",
+] as const;
+
+const NIVELES = [
+  { value: "preescolar", label: "Preescolar" },
+  { value: "primaria", label: "Primaria" },
+  { value: "secundaria", label: "Secundaria" },
+  { value: "media", label: "Media" },
+] as const;
+
+const ANO_ACTUAL = new Date().getFullYear();
+const PERIODO_ACTUAL = `${ANO_ACTUAL}-P1`;
+
+function nombreNivel(nivel: string | null) {
+  return NIVELES.find((n) => n.value === nivel)?.label ?? nivel ?? "—";
+}
 
 function FiltroBusqueda({
   value,
@@ -183,58 +220,56 @@ function ComboboxBusqueda({
 }
 
 function AdminAcademico() {
-  const [tab, setTab] = useHashTab(TABS_ACADEMICO, "carreras");
+  const [tab, setTab] = useHashTab(TABS_ACADEMICO, "grados");
   const [cargando, setCargando] = useState(false);
-  const [carreras, setCarreras] = useState<Carrera[]>([]);
-  const [materias, setMaterias] = useState<Materia[]>([]);
-  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [grados, setGrados] = useState<Grado[]>([]);
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
+  const [cursos, setCursos] = useState<Curso[]>([]);
+  const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [matriculas, setMatriculas] = useState<Matricula[]>([]);
-  const [profesores, setProfesores] = useState<Usuario[]>([]);
+  const [docentes, setDocentes] = useState<Usuario[]>([]);
   const [estudiantes, setEstudiantes] = useState<Usuario[]>([]);
   const [acudientes, setAcudientes] = useState<Usuario[]>([]);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
-  const [busquedaMateria, setBusquedaMateria] = useState("");
-  const [busquedaGrupo, setBusquedaGrupo] = useState("");
+  const [busquedaAsignatura, setBusquedaAsignatura] = useState("");
+  const [busquedaCurso, setBusquedaCurso] = useState("");
+  const [busquedaAsignacion, setBusquedaAsignacion] = useState("");
   const [busquedaMatricula, setBusquedaMatricula] = useState("");
 
   // formularios
-  const [carreraForm, setCarreraForm] = useState({ nombre: "", codigo: "" });
-  const [materiaForm, setMateriaForm] = useState({
+  const [gradoForm, setGradoForm] = useState({ nombre: "", nivel: "secundaria", orden: "6" });
+  const [asignaturaForm, setAsignaturaForm] = useState({ nombre: "", codigo: "", grado_id: "" });
+  const [cursoForm, setCursoForm] = useState({
+    grado_id: "",
     nombre: "",
-    codigo: "",
-    carrera_id: "",
+    director_id: "",
+    ano_lectivo: String(ANO_ACTUAL),
   });
-  const [grupoForm, setGrupoForm] = useState({
-    materia_id: "",
-    codigo_grupo: "",
-    profesor_id: "",
-    periodo: "2026-1",
+  const [asignacionForm, setAsignacionForm] = useState({
+    curso_id: "",
+    asignatura_id: "",
+    docente_id: "",
+    periodo: PERIODO_ACTUAL,
     horario: "",
   });
-  const [matriculaForm, setMatriculaForm] = useState({
-    estudiante_id: "",
-    grupo_id: "",
-  });
+  const [matriculaForm, setMatriculaForm] = useState({ estudiante_id: "", curso_id: "" });
   const [vincularForm, setVincularForm] = useState({ acudiente_id: "", estudiante_id: "" });
 
   // edición: un Dialog por sección, con estados separados de los formularios de crear
-  const [editandoCarrera, setEditandoCarrera] = useState<Carrera | null>(null);
-  const [carreraEdit, setCarreraEdit] = useState({ nombre: "", codigo: "" });
-  const [editandoMateria, setEditandoMateria] = useState<Materia | null>(null);
-  const [materiaEdit, setMateriaEdit] = useState({
-    nombre: "",
-    codigo: "",
-    carrera_id: "",
-  });
-  const [editandoGrupo, setEditandoGrupo] = useState<Grupo | null>(null);
-  const [grupoEdit, setGrupoEdit] = useState({
-    codigo_grupo: "",
-    profesor_id: "",
+  const [editandoGrado, setEditandoGrado] = useState<Grado | null>(null);
+  const [gradoEdit, setGradoEdit] = useState({ nombre: "", nivel: "secundaria", orden: "6" });
+  const [editandoAsignatura, setEditandoAsignatura] = useState<Asignatura | null>(null);
+  const [asignaturaEdit, setAsignaturaEdit] = useState({ nombre: "", codigo: "", grado_id: "" });
+  const [editandoCurso, setEditandoCurso] = useState<Curso | null>(null);
+  const [cursoEdit, setCursoEdit] = useState({ nombre: "", director_id: "", ano_lectivo: "" });
+  const [editandoAsignacion, setEditandoAsignacion] = useState<Asignacion | null>(null);
+  const [asignacionEdit, setAsignacionEdit] = useState({
+    docente_id: "",
     periodo: "",
     horario: "",
   });
   const [editandoMatricula, setEditandoMatricula] = useState<Matricula | null>(null);
-  const [matriculaEdit, setMatriculaEdit] = useState({ grupo_id: "", fecha_matricula: "" });
+  const [matriculaEdit, setMatriculaEdit] = useState({ curso_id: "", fecha_matricula: "" });
   const [editandoVinculo, setEditandoVinculo] = useState<Vinculo | null>(null);
   const [vinculoEdit, setVinculoEdit] = useState({ acudiente_id: "", estudiante_id: "" });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
@@ -242,21 +277,23 @@ function AdminAcademico() {
   const load = useCallback(async () => {
     setCargando(true);
     try {
-      const [c, m, g, ma, p, e, ac, vi] = await Promise.all([
-        api<Carrera[]>("/api/admin/carreras"),
-        api<Materia[]>("/api/admin/materias"),
-        api<Grupo[]>("/api/admin/grupos"),
+      const [g, a, c, as, ma, d, e, ac, vi] = await Promise.all([
+        api<Grado[]>("/api/admin/grados"),
+        api<Asignatura[]>("/api/admin/asignaturas"),
+        api<Curso[]>("/api/admin/cursos"),
+        api<Asignacion[]>("/api/admin/asignaciones"),
         api<Matricula[]>("/api/admin/matriculas"),
         api<Usuario[]>("/api/admin/usuarios?rol=profesor"),
         api<Usuario[]>("/api/admin/usuarios?rol=estudiante"),
         api<Usuario[]>("/api/admin/usuarios?rol=acudiente"),
         api<Vinculo[]>("/api/admin/vincular-acudiente"),
       ]);
-      setCarreras(c);
-      setMaterias(m);
-      setGrupos(g);
+      setGrados(g);
+      setAsignaturas(a);
+      setCursos(c);
+      setAsignaciones(as);
       setMatriculas(ma);
-      setProfesores(p);
+      setDocentes(d);
       setEstudiantes(e);
       setAcudientes(ac);
       setVinculos(vi);
@@ -271,24 +308,33 @@ function AdminAcademico() {
     load();
   }, [load]);
 
-  const qMateria = busquedaMateria.trim().toLowerCase();
-  const materiasFiltradas = qMateria
-    ? materias.filter((m) => m.nombre.toLowerCase().includes(qMateria))
-    : materias;
+  const qAsignatura = busquedaAsignatura.trim().toLowerCase();
+  const asignaturasFiltradas = qAsignatura
+    ? asignaturas.filter((a) => a.nombre.toLowerCase().includes(qAsignatura))
+    : asignaturas;
 
-  const qGrupo = busquedaGrupo.trim().toLowerCase();
-  const gruposFiltrados = qGrupo
-    ? grupos.filter((g) =>
-        [g.codigo_grupo, g.materia, g.materia_codigo, g.profesor ?? ""].some((s) =>
-          s.toLowerCase().includes(qGrupo),
+  const qCurso = busquedaCurso.trim().toLowerCase();
+  const cursosFiltrados = qCurso
+    ? cursos.filter((c) =>
+        [`${c.grado_nombre} ${c.nombre}`, c.director ?? "", String(c.ano_lectivo)].some((s) =>
+          s.toLowerCase().includes(qCurso),
         ),
       )
-    : grupos;
+    : cursos;
+
+  const qAsignacion = busquedaAsignacion.trim().toLowerCase();
+  const asignacionesFiltradas = qAsignacion
+    ? asignaciones.filter((a) =>
+        [a.curso, a.asignatura, a.docente ?? "", a.periodo].some((s) =>
+          s.toLowerCase().includes(qAsignacion),
+        ),
+      )
+    : asignaciones;
 
   const qMatricula = busquedaMatricula.trim().toLowerCase();
   const matriculasFiltradas = qMatricula
     ? matriculas.filter((m) =>
-        [m.estudiante, m.correo, m.codigo_grupo].some((s) => s.toLowerCase().includes(qMatricula)),
+        [m.estudiante, m.correo, m.curso].some((s) => s.toLowerCase().includes(qMatricula)),
       )
     : matriculas;
 
@@ -329,34 +375,42 @@ function AdminAcademico() {
     }
   }
 
-  function abrirEditarCarrera(c: Carrera) {
-    setEditandoCarrera(c);
-    setCarreraEdit({ nombre: c.nombre, codigo: c.codigo });
+  function abrirEditarGrado(g: Grado) {
+    setEditandoGrado(g);
+    setGradoEdit({ nombre: g.nombre, nivel: g.nivel, orden: String(g.orden) });
   }
 
-  function abrirEditarMateria(m: Materia) {
-    setEditandoMateria(m);
-    setMateriaEdit({
-      nombre: m.nombre,
-      codigo: m.codigo,
-      carrera_id: m.carrera_id ? String(m.carrera_id) : "",
+  function abrirEditarAsignatura(a: Asignatura) {
+    setEditandoAsignatura(a);
+    setAsignaturaEdit({
+      nombre: a.nombre,
+      codigo: a.codigo ?? "",
+      grado_id: a.grado_id ? String(a.grado_id) : "",
     });
   }
 
-  function abrirEditarGrupo(g: Grupo) {
-    setEditandoGrupo(g);
-    setGrupoEdit({
-      codigo_grupo: g.codigo_grupo,
-      profesor_id: g.profesor_id ? String(g.profesor_id) : "",
-      periodo: g.periodo,
-      horario: g.horario ?? "",
+  function abrirEditarCurso(c: Curso) {
+    setEditandoCurso(c);
+    setCursoEdit({
+      nombre: c.nombre,
+      director_id: c.director_id ? String(c.director_id) : "",
+      ano_lectivo: String(c.ano_lectivo),
+    });
+  }
+
+  function abrirEditarAsignacion(a: Asignacion) {
+    setEditandoAsignacion(a);
+    setAsignacionEdit({
+      docente_id: String(a.docente_id),
+      periodo: a.periodo,
+      horario: a.horario ?? "",
     });
   }
 
   function abrirEditarMatricula(m: Matricula) {
     setEditandoMatricula(m);
     setMatriculaEdit({
-      grupo_id: String(m.grupo_id),
+      curso_id: String(m.curso_id),
       fecha_matricula: String(m.fecha_matricula ?? "").slice(0, 10),
     });
   }
@@ -374,7 +428,7 @@ function AdminAcademico() {
       <div className="mb-6">
         <h2 className="text-lg font-bold tracking-tight">Módulo académico</h2>
         <p className="text-sm text-muted-foreground">
-          Carreras, materias, grupos, matrículas y vinculación de acudientes
+          Grados, asignaturas, cursos, asignaciones, matrículas y vinculación de acudientes
         </p>
       </div>
 
@@ -384,17 +438,21 @@ function AdminAcademico() {
         className="space-y-6"
       >
         <TabsList className="h-auto flex-wrap gap-1.5 bg-muted/50 p-1.5 rounded-xl">
-          <TabsTrigger value="carreras" className="gap-1.5 px-4 py-2 rounded-lg">
+          <TabsTrigger value="grados" className="gap-1.5 px-4 py-2 rounded-lg">
             <School className="h-4 w-4" />
-            Carreras
+            Grados
           </TabsTrigger>
-          <TabsTrigger value="materias" className="gap-1.5 px-4 py-2 rounded-lg">
+          <TabsTrigger value="asignaturas" className="gap-1.5 px-4 py-2 rounded-lg">
             <BookOpen className="h-4 w-4" />
-            Materias
+            Asignaturas
           </TabsTrigger>
-          <TabsTrigger value="grupos" className="gap-1.5 px-4 py-2 rounded-lg">
+          <TabsTrigger value="cursos" className="gap-1.5 px-4 py-2 rounded-lg">
             <Layers className="h-4 w-4" />
-            Grupos
+            Cursos
+          </TabsTrigger>
+          <TabsTrigger value="asignaciones" className="gap-1.5 px-4 py-2 rounded-lg">
+            <ClipboardCheck className="h-4 w-4" />
+            Asignaciones
           </TabsTrigger>
           <TabsTrigger value="matriculas" className="gap-1.5 px-4 py-2 rounded-lg">
             <ClipboardList className="h-4 w-4" />
@@ -406,30 +464,52 @@ function AdminAcademico() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="carreras">
+        <TabsContent value="grados">
           <Card className="mb-4 border-border/50 shadow-sm rounded-xl">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Nueva carrera / grado</CardTitle>
+              <CardTitle className="text-base">Nuevo grado</CardTitle>
             </CardHeader>
             <CardContent>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  await post("/api/admin/carreras", carreraForm, "Carrera creada");
-                  setCarreraForm({ nombre: "", codigo: "" });
+                  await post(
+                    "/api/admin/grados",
+                    {
+                      nombre: gradoForm.nombre,
+                      nivel: gradoForm.nivel,
+                      orden: Number(gradoForm.orden) || 0,
+                    },
+                    "Grado creado",
+                  );
+                  setGradoForm({ nombre: "", nivel: "secundaria", orden: "6" });
                 }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-4"
               >
                 <Input
                   required
-                  placeholder="Nombre"
-                  value={carreraForm.nombre}
-                  onChange={(e) => setCarreraForm({ ...carreraForm, nombre: e.target.value })}
+                  placeholder="Nombre (ej: Sexto)"
+                  value={gradoForm.nombre}
+                  onChange={(e) => setGradoForm({ ...gradoForm, nombre: e.target.value })}
                 />
+                <select
+                  required
+                  value={gradoForm.nivel}
+                  onChange={(e) => setGradoForm({ ...gradoForm, nivel: e.target.value })}
+                  className="input-field"
+                >
+                  {NIVELES.map((n) => (
+                    <option key={n.value} value={n.value}>
+                      {n.label}
+                    </option>
+                  ))}
+                </select>
                 <Input
-                  placeholder="Código (opcional)"
-                  value={carreraForm.codigo}
-                  onChange={(e) => setCarreraForm({ ...carreraForm, codigo: e.target.value })}
+                  type="number"
+                  min={0}
+                  placeholder="Orden (ej: 6)"
+                  value={gradoForm.orden}
+                  onChange={(e) => setGradoForm({ ...gradoForm, orden: e.target.value })}
                 />
                 <Button type="submit" className="gap-1.5">
                   <Plus className="h-4 w-4" />
@@ -440,21 +520,22 @@ function AdminAcademico() {
           </Card>
           <DataTable
             loading={cargando}
-            headers={["ID", "Nombre", "Código", ""]}
-            rows={carreras.map((c) => [
-              c.id,
+            headers={["ID", "Nombre", "Nivel", "Orden", ""]}
+            rows={grados.map((g) => [
+              g.id,
               <span key="n" className="font-medium">
-                {c.nombre}
+                {g.nombre}
               </span>,
-              <Badge key="c" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
-                {c.codigo}
+              <Badge key="nv" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
+                {nombreNivel(g.nivel)}
               </Badge>,
+              g.orden,
               <div key="a" className="flex gap-1">
                 <Button
                   key="e"
                   variant="ghost"
                   size="sm"
-                  onClick={() => abrirEditarCarrera(c)}
+                  onClick={() => abrirEditarGrado(g)}
                   className="gap-1"
                 >
                   <Pencil className="h-4 w-4" />
@@ -464,7 +545,7 @@ function AdminAcademico() {
                   key="d"
                   variant="ghost"
                   size="sm"
-                  onClick={() => del(`/api/admin/carreras/${c.id}`, "Carrera eliminada")}
+                  onClick={() => del(`/api/admin/grados/${g.id}`, "Grado eliminado")}
                   className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -472,55 +553,77 @@ function AdminAcademico() {
                 </Button>
               </div>,
             ])}
-            emptyMessage="Aún no hay carreras o grados."
+            emptyMessage="Aún no hay grados."
           />
           <Dialog
-            open={editandoCarrera !== null}
-            onOpenChange={(open) => !open && setEditandoCarrera(null)}
+            open={editandoGrado !== null}
+            onOpenChange={(open) => !open && setEditandoGrado(null)}
           >
             <DialogContent className="sm:max-w-md rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Editar carrera</DialogTitle>
+                <DialogTitle>Editar grado</DialogTitle>
                 <DialogDescription>
-                  Modifica los datos de "{editandoCarrera?.nombre}" y guarda los cambios.
+                  Modifica los datos de "{editandoGrado?.nombre}" y guarda los cambios.
                 </DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (!editandoCarrera) return;
+                  if (!editandoGrado) return;
                   if (
                     await put(
-                      `/api/admin/carreras/${editandoCarrera.id}`,
-                      { nombre: carreraEdit.nombre, codigo: carreraEdit.codigo },
-                      "Carrera actualizada",
+                      `/api/admin/grados/${editandoGrado.id}`,
+                      {
+                        nombre: gradoEdit.nombre,
+                        nivel: gradoEdit.nivel,
+                        orden: Number(gradoEdit.orden) || 0,
+                      },
+                      "Grado actualizado",
                     )
                   ) {
-                    setEditandoCarrera(null);
+                    setEditandoGrado(null);
                   }
                 }}
                 className="grid gap-4"
               >
                 <div className="grid gap-1.5">
-                  <Label htmlFor="editar-carrera-nombre">Nombre</Label>
+                  <Label htmlFor="editar-grado-nombre">Nombre</Label>
                   <Input
-                    id="editar-carrera-nombre"
+                    id="editar-grado-nombre"
                     required
-                    value={carreraEdit.nombre}
-                    onChange={(e) => setCarreraEdit({ ...carreraEdit, nombre: e.target.value })}
+                    value={gradoEdit.nombre}
+                    onChange={(e) => setGradoEdit({ ...gradoEdit, nombre: e.target.value })}
                   />
                 </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="editar-carrera-codigo">Código</Label>
-                  <Input
-                    id="editar-carrera-codigo"
-                    required
-                    value={carreraEdit.codigo}
-                    onChange={(e) => setCarreraEdit({ ...carreraEdit, codigo: e.target.value })}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="editar-grado-nivel">Nivel</Label>
+                    <select
+                      id="editar-grado-nivel"
+                      value={gradoEdit.nivel}
+                      onChange={(e) => setGradoEdit({ ...gradoEdit, nivel: e.target.value })}
+                      className="input-field"
+                    >
+                      {NIVELES.map((n) => (
+                        <option key={n.value} value={n.value}>
+                          {n.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="editar-grado-orden">Orden</Label>
+                    <Input
+                      id="editar-grado-orden"
+                      type="number"
+                      min={0}
+                      value={gradoEdit.orden}
+                      onChange={(e) => setGradoEdit({ ...gradoEdit, orden: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <DialogFooter className="gap-2 sm:justify-end sm:space-x-0">
-                  <Button type="button" variant="outline" onClick={() => setEditandoCarrera(null)}>
+                  <Button type="button" variant="outline" onClick={() => setEditandoGrado(null)}>
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={guardandoEdicion} className="gap-1">
@@ -537,89 +640,93 @@ function AdminAcademico() {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="materias">
+        <TabsContent value="asignaturas">
           <Card className="mb-4 border-border/50 shadow-sm rounded-xl">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Nueva materia</CardTitle>
+              <CardTitle className="text-base">Nueva asignatura</CardTitle>
             </CardHeader>
             <CardContent>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
                   await post(
-                    "/api/admin/materias",
+                    "/api/admin/asignaturas",
                     {
-                      nombre: materiaForm.nombre,
-                      codigo: materiaForm.codigo,
-                      carrera_id: materiaForm.carrera_id ? Number(materiaForm.carrera_id) : null,
+                      nombre: asignaturaForm.nombre,
+                      codigo: asignaturaForm.codigo || null,
+                      grado_id: asignaturaForm.grado_id ? Number(asignaturaForm.grado_id) : null,
                     },
-                    "Materia creada",
+                    "Asignatura creada",
                   );
-                  setMateriaForm({
-                    ...materiaForm,
-                    nombre: "",
-                    codigo: "",
-                    carrera_id: "",
-                  });
+                  setAsignaturaForm({ nombre: "", codigo: "", grado_id: "" });
                 }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-4"
               >
                 <Input
                   required
-                  placeholder="Nombre"
-                  value={materiaForm.nombre}
-                  onChange={(e) => setMateriaForm({ ...materiaForm, nombre: e.target.value })}
+                  placeholder="Nombre (ej: Matemáticas)"
+                  value={asignaturaForm.nombre}
+                  onChange={(e) => setAsignaturaForm({ ...asignaturaForm, nombre: e.target.value })}
                 />
                 <Input
-                  required
-                  placeholder="Código (ej: SIS-101)"
-                  value={materiaForm.codigo}
-                  onChange={(e) => setMateriaForm({ ...materiaForm, codigo: e.target.value })}
+                  placeholder="Código (ej: MAT-6)"
+                  value={asignaturaForm.codigo}
+                  onChange={(e) => setAsignaturaForm({ ...asignaturaForm, codigo: e.target.value })}
                 />
                 <select
-                  value={materiaForm.carrera_id}
-                  onChange={(e) => setMateriaForm({ ...materiaForm, carrera_id: e.target.value })}
+                  value={asignaturaForm.grado_id}
+                  onChange={(e) =>
+                    setAsignaturaForm({ ...asignaturaForm, grado_id: e.target.value })
+                  }
                   className="input-field"
                 >
-                  <option value="">— Carrera —</option>
-                  {carreras.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
+                  <option value="">— Grado —</option>
+                  {grados.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nombre} ({nombreNivel(g.nivel)})
                     </option>
                   ))}
                 </select>
-                <Button type="submit" className="gap-1.5 sm:col-span-3 sm:w-fit">
+                <Button type="submit" className="gap-1.5">
                   <Plus className="h-4 w-4" />
-                  Agregar materia
+                  Agregar
                 </Button>
               </form>
             </CardContent>
           </Card>
           <div className="mb-3">
             <FiltroBusqueda
-              value={busquedaMateria}
-              onChange={setBusquedaMateria}
-              placeholder="Buscar materia por nombre..."
+              value={busquedaAsignatura}
+              onChange={setBusquedaAsignatura}
+              placeholder="Buscar asignatura por nombre..."
             />
           </div>
           <DataTable
             loading={cargando}
-            headers={["ID", "Nombre", "Código", "Carrera", ""]}
-            rows={materiasFiltradas.map((m) => [
-              m.id,
+            headers={["ID", "Nombre", "Código", "Grado", ""]}
+            rows={asignaturasFiltradas.map((a) => [
+              a.id,
               <span key="n" className="font-medium">
-                {m.nombre}
+                {a.nombre}
               </span>,
-              <Badge key="c" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
-                {m.codigo}
-              </Badge>,
-              m.carrera_nombre ?? "—",
+              a.codigo ? (
+                <Badge
+                  key="c"
+                  variant="outline"
+                  className="rounded-full px-2.5 text-xs font-medium"
+                >
+                  {a.codigo}
+                </Badge>
+              ) : (
+                "—"
+              ),
+              a.grado_nombre ? `${a.grado_nombre} (${nombreNivel(a.grado_nivel)})` : "—",
               <div key="a" className="flex gap-1">
                 <Button
                   key="e"
                   variant="ghost"
                   size="sm"
-                  onClick={() => abrirEditarMateria(m)}
+                  onClick={() => abrirEditarAsignatura(a)}
                   className="gap-1"
                 >
                   <Pencil className="h-4 w-4" />
@@ -629,7 +736,7 @@ function AdminAcademico() {
                   key="d"
                   variant="ghost"
                   size="sm"
-                  onClick={() => del(`/api/admin/materias/${m.id}`, "Materia eliminada")}
+                  onClick={() => del(`/api/admin/asignaturas/${a.id}`, "Asignatura eliminada")}
                   className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -637,76 +744,85 @@ function AdminAcademico() {
                 </Button>
               </div>,
             ])}
-            emptyMessage="Aún no hay materias."
+            emptyMessage="Aún no hay asignaturas."
           />
           <Dialog
-            open={editandoMateria !== null}
-            onOpenChange={(open) => !open && setEditandoMateria(null)}
+            open={editandoAsignatura !== null}
+            onOpenChange={(open) => !open && setEditandoAsignatura(null)}
           >
             <DialogContent className="sm:max-w-md rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Editar materia</DialogTitle>
+                <DialogTitle>Editar asignatura</DialogTitle>
                 <DialogDescription>
-                  Modifica los datos de "{editandoMateria?.nombre}" y guarda los cambios.
+                  Modifica los datos de "{editandoAsignatura?.nombre}" y guarda los cambios.
                 </DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (!editandoMateria) return;
+                  if (!editandoAsignatura) return;
                   if (
                     await put(
-                      `/api/admin/materias/${editandoMateria.id}`,
+                      `/api/admin/asignaturas/${editandoAsignatura.id}`,
                       {
-                        nombre: materiaEdit.nombre,
-                        codigo: materiaEdit.codigo,
-                        carrera_id: materiaEdit.carrera_id ? Number(materiaEdit.carrera_id) : null,
+                        nombre: asignaturaEdit.nombre,
+                        codigo: asignaturaEdit.codigo || null,
+                        grado_id: asignaturaEdit.grado_id ? Number(asignaturaEdit.grado_id) : null,
                       },
-                      "Materia actualizada",
+                      "Asignatura actualizada",
                     )
                   ) {
-                    setEditandoMateria(null);
+                    setEditandoAsignatura(null);
                   }
                 }}
                 className="grid gap-4"
               >
                 <div className="grid gap-1.5">
-                  <Label htmlFor="editar-materia-nombre">Nombre</Label>
+                  <Label htmlFor="editar-asignatura-nombre">Nombre</Label>
                   <Input
-                    id="editar-materia-nombre"
+                    id="editar-asignatura-nombre"
                     required
-                    value={materiaEdit.nombre}
-                    onChange={(e) => setMateriaEdit({ ...materiaEdit, nombre: e.target.value })}
+                    value={asignaturaEdit.nombre}
+                    onChange={(e) =>
+                      setAsignaturaEdit({ ...asignaturaEdit, nombre: e.target.value })
+                    }
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="editar-materia-codigo">Código</Label>
+                  <Label htmlFor="editar-asignatura-codigo">Código</Label>
                   <Input
-                    id="editar-materia-codigo"
-                    required
-                    placeholder="SIS-101"
-                    value={materiaEdit.codigo}
-                    onChange={(e) => setMateriaEdit({ ...materiaEdit, codigo: e.target.value })}
+                    id="editar-asignatura-codigo"
+                    placeholder="MAT-6"
+                    value={asignaturaEdit.codigo}
+                    onChange={(e) =>
+                      setAsignaturaEdit({ ...asignaturaEdit, codigo: e.target.value })
+                    }
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="editar-materia-carrera">Carrera</Label>
+                  <Label htmlFor="editar-asignatura-grado">Grado</Label>
                   <select
-                    id="editar-materia-carrera"
-                    value={materiaEdit.carrera_id}
-                    onChange={(e) => setMateriaEdit({ ...materiaEdit, carrera_id: e.target.value })}
+                    id="editar-asignatura-grado"
+                    value={asignaturaEdit.grado_id}
+                    onChange={(e) =>
+                      setAsignaturaEdit({ ...asignaturaEdit, grado_id: e.target.value })
+                    }
                     className="input-field"
                   >
-                    <option value="">— Sin carrera —</option>
-                    {carreras.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nombre}
+                    <option value="">— Sin grado —</option>
+                    {grados.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.nombre} ({nombreNivel(g.nivel)})
                       </option>
                     ))}
                   </select>
                 </div>
                 <DialogFooter className="gap-2 sm:justify-end sm:space-x-0">
-                  <Button type="button" variant="outline" onClick={() => setEditandoMateria(null)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditandoAsignatura(null)}
+                  >
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={guardandoEdicion} className="gap-1">
@@ -723,121 +839,117 @@ function AdminAcademico() {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="grupos">
+        <TabsContent value="cursos">
           <Card className="mb-4 border-border/50 shadow-sm rounded-xl">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Nuevo grupo</CardTitle>
+              <CardTitle className="text-base">Nuevo curso</CardTitle>
             </CardHeader>
             <CardContent>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
                   await post(
-                    "/api/admin/grupos",
+                    "/api/admin/cursos",
                     {
-                      materia_id: Number(grupoForm.materia_id),
-                      codigo_grupo: grupoForm.codigo_grupo.trim(),
-                      profesor_id: Number(grupoForm.profesor_id),
-                      periodo: grupoForm.periodo,
-                      horario: grupoForm.horario || null,
+                      grado_id: Number(cursoForm.grado_id),
+                      nombre: cursoForm.nombre,
+                      director_id: cursoForm.director_id ? Number(cursoForm.director_id) : null,
+                      ano_lectivo: Number(cursoForm.ano_lectivo),
                     },
-                    "Grupo creado",
+                    "Curso creado",
                   );
-                  setGrupoForm({
-                    ...grupoForm,
-                    materia_id: "",
-                    codigo_grupo: "",
-                    profesor_id: "",
-                    horario: "",
+                  setCursoForm({
+                    grado_id: "",
+                    nombre: "",
+                    director_id: "",
+                    ano_lectivo: String(ANO_ACTUAL),
                   });
                 }}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-5"
               >
-                <Input
-                  required
-                  placeholder="Código / Ficha del grupo (ej: 1003)"
-                  value={grupoForm.codigo_grupo}
-                  onChange={(e) => setGrupoForm({ ...grupoForm, codigo_grupo: e.target.value })}
-                />
                 <select
                   required
-                  value={grupoForm.materia_id}
-                  onChange={(e) => setGrupoForm({ ...grupoForm, materia_id: e.target.value })}
+                  value={cursoForm.grado_id}
+                  onChange={(e) => setCursoForm({ ...cursoForm, grado_id: e.target.value })}
                   className="input-field"
                 >
-                  <option value="">— Materia —</option>
-                  {materias.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nombre}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  required
-                  value={grupoForm.profesor_id}
-                  onChange={(e) => setGrupoForm({ ...grupoForm, profesor_id: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="">— Profesor —</option>
-                  {profesores.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre_completo}
+                  <option value="">— Grado —</option>
+                  {grados.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nombre} ({nombreNivel(g.nivel)})
                     </option>
                   ))}
                 </select>
                 <Input
                   required
-                  placeholder="Periodo (ej: 2026-1)"
-                  value={grupoForm.periodo}
-                  onChange={(e) => setGrupoForm({ ...grupoForm, periodo: e.target.value })}
+                  placeholder="Curso / Letra (ej: A)"
+                  value={cursoForm.nombre}
+                  onChange={(e) => setCursoForm({ ...cursoForm, nombre: e.target.value })}
                 />
+                <select
+                  value={cursoForm.director_id}
+                  onChange={(e) => setCursoForm({ ...cursoForm, director_id: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="">— Director de grupo —</option>
+                  {docentes.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nombre_completo}
+                    </option>
+                  ))}
+                </select>
                 <Input
-                  placeholder="Horario"
-                  value={grupoForm.horario}
-                  onChange={(e) => setGrupoForm({ ...grupoForm, horario: e.target.value })}
+                  required
+                  type="number"
+                  min={2000}
+                  max={2100}
+                  placeholder="Año lectivo"
+                  value={cursoForm.ano_lectivo}
+                  onChange={(e) => setCursoForm({ ...cursoForm, ano_lectivo: e.target.value })}
                 />
-                <Button type="submit" className="gap-1.5 sm:col-span-5 sm:w-fit">
+                <Button type="submit" className="gap-1.5">
                   <Plus className="h-4 w-4" />
-                  Crear grupo
+                  Crear curso
                 </Button>
               </form>
             </CardContent>
           </Card>
           <div className="mb-3">
             <FiltroBusqueda
-              value={busquedaGrupo}
-              onChange={setBusquedaGrupo}
-              placeholder="Buscar grupo por ficha, materia o profesor..."
+              value={busquedaCurso}
+              onChange={setBusquedaCurso}
+              placeholder="Buscar curso por grado, director o año..."
             />
           </div>
           <DataTable
             loading={cargando}
-            headers={["ID", "Grupo", "Materia", "Periodo", "Horario", "Profesor", "Alumnos", ""]}
-            rows={gruposFiltrados.map((g) => [
-              g.id,
+            headers={["ID", "Curso", "Grado", "Año", "Director", "Alumnos", ""]}
+            rows={cursosFiltrados.map((c) => [
+              c.id,
               <Badge
-                key="cg"
+                key="cu"
                 variant="outline"
                 className="rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
               >
-                Ficha {g.codigo_grupo}
+                {c.grado_nombre} {c.nombre}
               </Badge>,
-              <span key="n" className="font-medium">
-                {g.materia}
-                <span className="ml-1.5 text-xs text-muted-foreground">({g.materia_codigo})</span>
+              <span key="g" className="font-medium">
+                {c.grado_nombre}{" "}
+                <span className="text-xs text-muted-foreground">
+                  ({nombreNivel(c.grado_nivel)})
+                </span>
               </span>,
-              <Badge key="p" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
-                {g.periodo}
+              <Badge key="a" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
+                {c.ano_lectivo}
               </Badge>,
-              g.horario ?? "—",
-              g.profesor ?? "—",
-              g.alumnos,
-              <div key="a" className="flex gap-1">
+              c.director ?? "—",
+              c.alumnos,
+              <div key="ac" className="flex gap-1">
                 <Button
                   key="e"
                   variant="ghost"
                   size="sm"
-                  onClick={() => abrirEditarGrupo(g)}
+                  onClick={() => abrirEditarCurso(c)}
                   className="gap-1"
                 >
                   <Pencil className="h-4 w-4" />
@@ -847,7 +959,7 @@ function AdminAcademico() {
                   key="d"
                   variant="ghost"
                   size="sm"
-                  onClick={() => del(`/api/admin/grupos/${g.id}`, "Grupo eliminado")}
+                  onClick={() => del(`/api/admin/cursos/${c.id}`, "Curso eliminado")}
                   className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -855,91 +967,336 @@ function AdminAcademico() {
                 </Button>
               </div>,
             ])}
-            emptyMessage="Aún no hay grupos."
+            emptyMessage="Aún no hay cursos."
           />
           <Dialog
-            open={editandoGrupo !== null}
-            onOpenChange={(open) => !open && setEditandoGrupo(null)}
+            open={editandoCurso !== null}
+            onOpenChange={(open) => !open && setEditandoCurso(null)}
           >
             <DialogContent className="sm:max-w-md rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Editar grupo</DialogTitle>
+                <DialogTitle>Editar curso</DialogTitle>
                 <DialogDescription>
-                  Grupo de {editandoGrupo?.materia} ({editandoGrupo?.materia_codigo}). La materia no
-                  se puede cambiar para no alterar el histórico de los matriculados.
+                  Curso {editandoCurso?.grado_nombre} {editandoCurso?.nombre}. El grado no se puede
+                  cambiar para no alterar el histórico de los matriculados.
                 </DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (!editandoGrupo) return;
+                  if (!editandoCurso) return;
                   if (
                     await put(
-                      `/api/admin/grupos/${editandoGrupo.id}`,
+                      `/api/admin/cursos/${editandoCurso.id}`,
                       {
-                        codigo_grupo: grupoEdit.codigo_grupo.trim(),
-                        profesor_id: Number(grupoEdit.profesor_id),
-                        periodo: grupoEdit.periodo,
-                        horario: grupoEdit.horario || null,
+                        nombre: cursoEdit.nombre,
+                        director_id: cursoEdit.director_id ? Number(cursoEdit.director_id) : null,
+                        ano_lectivo: Number(cursoEdit.ano_lectivo),
                       },
-                      "Grupo actualizado",
+                      "Curso actualizado",
                     )
                   ) {
-                    setEditandoGrupo(null);
+                    setEditandoCurso(null);
                   }
                 }}
                 className="grid gap-4"
               >
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="editar-grupo-ficha">Código / Ficha</Label>
+                    <Label htmlFor="editar-curso-nombre">Curso / Letra</Label>
                     <Input
-                      id="editar-grupo-ficha"
+                      id="editar-curso-nombre"
                       required
-                      placeholder="Ej: 1003"
-                      value={grupoEdit.codigo_grupo}
-                      onChange={(e) => setGrupoEdit({ ...grupoEdit, codigo_grupo: e.target.value })}
+                      placeholder="Ej: A"
+                      value={cursoEdit.nombre}
+                      onChange={(e) => setCursoEdit({ ...cursoEdit, nombre: e.target.value })}
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="editar-grupo-periodo">Periodo</Label>
+                    <Label htmlFor="editar-curso-ano">Año lectivo</Label>
                     <Input
-                      id="editar-grupo-periodo"
+                      id="editar-curso-ano"
                       required
-                      placeholder="Ej: 2026-1"
-                      value={grupoEdit.periodo}
-                      onChange={(e) => setGrupoEdit({ ...grupoEdit, periodo: e.target.value })}
+                      type="number"
+                      min={2000}
+                      max={2100}
+                      value={cursoEdit.ano_lectivo}
+                      onChange={(e) => setCursoEdit({ ...cursoEdit, ano_lectivo: e.target.value })}
                     />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="editar-grupo-profesor">Profesor</Label>
+                  <Label htmlFor="editar-curso-director">Director de grupo</Label>
                   <select
-                    id="editar-grupo-profesor"
-                    required
-                    value={grupoEdit.profesor_id}
-                    onChange={(e) => setGrupoEdit({ ...grupoEdit, profesor_id: e.target.value })}
+                    id="editar-curso-director"
+                    value={cursoEdit.director_id}
+                    onChange={(e) => setCursoEdit({ ...cursoEdit, director_id: e.target.value })}
                     className="input-field"
                   >
-                    <option value="">— Profesor —</option>
-                    {profesores.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre_completo}
+                    <option value="">— Sin director —</option>
+                    {docentes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.nombre_completo}
                       </option>
                     ))}
                   </select>
                 </div>
+                <DialogFooter className="gap-2 sm:justify-end sm:space-x-0">
+                  <Button type="button" variant="outline" onClick={() => setEditandoCurso(null)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={guardandoEdicion} className="gap-1">
+                    {guardandoEdicion ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    Guardar cambios
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        <TabsContent value="asignaciones">
+          <Card className="mb-4 border-border/50 shadow-sm rounded-xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Nueva asignación</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  await post(
+                    "/api/admin/asignaciones",
+                    {
+                      curso_id: Number(asignacionForm.curso_id),
+                      asignatura_id: Number(asignacionForm.asignatura_id),
+                      docente_id: Number(asignacionForm.docente_id),
+                      periodo: asignacionForm.periodo,
+                      horario: asignacionForm.horario || null,
+                    },
+                    "Asignación creada",
+                  );
+                  setAsignacionForm({
+                    curso_id: "",
+                    asignatura_id: "",
+                    docente_id: "",
+                    periodo: PERIODO_ACTUAL,
+                    horario: "",
+                  });
+                }}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+              >
+                <select
+                  required
+                  value={asignacionForm.curso_id}
+                  onChange={(e) =>
+                    setAsignacionForm({ ...asignacionForm, curso_id: e.target.value })
+                  }
+                  className="input-field"
+                >
+                  <option value="">— Curso —</option>
+                  {cursos.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.grado_nombre} {c.nombre} · {c.ano_lectivo}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  required
+                  value={asignacionForm.asignatura_id}
+                  onChange={(e) =>
+                    setAsignacionForm({ ...asignacionForm, asignatura_id: e.target.value })
+                  }
+                  className="input-field"
+                >
+                  <option value="">— Asignatura —</option>
+                  {asignaturas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nombre}
+                      {a.grado_nombre ? ` (${a.grado_nombre})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  required
+                  value={asignacionForm.docente_id}
+                  onChange={(e) =>
+                    setAsignacionForm({ ...asignacionForm, docente_id: e.target.value })
+                  }
+                  className="input-field"
+                >
+                  <option value="">— Docente —</option>
+                  {docentes.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nombre_completo}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  required
+                  placeholder="Periodo (ej: 2026-P1)"
+                  value={asignacionForm.periodo}
+                  onChange={(e) =>
+                    setAsignacionForm({ ...asignacionForm, periodo: e.target.value })
+                  }
+                />
+                <Input
+                  placeholder="Horario (ej: Lun-Mié 7:00-9:00)"
+                  value={asignacionForm.horario}
+                  onChange={(e) =>
+                    setAsignacionForm({ ...asignacionForm, horario: e.target.value })
+                  }
+                />
+                <Button type="submit" className="gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Asignar
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+          <div className="mb-3">
+            <FiltroBusqueda
+              value={busquedaAsignacion}
+              onChange={setBusquedaAsignacion}
+              placeholder="Buscar asignación por curso, asignatura o docente..."
+            />
+          </div>
+          <DataTable
+            loading={cargando}
+            headers={["ID", "Curso", "Asignatura", "Periodo", "Horario", "Docente", "Alumnos", ""]}
+            rows={asignacionesFiltradas.map((a) => [
+              a.id,
+              <Badge
+                key="cu"
+                variant="outline"
+                className="rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
+              >
+                {a.curso}
+              </Badge>,
+              <span key="n" className="font-medium">
+                {a.asignatura}
+                {a.asignatura_codigo && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    ({a.asignatura_codigo})
+                  </span>
+                )}
+              </span>,
+              <Badge key="p" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
+                {a.periodo}
+              </Badge>,
+              a.horario ?? "—",
+              a.docente ?? "—",
+              a.alumnos,
+              <div key="ac" className="flex gap-1">
+                <Button
+                  key="e"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => abrirEditarAsignacion(a)}
+                  className="gap-1"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button
+                  key="d"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => del(`/api/admin/asignaciones/${a.id}`, "Asignación eliminada")}
+                  className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar
+                </Button>
+              </div>,
+            ])}
+            emptyMessage="Aún no hay asignaciones."
+          />
+          <Dialog
+            open={editandoAsignacion !== null}
+            onOpenChange={(open) => !open && setEditandoAsignacion(null)}
+          >
+            <DialogContent className="sm:max-w-md rounded-2xl">
+              <DialogHeader>
+                <DialogTitle>Editar asignación</DialogTitle>
+                <DialogDescription>
+                  {editandoAsignacion?.asignatura} en {editandoAsignacion?.curso}. El curso y la
+                  asignatura no se pueden cambiar para no alterar el histórico.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!editandoAsignacion) return;
+                  if (
+                    await put(
+                      `/api/admin/asignaciones/${editandoAsignacion.id}`,
+                      {
+                        docente_id: Number(asignacionEdit.docente_id),
+                        periodo: asignacionEdit.periodo,
+                        horario: asignacionEdit.horario || null,
+                      },
+                      "Asignación actualizada",
+                    )
+                  ) {
+                    setEditandoAsignacion(null);
+                  }
+                }}
+                className="grid gap-4"
+              >
                 <div className="grid gap-1.5">
-                  <Label htmlFor="editar-grupo-horario">Horario</Label>
-                  <Input
-                    id="editar-grupo-horario"
-                    placeholder="Ej: Lun-Mié 8:00-10:00"
-                    value={grupoEdit.horario}
-                    onChange={(e) => setGrupoEdit({ ...grupoEdit, horario: e.target.value })}
-                  />
+                  <Label htmlFor="editar-asignacion-docente">Docente</Label>
+                  <select
+                    id="editar-asignacion-docente"
+                    required
+                    value={asignacionEdit.docente_id}
+                    onChange={(e) =>
+                      setAsignacionEdit({ ...asignacionEdit, docente_id: e.target.value })
+                    }
+                    className="input-field"
+                  >
+                    <option value="">— Docente —</option>
+                    {docentes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.nombre_completo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="editar-asignacion-periodo">Periodo</Label>
+                    <Input
+                      id="editar-asignacion-periodo"
+                      required
+                      placeholder="Ej: 2026-P1"
+                      value={asignacionEdit.periodo}
+                      onChange={(e) =>
+                        setAsignacionEdit({ ...asignacionEdit, periodo: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="editar-asignacion-horario">Horario</Label>
+                    <Input
+                      id="editar-asignacion-horario"
+                      placeholder="Ej: Lun-Mié 7:00-9:00"
+                      value={asignacionEdit.horario}
+                      onChange={(e) =>
+                        setAsignacionEdit({ ...asignacionEdit, horario: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
                 <DialogFooter className="gap-2 sm:justify-end sm:space-x-0">
-                  <Button type="button" variant="outline" onClick={() => setEditandoGrupo(null)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditandoAsignacion(null)}
+                  >
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={guardandoEdicion} className="gap-1">
@@ -969,11 +1326,11 @@ function AdminAcademico() {
                     "/api/admin/matriculas",
                     {
                       estudiante_id: Number(matriculaForm.estudiante_id),
-                      grupo_id: Number(matriculaForm.grupo_id),
+                      curso_id: Number(matriculaForm.curso_id),
                     },
                     "Estudiante matriculado",
                   );
-                  setMatriculaForm({ estudiante_id: "", grupo_id: "" });
+                  setMatriculaForm({ estudiante_id: "", curso_id: "" });
                 }}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-3"
               >
@@ -1000,21 +1357,21 @@ function AdminAcademico() {
                 </div>
                 <div className="relative">
                   <ComboboxBusqueda
-                    value={matriculaForm.grupo_id}
-                    onChange={(v) => setMatriculaForm({ ...matriculaForm, grupo_id: v })}
-                    options={grupos.map((g) => ({
-                      value: String(g.id),
-                      label: g.codigo_grupo,
-                      sublabel: `${g.materia} · ${g.periodo}`,
+                    value={matriculaForm.curso_id}
+                    onChange={(v) => setMatriculaForm({ ...matriculaForm, curso_id: v })}
+                    options={cursos.map((c) => ({
+                      value: String(c.id),
+                      label: `${c.grado_nombre} ${c.nombre}`,
+                      sublabel: `${c.ano_lectivo}${c.director ? ` · Dir. ${c.director}` : ""}`,
                     }))}
-                    placeholder="— Grupo —"
-                    busquedaPlaceholder="Buscar por ficha o materia..."
+                    placeholder="— Curso —"
+                    busquedaPlaceholder="Buscar por grado o año..."
                   />
                   <input
                     required
                     tabIndex={-1}
                     aria-hidden="true"
-                    value={matriculaForm.grupo_id}
+                    value={matriculaForm.curso_id}
                     onChange={() => {}}
                     className="absolute h-0 w-0 opacity-0"
                   />
@@ -1024,36 +1381,40 @@ function AdminAcademico() {
                   Matricular
                 </Button>
               </form>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Al matricular, el estudiante queda inscrito automáticamente en las asignaturas
+                asignadas a ese curso.
+              </p>
             </CardContent>
           </Card>
           <div className="mb-3">
             <FiltroBusqueda
               value={busquedaMatricula}
               onChange={setBusquedaMatricula}
-              placeholder="Buscar matrícula por estudiante, correo o grupo..."
+              placeholder="Buscar matrícula por estudiante, correo o curso..."
             />
           </div>
           <DataTable
             loading={cargando}
-            headers={["ID", "Estudiante", "Materia", "Grupo", "Periodo", ""]}
+            headers={["ID", "Estudiante", "Curso", "Año", "Asignaturas", ""]}
             rows={matriculasFiltradas.map((m) => [
               m.id,
               <div key="e">
                 <div className="font-medium">{m.estudiante}</div>
                 <div className="text-xs text-muted-foreground">{m.correo}</div>
               </div>,
-              m.materia,
               <Badge
-                key="cg"
+                key="cu"
                 variant="outline"
                 className="rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
               >
-                {m.codigo_grupo}
+                {m.curso}
               </Badge>,
-              <Badge key="p" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
-                {m.periodo}
+              <Badge key="a" variant="outline" className="rounded-full px-2.5 text-xs font-medium">
+                {m.ano_lectivo}
               </Badge>,
-              <div key="a" className="flex gap-1">
+              m.asignaturas,
+              <div key="ac" className="flex gap-1">
                 <Button
                   key="e"
                   variant="ghost"
@@ -1072,7 +1433,7 @@ function AdminAcademico() {
                   className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Eliminar
+                  Retirar
                 </Button>
               </div>,
             ])}
@@ -1087,7 +1448,8 @@ function AdminAcademico() {
                 <DialogTitle>Editar matrícula</DialogTitle>
                 <DialogDescription>
                   Matrícula de {editandoMatricula?.estudiante} ({editandoMatricula?.correo}). El
-                  estudiante no se puede cambiar para no transferir sus notas ni asistencia.
+                  estudiante no se puede cambiar; si ya tiene notas o asistencia, el cambio de curso
+                  se bloquea para no borrar su historia.
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -1098,7 +1460,7 @@ function AdminAcademico() {
                     await put(
                       `/api/admin/matriculas/${editandoMatricula.id}`,
                       {
-                        grupo_id: Number(matriculaEdit.grupo_id),
+                        curso_id: Number(matriculaEdit.curso_id),
                         fecha_matricula: matriculaEdit.fecha_matricula || null,
                       },
                       "Matrícula actualizada",
@@ -1110,23 +1472,23 @@ function AdminAcademico() {
                 className="grid gap-4"
               >
                 <div className="relative grid gap-1.5">
-                  <Label>Grupo / Sección</Label>
+                  <Label>Curso</Label>
                   <ComboboxBusqueda
-                    value={matriculaEdit.grupo_id}
-                    onChange={(v) => setMatriculaEdit({ ...matriculaEdit, grupo_id: v })}
-                    options={grupos.map((g) => ({
-                      value: String(g.id),
-                      label: g.codigo_grupo,
-                      sublabel: `${g.materia} · ${g.periodo}`,
+                    value={matriculaEdit.curso_id}
+                    onChange={(v) => setMatriculaEdit({ ...matriculaEdit, curso_id: v })}
+                    options={cursos.map((c) => ({
+                      value: String(c.id),
+                      label: `${c.grado_nombre} ${c.nombre}`,
+                      sublabel: `${c.ano_lectivo}${c.director ? ` · Dir. ${c.director}` : ""}`,
                     }))}
-                    placeholder="— Grupo —"
-                    busquedaPlaceholder="Buscar por ficha o materia..."
+                    placeholder="— Curso —"
+                    busquedaPlaceholder="Buscar por grado o año..."
                   />
                   <input
                     required
                     tabIndex={-1}
                     aria-hidden="true"
-                    value={matriculaEdit.grupo_id}
+                    value={matriculaEdit.curso_id}
                     onChange={() => {}}
                     className="absolute h-0 w-0 opacity-0"
                   />

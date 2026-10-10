@@ -805,7 +805,7 @@ export function AsistenciaTab({
       {carnetsAbiertos && sel && (
         <CarnetsAsistencia
           grupoId={sel}
-          grupoLabel={grupoLabel ?? `Ficha ${sel}`}
+          grupoLabel={grupoLabel ?? `Clase ${sel}`}
           fecha={fecha}
           onClose={() => setCarnetsAbiertos(false)}
         />

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/profesor")({
 function ProfesorLayout() {
   return (
     <AuthGate roles={["profesor"]}>
-      <PanelShell title="Panel Profesor">
+      <PanelShell title="Panel Docente">
         <Outlet />
       </PanelShell>
     </AuthGate>

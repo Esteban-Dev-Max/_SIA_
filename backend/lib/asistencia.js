@@ -84,13 +84,15 @@ export function marcarRiesgo(estudiantes) {
 // rango opcional { desde, hasta }. Devuelve { grupo, estudiantes, totales }.
 export async function cargarResumenGrupo(grupoId, { desde = null, hasta = null } = {}) {
   const [[grupo]] = await pool.query(
-    `SELECT g.id, g.codigo_grupo, g.periodo, g.horario,
-            m.nombre AS materia, m.codigo AS materia_codigo,
+    `SELECT a.id, CONCAT(gr.nombre, ' ', c.nombre) AS codigo_grupo, a.periodo, a.horario,
+            s.nombre AS materia, s.codigo AS materia_codigo,
             i.nombre AS institucion_nombre, i.logo_url AS institucion_logo
-     FROM grupos g
-     JOIN materias m ON m.id = g.materia_id
-     JOIN instituciones i ON i.id = g.institucion_id
-     WHERE g.id = ?`,
+     FROM asignaciones a
+     JOIN cursos c ON c.id = a.curso_id
+     JOIN grados gr ON gr.id = c.grado_id
+     JOIN asignaturas s ON s.id = a.asignatura_id
+     JOIN instituciones i ON i.id = a.institucion_id
+     WHERE a.id = ?`,
     [grupoId],
   );
   if (!grupo) return null;
@@ -106,7 +108,7 @@ export async function cargarResumenGrupo(grupoId, { desde = null, hasta = null }
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
      LEFT JOIN asistencia a ON a.matricula_id = mat.id${rango.condicion}
-     WHERE mat.grupo_id = ?
+     WHERE mat.asignacion_id = ?
      ORDER BY u.nombre_completo, a.fecha DESC`,
     [...rango.params, grupoId],
   );
@@ -120,7 +122,7 @@ export async function cargarResumenGrupo(grupoId, { desde = null, hasta = null }
      FROM asistencia_audit au
      JOIN matriculas mat ON mat.id = au.matricula_id
      JOIN usuarios u ON u.id = au.usuario_id
-     WHERE mat.grupo_id = ?${rango.condicion.replaceAll("a.fecha", "au.fecha")}`,
+     WHERE mat.asignacion_id = ?${rango.condicion.replaceAll("a.fecha", "au.fecha")}`,
     [grupoId, ...rango.params],
   );
   const auditPorCelda = new Map();

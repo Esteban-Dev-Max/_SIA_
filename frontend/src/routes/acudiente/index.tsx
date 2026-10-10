@@ -213,7 +213,7 @@ function AcudientePanel() {
                   accent={resumen.promedio != null && resumen.promedio >= 3 ? "emerald" : "rose"}
                 />
                 <StatCard
-                  label="Materias cursadas"
+                  label="Asignaturas cursadas"
                   value={resumen.materias_cursadas}
                   icon={BookOpen}
                   accent="primary"
@@ -297,7 +297,7 @@ function AcudientePanel() {
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-muted/60 to-muted/30 hover:from-muted/60 hover:to-muted/30">
                       <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Materia
+                        Asignatura
                       </TableHead>
                       <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Periodo
@@ -405,7 +405,7 @@ function AcudientePanel() {
                         Fecha
                       </TableHead>
                       <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Materia
+                        Asignatura
                       </TableHead>
                       <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Estado
