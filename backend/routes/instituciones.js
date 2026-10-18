@@ -203,6 +203,16 @@ r.put(
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "ID inválido" });
 
+    // Existencia y estado actual de una sola vez: evita (a) un 404 tardío y
+    // (b) un 404 falso cuando el UPDATE no cambia nada (affectedRows = 0).
+    const [[existente]] = await pool.query(
+      "SELECT id, estado FROM instituciones WHERE id = ?",
+      [id],
+    );
+    if (!existente) {
+      return res.status(404).json({ error: "Institución no encontrada" });
+    }
+
     const { nombre, correo, telefono, departamento, ciudad, estado, logo_url } = req.body;
 
     if (nombre !== undefined && (!nombre || typeof nombre !== "string" || !nombre.trim())) {
@@ -239,12 +249,7 @@ r.put(
     // Estado anterior de la institución (para avisar a los admins al cambiar).
     let estadoAnterior = null;
     if (estado !== undefined) {
-      const [[actual]] = await pool.query(
-        "SELECT estado FROM instituciones WHERE id = ?",
-        [id],
-      );
-      if (!actual) return res.status(404).json({ error: "Institución no encontrada" });
-      estadoAnterior = actual.estado;
+      estadoAnterior = existente.estado;
       sets.push("estado = ?");
       params.push(estado);
     }
@@ -258,14 +263,10 @@ r.put(
     }
 
     params.push(id);
-    const [result] = await pool.query(
+    await pool.query(
       `UPDATE instituciones SET ${sets.join(", ")} WHERE id = ?`,
       params,
     );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Institución no encontrada" });
-    }
 
     // Avisa a los administradores cuando la institución se desactiva o reactiva.
     if (estadoAnterior && estadoAnterior !== estado) {

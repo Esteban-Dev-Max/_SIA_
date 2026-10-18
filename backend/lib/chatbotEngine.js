@@ -101,11 +101,16 @@ function detectarIntento(pregunta) {
       t,
       "materia",
       "materias",
+      "asignatura",
+      "asignaturas",
       "horario",
       "grupo",
       "grupos",
       "curso",
+      "cursos",
       "clase",
+      "grado",
+      "grados",
     )
   )
     return "materias";
@@ -142,25 +147,25 @@ function detectarIntento(pregunta) {
 function guiasBasicas() {
   return {
     notas:
-      "Para ver tus notas: ingresa al panel, ve a la sección 'Mis calificaciones' y verás nota 1, nota 2, nota 3 y examen por materia. La definitiva se calcula como 25% + 25% + 20% + 30% del examen. Se aprueba con 3.0 o más.",
+      "Para ver tus notas: ingresa al panel, ve a la sección 'Mis calificaciones' y verás nota 1, nota 2, nota 3 y examen por asignatura. La definitiva se calcula como 25% + 25% + 20% + 30% del examen. Se aprueba con 3.0 o más.",
     tareas:
-      "Las tareas las publica tu profesor por materia. En 'Mis tareas' ves el título, la fecha de entrega y el estado. Para entregar: abre la tarea, pega el enlace de tu archivo y envía tu comentario antes del vencimiento.",
+      "Las tareas las publica tu docente por asignatura. En 'Mis tareas' ves el título, la fecha de entrega y el estado. Para entregar: abre la tarea, pega el enlace de tu archivo y envía tu comentario antes del vencimiento.",
     asistencia:
-      "Tu asistencia se registra por materia y por fecha. En 'Mi asistencia' ves el porcentaje total, las fallas acumuladas y el detalle por materia. Se consideran estados: presente, ausente, tarde y excusa.",
+      "Tu asistencia se registra por asignatura y por fecha. En 'Mi asistencia' ves el porcentaje total, las fallas acumuladas y el detalle por asignatura. Se consideran estados: presente, ausente, tarde y excusa.",
     promedio:
-      "Tu promedio general es el promedio de todas las definitivas de tus materias. Puedes verlo en la tarjeta 'Promedio general' del panel de estudiante.",
+      "Tu promedio general es el promedio de todas las definitivas de tus asignaturas. Puedes verlo en la tarjeta 'Promedio general' del panel de estudiante.",
     reunion:
-      "Las reuniones (reuniones de padres, comités, tutorías) se publican en el Calendario con su fecha y hora. Para unirte, abre el evento de tipo 'reunión' y sigue el enlace o la indicación del profesor. Si es virtual, revisa tu correo institucional para el enlace de la videollamada.",
+      "Las reuniones (reuniones de padres, comités, tutorías) se publican en el Calendario con su fecha y hora. Para unirte, abre el evento de tipo 'reunión' y sigue el enlace o la indicación del docente. Si es virtual, revisa tu correo institucional para el enlace de la videollamada.",
     matricula:
-      "La matrícula la gestiona el administrador. Si necesitas inscribirte a una materia o cambiar de grupo, contacta con administración desde el módulo de Mensajes.",
+      "La matrícula la gestiona el administrador: te inscribe al curso del año lectivo y quedas matriculado automáticamente en sus asignaturas. Si necesitas cambiar de curso, contacta con administración desde el módulo de Mensajes.",
     materias:
-      "Tus materias dependen de los grupos en los que estás matriculado. Cada grupo tiene un horario y un profesor asignado. Puedes verlo en el detalle de cada materia de tu panel.",
+      "Tus asignaturas dependen del curso en el que estás matriculado. Cada asignatura tiene un horario y un docente asignado. Puedes verlo en el detalle de cada asignatura de tu panel.",
     profesores:
-      "Puedes contactar a tus profesores desde el módulo de Mensajes, seleccionando el contacto y escribiendo tu consulta. También puedes hablarles en tutorías.",
+      "Puedes contactar a tus docentes desde el módulo de Mensajes, seleccionando el contacto y escribiendo tu consulta. También puedes hablarles en tutorías.",
     acceso:
       "Ingresa con tu correo institucional y contraseña en la pantalla de inicio. Si olvidaste tu contraseña, contacta al administrador para restablecerla.",
     mensajes:
-      "El módulo de Mensajes te permite chatear con profesores, acudientes y administradores. En la columna izquierda ves tus conversaciones; selecciona un contacto para leer y responder.",
+      "El módulo de Mensajes te permite chatear con docentes, acudientes y administradores. En la columna izquierda ves tus conversaciones; selecciona un contacto para leer y responder.",
     calendario:
       "En el Calendario ves las tareas con su fecha de entrega y los eventos académicos (evaluaciones, reuniones, actividades). Usa la vista mensual o semanal para explorar.",
     boletin:
@@ -196,13 +201,13 @@ async function personalizar(intento, req) {
   if (intento === "notas" || intento === "promedio" || intento === "boletin") {
     if (rol === "estudiante") {
       const [rows] = await pool.query(
-        `SELECT m.nombre AS materia, n.nota_1, n.nota_2, n.nota_3, n.examen_final, n.nota_definitiva
+        `SELECT s.nombre AS materia, n.nota_1, n.nota_2, n.nota_3, n.examen_final, n.nota_definitiva
          FROM matriculas mat
-         JOIN grupos g ON g.id = mat.grupo_id
-         JOIN materias m ON m.id = g.materia_id
+         JOIN asignaciones a ON a.id = mat.asignacion_id
+         JOIN asignaturas s ON s.id = a.asignatura_id
          LEFT JOIN notas n ON n.matricula_id = mat.id
          WHERE mat.estudiante_id = ?
-         ORDER BY m.nombre`,
+         ORDER BY s.nombre`,
         [id],
       );
       const conDef = rows.filter((x) => x.nota_definitiva != null);
@@ -215,7 +220,7 @@ async function personalizar(intento, req) {
       if (rows.length === 0) {
         return {
           texto:
-            "Aún no tienes materias matriculadas. Contacta al administrador para gestionar tu matrícula.",
+            "Aún no tienes asignaturas matriculadas. Contacta al administrador para gestionar tu matrícula.",
           opciones: ["¿Cómo me matricular?", "¿Cómo reviso mi asistencia?"],
         };
       }
@@ -230,7 +235,7 @@ async function personalizar(intento, req) {
           ? `Tu promedio general es ${promedio ?? "aún no disponible"}.`
           : intento === "boletin"
             ? "Tu boletín con las definitivas de este periodo:"
-            : "Tus notas por materia:";
+            : "Tus notas por asignatura:";
       return {
         texto: `${textoBase}\n${resumen}${promedio && intento !== "promedio" ? `\nPromedio general: ${promedio}` : ""}`,
         opciones: [
@@ -248,11 +253,11 @@ async function personalizar(intento, req) {
   if (intento === "tareas") {
     if (rol === "estudiante") {
       const [rows] = await pool.query(
-        `SELECT t.titulo, t.fecha_entrega, m.nombre AS materia, e.id AS entregada
+        `SELECT t.titulo, t.fecha_entrega, s.nombre AS materia, e.id AS entregada
          FROM matriculas mat
-         JOIN grupos g ON g.id = mat.grupo_id
-         JOIN materias m ON m.id = g.materia_id
-         JOIN tareas t ON t.grupo_id = g.id
+         JOIN asignaciones a ON a.id = mat.asignacion_id
+         JOIN asignaturas s ON s.id = a.asignatura_id
+         JOIN tareas t ON t.asignacion_id = a.id
          LEFT JOIN entregas_tareas e ON e.tarea_id = t.id AND e.estudiante_id = mat.estudiante_id
          WHERE mat.estudiante_id = ? AND (t.fecha_entrega IS NULL OR t.fecha_entrega >= CURDATE())
          ORDER BY t.fecha_entrega`,
@@ -278,7 +283,7 @@ async function personalizar(intento, req) {
     if (rol === "profesor") {
       return {
         texto:
-          "Puedes crear tareas por grupo y revisar las entregas de cada alumno desde la sección 'Tareas'. Al crear una, los estudiantes reciben una notificación automática.",
+          "Puedes crear tareas por clase y revisar las entregas de cada estudiante desde la sección 'Tareas'. Al crear una, los estudiantes reciben una notificación automática.",
         opciones: ["¿Cómo califico una entrega?", "¿Cómo registro notas?"],
       };
     }
@@ -344,7 +349,7 @@ async function personalizar(intento, req) {
     }
     return {
       texto: guiasBasicas().reunion,
-      opciones: ["¿Cómo veo el calendario?", "¿Cómo contacto a mi profesor?"],
+      opciones: ["¿Cómo veo el calendario?", "¿Cómo contacto a mi docente?"],
     };
   }
 
@@ -406,8 +411,8 @@ async function personalizar(intento, req) {
         [id],
       );
       return {
-        texto: `Tienes ${n} mensaje(s) sin leer. Abre el módulo de Mensajes para ver tus conversaciones y responder a profesores, acudientes o administradores.`,
-        opciones: ["¿Cómo contacto a mi profesor?", "¿Cómo reviso mis notas?"],
+        texto: `Tienes ${n} mensaje(s) sin leer. Abre el módulo de Mensajes para ver tus conversaciones y responder a docentes, acudientes o administradores.`,
+        opciones: ["¿Cómo contacto a mi docente?", "¿Cómo reviso mis notas?"],
       };
     }
     return {

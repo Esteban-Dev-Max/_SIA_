@@ -62,12 +62,12 @@ npm run dev               # arranca en http://localhost:3001 (node --watch)
 Todos los endpoints (excepto `/api/auth/*` y `/health`) requieren `Authorization: Bearer <token>` y revalidan el estado del usuario contra la BD en cada petición.
 
 - `POST /api/auth/login` — inicio de sesión (devuelve JWT)
-- `/api/admin/*` — usuarios, carreras, materias, grupos, matrículas, acudientes y estadísticas
-- `/api/profesor/*` — `GET /grupos` (grupos asignados al profesor)
-- `/api/notas/*` — registro y consulta de notas por matrícula (profesor, estudiante, acudiente)
+- `/api/admin/*` — usuarios, grados, asignaturas, cursos, asignaciones, matrículas anuales, acudientes y estadísticas
+- `/api/profesor/*` — `GET /grupos` (clases asignadas al docente)
+- `/api/notas/*` — registro y consulta de notas por matrícula (docente, estudiante, acudiente)
 - `/api/asistencia/*` — `POST /registrar`, `GET /grupo/:grupo_id`, excusas (`/excusa`, `/excusa/descargar`), `GET /resumen/estudiante/:estudiante_id`
 - `/api/acudiente/*` — resumen académico de los estudiantes vinculados
-- `/api/tareas/*` — tareas y entregas por grupo/estudiante
+- `/api/tareas/*` — tareas y entregas por clase/estudiante
 - `/api/calendario/*` — eventos y tareas con fecha
 - `/api/chatbot/*` — `POST /pregunta` (asistente por intención / palabras clave)
 - `/api/chat` — `POST` asistente con IA Gemini (cae a `lib/chatbotEngine.js` si falla)

@@ -2,6 +2,9 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { requireRole } from "@/lib/guard";
 import { PanelShell } from "@/components/PanelShell";
 import { AuthGate } from "@/components/AuthGate";
+import type { Rol } from "@/lib/api";
+
+const ROLES: Rol[] = ["profesor"];
 
 export const Route = createFileRoute("/profesor")({
   beforeLoad: () => requireRole("profesor"),
@@ -10,8 +13,8 @@ export const Route = createFileRoute("/profesor")({
 
 function ProfesorLayout() {
   return (
-    <AuthGate roles={["profesor"]}>
-      <PanelShell title="Panel Profesor">
+    <AuthGate roles={ROLES}>
+      <PanelShell title="Panel Docente">
         <Outlet />
       </PanelShell>
     </AuthGate>

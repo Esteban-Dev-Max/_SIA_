@@ -28,13 +28,13 @@ async function armarContexto(req) {
 
   if (rol === "estudiante") {
     const [materias] = await pool.query(
-      `SELECT m.nombre AS materia, n.nota_definitiva
+      `SELECT s.nombre AS materia, n.nota_definitiva
        FROM matriculas mat
-       JOIN grupos g ON g.id = mat.grupo_id
-       JOIN materias m ON m.id = g.materia_id
+       JOIN asignaciones a ON a.id = mat.asignacion_id
+       JOIN asignaturas s ON s.id = a.asignatura_id
        LEFT JOIN notas n ON n.matricula_id = mat.id
        WHERE mat.estudiante_id = ?
-       ORDER BY m.nombre`,
+       ORDER BY s.nombre`,
       [id],
     );
     const conDef = materias.filter((x) => x.nota_definitiva != null);
@@ -67,11 +67,11 @@ async function armarContexto(req) {
     };
 
     const [tareas] = await pool.query(
-      `SELECT t.titulo, t.fecha_entrega, m.nombre AS materia, e.id AS entregada
+      `SELECT t.titulo, t.fecha_entrega, s.nombre AS materia, e.id AS entregada
        FROM matriculas mat
-       JOIN grupos g ON g.id = mat.grupo_id
-       JOIN materias m ON m.id = g.materia_id
-       JOIN tareas t ON t.grupo_id = g.id
+       JOIN asignaciones a ON a.id = mat.asignacion_id
+       JOIN asignaturas s ON s.id = a.asignatura_id
+       JOIN tareas t ON t.asignacion_id = a.id
        LEFT JOIN entregas_tareas e ON e.tarea_id = t.id AND e.estudiante_id = mat.estudiante_id
        WHERE mat.estudiante_id = ? AND t.fecha_entrega >= CURDATE() AND e.id IS NULL
        ORDER BY t.fecha_entrega ASC
@@ -87,12 +87,14 @@ async function armarContexto(req) {
     }));
   } else if (rol === "profesor") {
     const [grupos] = await pool.query(
-      `SELECT g.codigo_grupo, m.nombre AS materia, g.periodo,
-              (SELECT COUNT(*) FROM matriculas mat WHERE mat.grupo_id = g.id) AS alumnos
-       FROM grupos g
-       JOIN materias m ON m.id = g.materia_id
-       WHERE g.profesor_id = ?
-       ORDER BY m.nombre`,
+      `SELECT CONCAT(gr.nombre, ' ', c.nombre) AS codigo_grupo, s.nombre AS materia, a.periodo,
+              (SELECT COUNT(*) FROM matriculas mat WHERE mat.asignacion_id = a.id) AS alumnos
+       FROM asignaciones a
+       JOIN cursos c ON c.id = a.curso_id
+       JOIN grados gr ON gr.id = c.grado_id
+       JOIN asignaturas s ON s.id = a.asignatura_id
+       WHERE a.docente_id = ?
+       ORDER BY s.nombre`,
       [id],
     );
     ctx.grupos = grupos;
@@ -116,20 +118,20 @@ function textoContexto(ctx) {
   if (ctx.nombre) lineas.push(`Nombre: ${ctx.nombre}`);
   if (ctx.grupos) {
     lineas.push(
-      "Grupos que dictas: " +
+      "Clases que dictas: " +
         (ctx.grupos.length
           ? ctx.grupos
               .map(
                 (g) =>
-                  `${g.materia} (ficha ${g.codigo_grupo}, ${g.alumnos} alumnos)`,
+                  `${g.materia} en ${g.codigo_grupo} (${g.alumnos} estudiantes)`,
               )
               .join("; ")
-          : "ninguno"),
+          : "ninguna"),
     );
   }
   if (ctx.hijos) lineas.push(`Estudiantes a cargo: ${ctx.hijos.join(", ")}`);
   if (ctx.materiasNotas) {
-    lineas.push("Materias con su definitiva:");
+    lineas.push("Asignaturas con su definitiva:");
     for (const m of ctx.materiasNotas) {
       lineas.push(
         `- ${m.materia}: ${m.nota_definitiva != null ? Number(m.nota_definitiva).toFixed(2) : "sin definitiva"}`,

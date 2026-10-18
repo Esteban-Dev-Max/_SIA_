@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -71,13 +72,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "SIA: plataforma integral para gestionar estudiantes, profesores, notas y asistencia en instituciones académicas y profesionales.",
+          "SIA: plataforma integral para gestionar estudiantes, docentes, notas y asistencia en colegios.",
       },
       { property: "og:title", content: "SIA — Sistema Integral Académico" },
       {
         property: "og:description",
         content:
-          "SIA: plataforma integral para gestionar estudiantes, profesores, notas y asistencia en instituciones académicas y profesionales.",
+          "SIA: plataforma integral para gestionar estudiantes, docentes, notas y asistencia en colegios.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

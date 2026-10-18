@@ -1,8 +1,9 @@
 // ---------------------------------------------------------------------------
-// Utilidades de horario de grupos. El horario se guarda como texto libre
+// Utilidades de horario de asignaciones. El horario se guarda como texto libre
 // (ej. "Lun y Mie 7:00 - 9:00"). Estas funciones lo interpretan de forma
-// tolerante para detectar choques entre grupos; si no se puede interpretar,
-// devuelven null/false y la validación se omite (no se bloquea la operación).
+// tolerante para detectar choques entre asignaciones; si no se puede
+// interpretar, devuelven null/false y la validación se omite (no se bloquea
+// la operación).
 // ---------------------------------------------------------------------------
 
 const DIAS = { lun: 1, mar: 2, mie: 3, mi: 3, jue: 4, vie: 5, sab: 6, dom: 7 };

@@ -17,6 +17,11 @@ const r = Router();
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8080";
 
+// Hash bcrypt (cost 10) de una clave ficticia: el login lo usa cuando el correo
+// no existe para que todas las rutas hagan una comparación bcrypt y el tiempo no
+// delate si una cuenta está registrada.
+const HASH_DUMMY = "$2a$10$J3XifY/COjYnI9v.RVOLxOK5UgQDr89isuhrCohWfAo5v4/0SMvF2";
+
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -98,14 +103,24 @@ r.post(
       `SELECT u.*, i.logo_url AS institucion_logo, i.estado AS institucion_estado, i.nombre AS institucion_nombre
        FROM usuarios u
        LEFT JOIN instituciones i ON i.id = u.institucion_id
-       WHERE u.correo = ? AND u.estado = 'activo'`,
+       WHERE u.correo = ?`,
       [email],
     );
     const u = rows[0];
-    const ok = u ? await bcrypt.compare(password, u.password) : false;
+    const ok = u
+      ? await bcrypt.compare(password, u.password)
+      : await bcrypt.compare(password, HASH_DUMMY);
     if (!u || !ok) {
       registrarFallo(email, ip);
       return res.status(401).json({ error: "Credenciales inválidas" });
+    }
+    // La contraseña es correcta: recién aquí se revela que la cuenta está
+    // desactivada, para no exponer qué correos existen a quien no conoce la clave.
+    if (u.estado !== "activo") {
+      limpiarBloqueo(email, ip);
+      return res
+        .status(403)
+        .json({ error: "Tu cuenta está desactivada. Contacta con el administrador." });
     }
     limpiarBloqueo(email, ip);
 

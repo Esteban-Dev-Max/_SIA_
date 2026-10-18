@@ -7,7 +7,6 @@ type StatCardProps = {
   value: string | number;
   icon: LucideIcon;
   accent?: "primary" | "emerald" | "amber" | "violet" | "rose" | "sky";
-  trend?: { value: number; isUp: boolean };
 };
 
 const accentVariants = {
@@ -30,7 +29,7 @@ const gradientAccents = {
   sky: "from-sky-500 to-blue-600",
 };
 
-export function StatCard({ label, value, icon: Icon, accent = "primary", trend }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, accent = "primary" }: StatCardProps) {
   return (
     <Card className="group relative overflow-hidden border-border/50 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
       <div
@@ -52,19 +51,6 @@ export function StatCard({ label, value, icon: Icon, accent = "primary", trend }
           <p className="text-sm font-medium text-muted-foreground truncate">{label}</p>
           <div className="flex items-center gap-2">
             <p className="text-2xl font-bold tracking-tight">{value}</p>
-            {trend && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-0.5 text-xs font-semibold",
-                  trend.isUp ? "text-emerald-600" : "text-rose-600",
-                )}
-              >
-                <span className={cn("inline-block text-[10px]", trend.isUp ? "" : "rotate-180")}>
-                  ▲
-                </span>
-                {Math.abs(trend.value)}%
-              </span>
-            )}
           </div>
         </div>
         <div

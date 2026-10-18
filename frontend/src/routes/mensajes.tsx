@@ -24,6 +24,7 @@ import {
   User,
   HeartHandshake,
   Plus,
+  ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/mensajes")({
@@ -51,13 +52,15 @@ type Mensaje = {
 };
 
 const rolLabels: Record<Rol, string> = {
+  superadmin: "Superadmin",
   admin: "Admin",
-  profesor: "Profesor",
+  profesor: "Docente",
   estudiante: "Estudiante",
   acudiente: "Acudiente",
 };
 
 const rolIcons: Record<Rol, typeof User> = {
+  superadmin: ShieldCheck,
   admin: Users,
   profesor: GraduationCap,
   estudiante: User,

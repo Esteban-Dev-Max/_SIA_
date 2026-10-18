@@ -10,6 +10,7 @@ import {
   BookOpen,
   Layers,
   ClipboardList,
+  ClipboardCheck,
   School,
   HeartHandshake,
 } from "lucide-react";
@@ -20,11 +21,12 @@ export const Route = createFileRoute("/admin/")({
 
 type Stats = {
   estudiantes: number;
-  profesores: number;
-  materias: number;
-  grupos: number;
+  docentes: number;
+  asignaturas: number;
+  cursos: number;
+  asignaciones: number;
   matriculas: number;
-  carreras: number;
+  grados: number;
   acudientes: number;
 };
 
@@ -53,8 +55,8 @@ function AdminPanel() {
           accent="primary"
         />
         <StatCard
-          label="Profesores"
-          value={stats?.profesores ?? "—"}
+          label="Docentes"
+          value={stats?.docentes ?? "—"}
           icon={GraduationCap}
           accent="emerald"
         />
@@ -64,13 +66,19 @@ function AdminPanel() {
           icon={HeartHandshake}
           accent="sky"
         />
-        <StatCard label="Materias" value={stats?.materias ?? "—"} icon={BookOpen} accent="amber" />
-        <StatCard label="Grupos" value={stats?.grupos ?? "—"} icon={Layers} accent="violet" />
         <StatCard
-          label="Carreras / Grados"
-          value={stats?.carreras ?? "—"}
-          icon={School}
-          accent="rose"
+          label="Asignaturas"
+          value={stats?.asignaturas ?? "—"}
+          icon={BookOpen}
+          accent="amber"
+        />
+        <StatCard label="Cursos" value={stats?.cursos ?? "—"} icon={Layers} accent="violet" />
+        <StatCard label="Grados" value={stats?.grados ?? "—"} icon={School} accent="rose" />
+        <StatCard
+          label="Asignaciones"
+          value={stats?.asignaciones ?? "—"}
+          icon={ClipboardCheck}
+          accent="primary"
         />
         <StatCard
           label="Matrículas"
@@ -82,8 +90,8 @@ function AdminPanel() {
 
       <Card className="mt-6 border-border/50 shadow-sm rounded-xl">
         <CardContent className="p-6 text-sm leading-relaxed text-muted-foreground">
-          Usa la navegación superior para administrar usuarios, el módulo académico (carreras,
-          materias, grupos y matrículas) y las vinculaciones de acudientes.
+          Usa la navegación superior para administrar usuarios, el módulo académico (grados,
+          asignaturas, cursos, asignaciones y matrículas) y las vinculaciones de acudientes.
         </CardContent>
       </Card>
     </>

@@ -1,7 +1,9 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
+import bcrypt from "bcryptjs";
 import request from "supertest";
 import { app, teardownDB } from "../helpers/app.js";
+import { pool } from "../../db.js";
 import { tokenSuperAdmin, tokenAdmin, tokenProfesor, login, auth } from "../helpers/auth.js";
 
 let superToken;
@@ -82,4 +84,31 @@ test("login inválido repetido termina bloqueado (429) y luego se desbloquea con
     .send({ correo, password: "malotro" });
   // 6to fallo ya cae bloqueado
   assert.equal(bloqueado.status, 429);
+});
+
+test("una cuenta desactivada no puede iniciar sesión y lo informa (403)", async () => {
+  const correo = `inactivo${Date.now()}@test.edu.co`;
+  const password = "claveValida123";
+  const hash = await bcrypt.hash(password, 10);
+  const [res] = await pool.query(
+    "INSERT INTO usuarios (nombre_completo, correo, `password`, rol, estado) VALUES (?, ?, ?, 'estudiante', 'inactivo')",
+    ["Usuario Inactivo Tests", correo, hash],
+  );
+
+  try {
+    const desactivado = await request(app)
+      .post("/api/auth/login")
+      .send({ correo, password });
+    assert.equal(desactivado.status, 403);
+    assert.match(desactivado.body.error, /desactivada/);
+
+    // Con la contraseña incorrecta no se revela que la cuenta existe.
+    const claveMala = await request(app)
+      .post("/api/auth/login")
+      .send({ correo, password: "incorrecta" });
+    assert.equal(claveMala.status, 401);
+    assert.equal(claveMala.body.error, "Credenciales inválidas");
+  } finally {
+    await pool.query("DELETE FROM usuarios WHERE id = ?", [res.insertId]);
+  }
 });

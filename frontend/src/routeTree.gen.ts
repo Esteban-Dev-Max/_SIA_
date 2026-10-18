@@ -28,6 +28,7 @@ import { Route as ProfesorTareasRouteImport } from './routes/profesor/tareas'
 import { Route as EstudianteTareasRouteImport } from './routes/estudiante/tareas'
 import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
 import { Route as AdminInstitucionesRouteImport } from './routes/admin/instituciones'
+import { Route as AdminAsistenciaRouteImport } from './routes/admin/asistencia'
 import { Route as AdminAcademicoRouteImport } from './routes/admin/academico'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -125,6 +126,11 @@ const AdminInstitucionesRoute = AdminInstitucionesRouteImport.update({
   path: '/instituciones',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminAsistenciaRoute = AdminAsistenciaRouteImport.update({
+  id: '/asistencia',
+  path: '/asistencia',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminAcademicoRoute = AdminAcademicoRouteImport.update({
   id: '/academico',
   path: '/academico',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/mensajes': typeof MensajesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/asistencia': typeof AdminAsistenciaRoute
   '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/estudiante/tareas': typeof EstudianteTareasRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/mensajes': typeof MensajesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/asistencia': typeof AdminAsistenciaRoute
   '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/estudiante/tareas': typeof EstudianteTareasRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/mensajes': typeof MensajesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/academico': typeof AdminAcademicoRoute
+  '/admin/asistencia': typeof AdminAsistenciaRoute
   '/admin/instituciones': typeof AdminInstitucionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/estudiante/tareas': typeof EstudianteTareasRoute
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/mensajes'
     | '/reset-password'
     | '/admin/academico'
+    | '/admin/asistencia'
     | '/admin/instituciones'
     | '/admin/usuarios'
     | '/estudiante/tareas'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/mensajes'
     | '/reset-password'
     | '/admin/academico'
+    | '/admin/asistencia'
     | '/admin/instituciones'
     | '/admin/usuarios'
     | '/estudiante/tareas'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/mensajes'
     | '/reset-password'
     | '/admin/academico'
+    | '/admin/asistencia'
     | '/admin/instituciones'
     | '/admin/usuarios'
     | '/estudiante/tareas'
@@ -408,6 +420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminInstitucionesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/asistencia': {
+      id: '/admin/asistencia'
+      path: '/asistencia'
+      fullPath: '/admin/asistencia'
+      preLoaderRoute: typeof AdminAsistenciaRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/academico': {
       id: '/admin/academico'
       path: '/academico'
@@ -432,6 +451,7 @@ const AcudienteRouteRouteWithChildren = AcudienteRouteRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminAcademicoRoute: typeof AdminAcademicoRoute
+  AdminAsistenciaRoute: typeof AdminAsistenciaRoute
   AdminInstitucionesRoute: typeof AdminInstitucionesRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -439,6 +459,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAcademicoRoute: AdminAcademicoRoute,
+  AdminAsistenciaRoute: AdminAsistenciaRoute,
   AdminInstitucionesRoute: AdminInstitucionesRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   AdminIndexRoute: AdminIndexRoute,

@@ -21,7 +21,7 @@ function limpiarNota(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-// Un admin todo lo puede. Un profesor solo sobre estudiantes a los que dicta
+// Un admin todo lo puede. Un docente solo sobre estudiantes a los que dicta
 // clase y un estudiante únicamente sobre su propio perfil.
 async function puedeVerEstudiante(req, res, estudianteId) {
   const { rol, id, institucion_id } = req.user;
@@ -46,8 +46,8 @@ async function puedeVerEstudiante(req, res, estudianteId) {
   if (rol === "profesor") {
     const [[p]] = await pool.query(
       `SELECT mat.id FROM matriculas mat
-       JOIN grupos g ON g.id = mat.grupo_id
-       WHERE mat.estudiante_id = ? AND g.profesor_id = ?
+       JOIN asignaciones a ON a.id = mat.asignacion_id
+       WHERE mat.estudiante_id = ? AND a.docente_id = ?
        LIMIT 1`,
       [estudianteId, id],
     );
@@ -61,32 +61,34 @@ async function puedeVerEstudiante(req, res, estudianteId) {
   return false;
 }
 
+// Se conserva el contrato externo (rutas /grupo/:grupo_id y campos grupo_id /
+// materia) para no romper el panel; por dentro se lee de asignaciones.
 async function puedeVerGrupo(req, res, grupoId) {
   if (req.user.rol === "admin") {
-    const [[g]] = await pool.query(
-      "SELECT id FROM grupos WHERE id = ? AND institucion_id = ?",
+    const [[a]] = await pool.query(
+      "SELECT id FROM asignaciones WHERE id = ? AND institucion_id = ?",
       [grupoId, req.user.institucion_id],
     );
-    if (!g) {
+    if (!a) {
       res.status(403).json({ error: "No autorizado" });
       return false;
     }
     return true;
   }
-  const [[g]] = await pool.query(
-    "SELECT id FROM grupos WHERE id = ? AND profesor_id = ?",
+  const [[a]] = await pool.query(
+    "SELECT id FROM asignaciones WHERE id = ? AND docente_id = ?",
     [grupoId, req.user.id],
   );
-  if (!g) {
+  if (!a) {
     res.status(403).json({ error: "No autorizado" });
     return false;
   }
   return true;
 }
 
-// Desglose de notas de un estudiante por materia.
-// Un profesor solo ve las materias que dicta a ese estudiante (sin fuga entre
-// materias/carreras); admin y el propio estudiante ven el histórico completo.
+// Desglose de notas de un estudiante por asignatura.
+// Un docente solo ve las asignaturas que dicta a ese estudiante (sin fuga entre
+// asignaturas/cursos); admin y el propio estudiante ven el histórico completo.
 r.get(
   "/estudiante/:estudiante_id",
   asyncHandler(async (req, res) => {
@@ -94,28 +96,28 @@ r.get(
     if (!estudianteId) return res.status(400).json({ error: "ID inválido" });
     if (!(await puedeVerEstudiante(req, res, estudianteId))) return;
     const params = [estudianteId];
-    const filtroProfesor =
-      req.user.rol === "profesor" ? " AND g.profesor_id = ?" : "";
-    if (filtroProfesor) params.push(req.user.id);
+    const filtroDocente =
+      req.user.rol === "profesor" ? " AND a.docente_id = ?" : "";
+    if (filtroDocente) params.push(req.user.id);
     const [rows] = await pool.query(
-      `SELECT g.id AS grupo_id, g.periodo, m.nombre AS materia, m.codigo AS materia_codigo,
+      `SELECT a.id AS grupo_id, a.periodo, s.nombre AS materia, s.codigo AS materia_codigo,
             mat.id AS matricula_id, n.nota_1, n.nota_2, n.nota_3, n.examen_final,
             n.nota_definitiva, n.observaciones
      FROM matriculas mat
-     JOIN grupos g ON g.id = mat.grupo_id
-     JOIN materias m ON m.id = g.materia_id
+     JOIN asignaciones a ON a.id = mat.asignacion_id
+     JOIN asignaturas s ON s.id = a.asignatura_id
      LEFT JOIN notas n ON n.matricula_id = mat.id
-     WHERE mat.estudiante_id = ?${filtroProfesor}
-     ORDER BY g.periodo DESC, m.nombre`,
+     WHERE mat.estudiante_id = ?${filtroDocente}
+     ORDER BY a.periodo DESC, s.nombre`,
       params,
     );
     res.json(rows);
   }),
 );
 
-// Planilla de notas de todos los estudiantes de un grupo. Incluye las columnas
-// gestionadas por tareas (columnas_tareas): en esos casilleros el valor proviene
-// del promedio de tareas y no debe editarse a mano en la planilla.
+// Planilla de notas de todos los estudiantes de una asignación. Incluye las
+// columnas gestionadas por tareas (columnas_tareas): en esos casilleros el
+// valor proviene del promedio de tareas y no debe editarse a mano en la planilla.
 r.get(
   "/grupo/:grupo_id",
   asyncHandler(async (req, res) => {
@@ -129,12 +131,12 @@ r.get(
      FROM matriculas mat
      JOIN usuarios u ON u.id = mat.estudiante_id
      LEFT JOIN notas n ON n.matricula_id = mat.id
-     WHERE mat.grupo_id = ?
+     WHERE mat.asignacion_id = ?
      ORDER BY u.nombre_completo`,
       [grupoId],
     );
     const [cols] = await pool.query(
-      "SELECT DISTINCT columna_nota FROM tareas WHERE grupo_id = ? AND columna_nota IS NOT NULL",
+      "SELECT DISTINCT columna_nota FROM tareas WHERE asignacion_id = ? AND columna_nota IS NOT NULL",
       [grupoId],
     );
     res.json({ filas: rows, columnas_tareas: cols.map((c) => c.columna_nota) });
@@ -165,8 +167,8 @@ r.post(
     } else {
       const [[m]] = await pool.query(
         `SELECT mat.id FROM matriculas mat
-       JOIN grupos g ON g.id = mat.grupo_id
-       WHERE mat.id = ? AND g.profesor_id = ?`,
+       JOIN asignaciones a ON a.id = mat.asignacion_id
+       WHERE mat.id = ? AND a.docente_id = ?`,
         [matriculaId, req.user.id],
       );
       if (!m) return res.status(403).json({ error: "No autorizado" });
@@ -175,12 +177,12 @@ r.post(
     // Columnas gestionadas por tareas (casillero vinculado a tareas): el
     // promedio de tareas manda, el ingreso manual no las pisa ni las borra.
     const [[matricula]] = await pool.query(
-      "SELECT grupo_id FROM matriculas WHERE id = ?",
+      "SELECT asignacion_id FROM matriculas WHERE id = ?",
       [matriculaId],
     );
     const [colsTareas] = await pool.query(
-      "SELECT DISTINCT columna_nota FROM tareas WHERE grupo_id = ? AND columna_nota IS NOT NULL",
-      [matricula.grupo_id],
+      "SELECT DISTINCT columna_nota FROM tareas WHERE asignacion_id = ? AND columna_nota IS NOT NULL",
+      [matricula.asignacion_id],
     );
     const gestionadas = new Set(colsTareas.map((c) => c.columna_nota));
 
@@ -240,10 +242,10 @@ r.post(
 
     if (nota_definitiva !== null) {
       const [[info]] = await pool.query(
-        `SELECT mat.estudiante_id, m.nombre AS materia
+        `SELECT mat.estudiante_id, s.nombre AS asignatura
        FROM matriculas mat
-       JOIN grupos g ON g.id = mat.grupo_id
-       JOIN materias m ON m.id = g.materia_id
+       JOIN asignaciones a ON a.id = mat.asignacion_id
+       JOIN asignaturas s ON s.id = a.asignatura_id
        WHERE mat.id = ?`,
         [matriculaId],
       );
@@ -251,7 +253,7 @@ r.post(
         await notificar(
           info.estudiante_id,
           "Nueva calificación",
-          `Se publicó tu calificación de ${info.materia}: ${nota_definitiva.toFixed(2)}`,
+          `Se publicó tu calificación de ${info.asignatura}: ${nota_definitiva.toFixed(2)}`,
           "nota",
         );
       }

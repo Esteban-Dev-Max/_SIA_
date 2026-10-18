@@ -39,5 +39,13 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Los primitivos de shadcn/ui (generados) exportan el componente junto a sus
+    // variantes/helpers en el mismo archivo; el aviso de react-refresh no aplica.
+    files: ["src/components/ui/**"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   eslintPluginPrettier,
 );

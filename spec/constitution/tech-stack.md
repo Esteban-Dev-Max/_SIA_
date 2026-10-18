@@ -14,7 +14,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 
 - `backend/app.js` — app Express (factory): CORS (red local + `CORS_ORIGIN` + orígenes dinámicos por `Host` para túneles), `/health` y `/api/health`, estáticos de `uploads/`, montado de routers bajo `/api/*` y manejo global de errores (400/413/duplicados/claves foráneas). `backend/index.js` — entrada: arranca el listener y chequea MySQL.
 - `backend/db.js` — pool MySQL (`decimalNumbers: true`).
-- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql`, `004_password_reset.sql`, `005_tareas_columna_nota.sql` — esquema base, multi-tenant/superadmin, logo de institución, tokens de recuperación de contraseña y vínculo de tareas con la planilla de notas (borra y recrea las tablas a propósito).
+- `backend/migrate.js` + `backend/migrations/001_init.sql`, `002_multi_tenant.sql`, `003_institucion_logo.sql`, `004_password_reset.sql`, `005_tareas_columna_nota.sql`, `006_trazabilidad_asistencia.sql`, `007_quitar_creditos.sql` — esquema base, multi-tenant/superadmin, logo de institución, tokens de recuperación de contraseña, vínculo de tareas con la planilla de notas, trazabilidad de asistencia y retiro de créditos (borra y recrea las tablas a propósito).
 - `backend/seed.js` — datos demo idempotentes (institución, usuarios incl. superadmin, materias, grupos, notas, asistencia, tareas, eventos, mensajes, notificaciones).
 - `backend/routes/` — `auth.js` (incluye `login`, `me`, `cambiar-password` y el flujo de recuperación `forgot-password`/`reset-password`), `admin.js`, `profesor.js`, `acudiente.js`, `notas.js`, `asistencia.js`, `tareas.js`, `calendario.js`, `chatbot.js`, `chat.js`, `mensajes.js`, `notificaciones.js`, `instituciones.js` (solo superadmin), `usuarios.js` (admin/superadmin, incluida la carga masiva).
 - `backend/middleware/` — `auth.js` (verifyToken + requireRole), `asyncHandler`.
@@ -29,7 +29,7 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 ## Comandos
 
 - `backend/`: `npm run dev` — API en `http://localhost:3001` (`node --watch`).
-- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-005 (destructivo).
+- `backend/`: `npm run migrate` — crea/borra y recrea todas las tablas aplicando 001-007 (destructivo).
 - `backend/`: `npm run seed` — inserta datos demo (idempotente).
 - `frontend/`: `npm run dev` — UI en `http://localhost:8080`.
 - `frontend/`: `npm run lint` — ESLint + Prettier, 0 errores esperados.
@@ -38,19 +38,18 @@ Cómo está construido SIA y las reglas que todo el código debe respetar. Es la
 
 ## Modelo de datos / dominio
 
-- `usuarios.rol` — ENUM `superadmin|admin|profesor|estudiante|acudiente`; `password` siempre hash bcrypt (10 rondas); `estado` activo/inactivo; `institucion_id` NULL solo para `superadmin`; `foto_url` para el avatar.
+- `usuarios.rol` — ENUM `superadmin|admin|profesor|estudiante|acudiente` (el rol `profesor` se muestra como "Docente" en la UI); `password` siempre hash bcrypt (10 rondas); `estado` activo/inactivo; `institucion_id` NULL solo para `superadmin`; `foto_url` para el avatar.
 - `instituciones` — datos de la institución + `estado` (activo/inactivo, invalidan sesiones) y `logo_url` (branding multi-tenant).
 - `notas` — 1 fila por matrícula (UNIQUE). Ponderación: `nota_1` 25% + `nota_2` 25% + `nota_3` 20% + `examen_final` 30%. La fórmula está **duplicada** en `lib/notas.js` (fuente del backend) y `frontend/src/routes/profesor/index.tsx`; mantener ambas sincronizadas. Se aprueba con 3.0.
 - `asistencia` — `estado` ENUM `presente|ausente|tarde|excusa`; único por (matrícula, fecha); con observación y **soporte de excusa** (`archivo_ruta`, `archivo_mime`, `archivo_nombre`).
-- `grupos` — materia + profesor + periodo + horario. `matriculas` vincula estudiante↔grupo con clave única (estudiante, grupo).
+- `grados` — nombre + `nivel` ENUM `preescolar|primaria|secundaria|media` + `orden`. `asignaturas` — nombre + código corto opcional + `grado_id` (SET NULL). `cursos` — grado + letra + `director_id` (docente) + `ano_lectivo`. `asignaciones` — curso + asignatura + docente + `periodo` (`AAAA-PN`, P1–P4) + horario. `matriculas` vincula estudiante↔asignación con clave única (estudiante, asignación). `matriculas_curso` — matrícula anual estudiante↔curso (única por par); al crearla se heredan las asignaciones del curso.
 - `tareas` / `entregas_tareas` — tarea por grupo (puntaje máx. por defecto 10); `tareas.columna_nota` ENUM `nota_1|nota_2|nota_3|examen_final` (NULL = sin vincular) indica el casillero de la planilla al que se sincroniza la tarea; entrega única por (tarea, estudiante) con `archivo_url` (texto, sin subida real), calificación y retroalimentación. Al calificar una entrega, `lib/notasTareas.js` reescala la nota a `0.0–5.0` (`calificación / puntaje_max × 5`) y promedia las tareas del mismo casillero por estudiante en `notas`, notificando al estudiante cuando cambia.
-- `eventos_calendario` — `tipo` ENUM `institucional|evaluacion|entrega|reunion`; `curso_id` opcional (FK a carreras_grados, SET NULL).
+- `eventos_calendario` — `tipo` ENUM `institucional|evaluacion|entrega|reunion`; `curso_id` opcional (FK a grados, SET NULL).
 - `mensajes` — remitente/destinatario, contenido, `leido` TINYINT.
 - `notificaciones` — `tipo` ENUM `sistema|nota|tarea|mensaje|evento`, `leida` TINYINT.
 - `acudiente_estudiante` — N:M entre acudientes y estudiantes (único por par).
 - `password_resets` — tokens de recuperación: `token_hash` (sha256 del token, nunca el token plano), `expira_en` (+1 h), `usado` TINYINT y FK a `usuarios` con ON DELETE CASCADE.
-- `carreras_grados` / `materias` — carrera con código único; materia con créditos y carrera opcional (FK SET NULL).
-- **Multi-tenant:** `institucion_id` en `usuarios`, `carreras_grados`, `materias`, `grupos`, `matriculas`, `eventos_calendario`, `mensajes`, `tareas` y `notificaciones`; todo query de datos filtra por `req.user.institucion_id`.
+- **Multi-tenant:** `institucion_id` en `usuarios`, `grados`, `asignaturas`, `cursos`, `asignaciones`, `matriculas_curso`, `matriculas`, `eventos_calendario`, `mensajes`, `tareas` y `notificaciones`; todo query de datos filtra por `req.user.institucion_id`.
 
 ## Convenciones
 

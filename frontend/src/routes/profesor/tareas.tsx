@@ -118,7 +118,7 @@ function equivalenciaNota(
   v: string | number | null,
   puntaje: number | string | null,
 ): number | null {
-  const c = num(typeof v === "string" ? v : v);
+  const c = num(v);
   const p = num(puntaje);
   if (c === null || p === null || p <= 0 || !Number.isFinite(c)) return null;
   return Math.round((c / p) * 5 * 100) / 100;
@@ -151,7 +151,7 @@ function ProfesorTareas() {
         setGrupos(g);
         if (g[0]) setSel(g[0].id);
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Error al cargar grupos"));
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Error al cargar clases"));
   }, []);
 
   const cargarTareas = useCallback(async () => {
@@ -260,20 +260,20 @@ function ProfesorTareas() {
 
   return (
     <>
-      {/* Selector de grupo */}
+      {/* Selector de clase */}
       <Card className="mb-6 border-border/50 shadow-sm rounded-xl overflow-hidden">
         <div className="h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500" />
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <BookOpen className="h-5 w-5 text-violet-600" />
-            Gestión de tareas por grupo
+            Gestión de tareas por clase
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <Label htmlFor="grupo" className="sr-only">
-                Grupo
+                Clase
               </Label>
               <select
                 id="grupo"
@@ -307,7 +307,7 @@ function ProfesorTareas() {
       <DataTable
         loading={cargando}
         loadingMessage="Cargando tareas..."
-        headers={["Título", "Materia", "Fecha límite", "Puntaje", "Entregas", ""]}
+        headers={["Título", "Asignatura", "Fecha límite", "Puntaje", "Entregas", ""]}
         rows={tareas.map((t) => {
           const e = Number(t.entregados);
           const total = Number(t.total_alumnos);
@@ -364,7 +364,7 @@ function ProfesorTareas() {
             </Button>,
           ];
         })}
-        emptyMessage="No hay tareas creadas para este grupo."
+        emptyMessage="No hay tareas creadas para esta clase."
       />
 
       {/* Modal crear tarea */}
@@ -378,7 +378,7 @@ function ProfesorTareas() {
             <DialogDescription>
               {grupoActual
                 ? `Para ${grupoActual.codigo_grupo} · ${grupoActual.materia} · ${grupoActual.periodo}`
-                : "Selecciona un grupo para crear la tarea."}
+                : "Selecciona una clase para crear la tarea."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

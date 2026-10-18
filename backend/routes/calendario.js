@@ -21,34 +21,40 @@ function parseId(value) {
 }
 
 // Devuelve la agenda combinada del usuario: eventos del calendario académico +
-// fechas límite de las tareas de sus grupos (como eventos tipo "entrega").
+// fechas límite de las tareas de sus clases (como eventos tipo "entrega").
 r.get(
   "/eventos",
   asyncHandler(async (req, res) => {
+    // La agenda es datos de una institución: el superadmin (sin institución)
+    // no debe ver la de ningún colegio. Sin este guard, al no haber
+    // institucion_id se consultarían eventos y tareas de TODAS las instituciones.
+    if (!req.user.institucion_id) {
+      return res.status(403).json({ error: "Prohibido" });
+    }
     const { rol, id } = req.user;
     const desde = req.query.desde || null;
     const hasta = req.query.hasta || null;
 
-    // Las tareas como eventos aplican a admin, profesor y estudiante. El acudiente
-    // solo ve los eventos institucionales (no tiene grupos propios).
+    // Las tareas como eventos aplican a admin, docente y estudiante. El acudiente
+    // solo ve los eventos institucionales (no tiene clases propias).
     let tareas = [];
     if (rol !== "acudiente") {
       let tareasSql = `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.puntaje_max,
-                            m.nombre AS materia, g.periodo, 'entrega' AS tipo, NULL AS id_evento
+                            s.nombre AS materia, a.periodo, 'entrega' AS tipo, NULL AS id_evento
                      FROM tareas t
-                     JOIN grupos g ON g.id = t.grupo_id
-                     JOIN materias m ON m.id = g.materia_id`;
+                     JOIN asignaciones a ON a.id = t.asignacion_id
+                     JOIN asignaturas s ON s.id = a.asignatura_id`;
       const p = [];
       const conds = [];
       if (rol === "estudiante") {
-        tareasSql += " JOIN matriculas mat ON mat.grupo_id = g.id";
+        tareasSql += " JOIN matriculas mat ON mat.asignacion_id = a.id";
         conds.push("mat.estudiante_id = ?");
         p.push(id);
       } else if (rol === "profesor") {
-        conds.push("g.profesor_id = ?");
+        conds.push("a.docente_id = ?");
         p.push(id);
       } else if (rol === "admin" && req.user.institucion_id) {
-        conds.push("g.institucion_id = ?");
+        conds.push("a.institucion_id = ?");
         p.push(req.user.institucion_id);
       }
       if (desde) {
@@ -114,7 +120,7 @@ r.get(
   }),
 );
 
-// Agenda un evento del calendario académico (admin cualquier tipo, profesor
+// Agenda un evento del calendario académico (admin cualquier tipo, docente
 // solo evaluaciones/reuniones).
 r.post(
   "/eventos",

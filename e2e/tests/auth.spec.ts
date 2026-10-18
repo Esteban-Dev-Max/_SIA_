@@ -32,7 +32,7 @@ test.describe("Autenticación", () => {
     await expect(page).toHaveURL(/\/admin\/instituciones/);
     await expect(page.getByRole("heading", { name: "Instituciones" })).toBeVisible();
     // La institución demo está presente.
-    await expect(page.getByText("Instituto Demostración SIA")).toBeVisible();
+    await expect(page.getByText("Colegio Demostración SIA")).toBeVisible();
   });
 
   test("inicia sesión como admin y accede al panel admin", async ({ page }) => {

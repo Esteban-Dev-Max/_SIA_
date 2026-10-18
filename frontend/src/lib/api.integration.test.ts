@@ -24,6 +24,7 @@ describe("session management", () => {
     rol: "admin",
     foto_url: null,
     institucion_id: null,
+    institucion_logo: null,
   };
 
   it("setSession guarda token y user en localStorage por defecto", () => {

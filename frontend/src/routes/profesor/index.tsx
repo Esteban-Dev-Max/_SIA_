@@ -19,10 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { AsistenciaTab } from "@/components/AsistenciaTab";
-import { HistorialAsistenciaTab } from "@/components/HistorialAsistenciaTab";
+import { AsistenciaPanel } from "@/components/AsistenciaPanel";
 import {
-  BarChart3,
   BookOpen,
   CalendarClock,
   CalendarDays,
@@ -69,7 +67,7 @@ const CAMPOS_NOTA = [
   { key: "examen_final", label: "Examen (30%)" },
 ] as const;
 
-const TABS_PROFESOR = ["inicio", "planilla", "asistencia", "resumen-asistencia"] as const;
+const TABS_PROFESOR = ["inicio", "planilla", "asistencia"] as const;
 
 const NOTA_MIN = 1;
 const NOTA_MAX = 5;
@@ -159,13 +157,13 @@ function GrupoSelector({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <BookOpen className="h-5 w-5 text-emerald-600" />
-          Seleccionar grupo
+          Seleccionar clase
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-center gap-3">
           <Label htmlFor="grupo" className="sr-only">
-            Grupo
+            Clase
           </Label>
           <select
             id="grupo"
@@ -191,8 +189,8 @@ function GrupoSelector({
           )}
         </div>
         {grupos.length === 0 && (
-          <p className="mt-3 text-sm text-muted-foreground">
-            No tienes grupos asignados en este periodo.
+          <p className="text-sm text-muted-foreground">
+            No tienes clases asignadas en este periodo.
           </p>
         )}
       </CardContent>
@@ -215,7 +213,7 @@ function ProfesorPanel() {
         setGrupos(g);
         if (g[0]) setSel(g[0].id);
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Error al cargar grupos"));
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Error al cargar clases"));
   }, []);
 
   useEffect(() => {
@@ -316,25 +314,21 @@ function ProfesorPanel() {
         </TabsTrigger>
         <TabsTrigger value="asistencia" className="gap-1.5 px-4 py-2 rounded-lg">
           <CalendarDays className="h-4 w-4" />
-          Toma de Asistencia
-        </TabsTrigger>
-        <TabsTrigger value="resumen-asistencia" className="gap-1.5 px-4 py-2 rounded-lg">
-          <BarChart3 className="h-4 w-4" />
-          Resumen de Asistencia
+          Asistencia
         </TabsTrigger>
       </TabsList>
 
-      {/* Inicio: resumen de grupos asignados */}
+      {/* Inicio: resumen de clases asignadas */}
       <TabsContent value="inicio" className="space-y-6">
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard
-            label="Grupos asignados"
+            label="Clases asignadas"
             value={grupos.length}
             icon={BookOpen}
             accent="emerald"
           />
           <StatCard label="Alumnos en total" value={totalAlumnos} icon={Users} accent="primary" />
-          <StatCard label="Materias" value={materiasUnicas} icon={GraduationCap} accent="sky" />
+          <StatCard label="Asignaturas" value={materiasUnicas} icon={GraduationCap} accent="sky" />
         </div>
 
         {grupos.length === 0 ? (
@@ -344,7 +338,7 @@ function ProfesorPanel() {
                 <Inbox className="h-6 w-6 opacity-40" />
               </div>
               <span className="text-sm font-medium">
-                No tienes grupos asignados en este periodo.
+                No tienes clases asignadas en este periodo.
               </span>
             </CardContent>
           </Card>
@@ -380,7 +374,7 @@ function ProfesorPanel() {
                   variant="outline"
                   className="mt-2 rounded-full bg-primary/5 px-2.5 text-xs font-semibold text-primary"
                 >
-                  Ficha {g.codigo_grupo}
+                  {g.codigo_grupo}
                 </Badge>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline" className="rounded-full px-2.5 text-xs font-normal">
@@ -546,8 +540,8 @@ function ProfesorPanel() {
                           </div>
                           <span className="text-sm font-medium">
                             {sel
-                              ? "Sin alumnos matriculados en este grupo."
-                              : "Selecciona un grupo para ver la planilla."}
+                              ? "Sin alumnos matriculados en esta clase."
+                              : "Selecciona una clase para ver la planilla."}
                           </span>
                         </div>
                       </TableCell>
@@ -560,16 +554,19 @@ function ProfesorPanel() {
         </Card>
       </TabsContent>
 
-      {/* Toma de Asistencia */}
+      {/* Asistencia: toma + resumen/reportes (hub con pestañas internas) */}
       <TabsContent value="asistencia">
         <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
-        <AsistenciaTab sel={sel} />
-      </TabsContent>
-
-      {/* Resumen histórico de asistencia por estudiante */}
-      <TabsContent value="resumen-asistencia">
-        <GrupoSelector grupos={grupos} sel={sel} onSelect={setSel} />
-        <HistorialAsistenciaTab sel={sel} />
+        <AsistenciaPanel
+          sel={sel}
+          grupoLabel={
+            grupos.find((g) => g.id === sel)
+              ? `${grupos.find((g) => g.id === sel)!.codigo_grupo} · ${
+                  grupos.find((g) => g.id === sel)!.materia
+                }`
+              : undefined
+          }
+        />
       </TabsContent>
     </Tabs>
   );

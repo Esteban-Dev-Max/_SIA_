@@ -81,13 +81,13 @@ const roles = [
     bg: "bg-violet-50 dark:bg-violet-500/10",
     bullets: [
       "Gestión de usuarios y roles",
-      "Carreras, materias y matrículas",
+      "Grados, asignaturas y matrículas",
       "Estadísticas del dashboard",
     ],
   },
   {
     icon: GraduationCap,
-    rol: "Profesor",
+    rol: "Docente",
     desc: "Gestión rápida de notas, asistencia y revisión de entregas.",
     color: "text-emerald-600",
     bg: "bg-emerald-50 dark:bg-emerald-500/10",
@@ -115,7 +115,7 @@ const stats = [
   {
     value: "4",
     label: "Roles y paneles",
-    desc: "Admin, profesor, estudiante y acudiente",
+    desc: "Admin, docente, estudiante y acudiente",
   },
   {
     value: "25/25/20/30",
@@ -131,7 +131,7 @@ const stats = [
 
 const cuentasDemo = [
   ["Admin", "admin@sia.edu.co"],
-  ["Profesor", "profesor@sia.edu.co"],
+  ["Docente", "profesor@sia.edu.co"],
   ["Estudiante", "estudiante@sia.edu.co"],
   ["Acudiente", "acudiente@sia.edu.co"],
 ];
