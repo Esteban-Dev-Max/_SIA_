@@ -141,7 +141,13 @@ r.get(
     // objeto paginado; sin `page` se conserva el arreglo completo (compatible).
     const page = Number(req.query.page);
     if (Number.isInteger(page) && page > 0) {
-      const pageSize = Math.min(Number(req.query.page_size) || 50, 500);
+      // page_size inválido (0, negativo o no numérico) cae al valor por
+      // defecto; un page_size negativo llegaría como `LIMIT -1` (error SQL 500).
+      const solicitado = Number(req.query.page_size);
+      const pageSize =
+        Number.isInteger(solicitado) && solicitado > 0
+          ? Math.min(solicitado, 500)
+          : 50;
       const [[{ total }]] = await pool.query(
         `SELECT COUNT(*) AS total FROM usuarios ${where}`,
         params,
@@ -231,6 +237,18 @@ r.put(
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "ID inválido" });
+    // El usuario debe existir y pertenecer a la institución del admin. Se
+    // verifica antes de tocar nada para devolver 404 (y no un 200 silencioso)
+    // cuando el id no existe o es de otra institución.
+    const [[existe]] = await pool.query(
+      "SELECT id FROM usuarios WHERE id = ? AND institucion_id = ?",
+      [id, req.user.institucion_id],
+    );
+    if (!existe) {
+      // Descarta el avatar recién subido para no dejar archivos huérfanos.
+      if (req.file) await eliminarAvatar(urlAvatarDeReq(req));
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
     const { nombre_completo, correo, rol, estado, password } = req.body;
     if (estado !== undefined && !["activo", "inactivo"].includes(estado)) {
       return res.status(400).json({ error: "Estado inválido" });

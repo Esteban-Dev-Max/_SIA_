@@ -128,7 +128,7 @@ type ResultadoCarga = {
   insertados: number;
   fallidos: number;
   exitosos: FilaExito[];
-  fallidos: FilaError[];
+  errores: FilaError[];
 };
 
 function descargarPlantilla() {
@@ -167,13 +167,13 @@ function ResumenCarga({ resultado }: { resultado: ResultadoCarga }) {
         </div>
       </div>
 
-      {resultado.fallidos.length > 0 && (
+      {resultado.errores.length > 0 && (
         <div className="max-h-44 overflow-y-auto rounded-xl border border-rose-200 bg-rose-500/5">
           <div className="border-b border-rose-200 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-700">
-            Fallos ({resultado.fallidos.length})
+            Fallos ({resultado.errores.length})
           </div>
           <ul className="divide-y divide-border/60">
-            {resultado.fallidos.map((f) => (
+            {resultado.errores.map((f) => (
               <li
                 key={`f-${f.fila}-${f.correo}`}
                 className="flex items-start gap-2 px-3 py-2 text-xs"

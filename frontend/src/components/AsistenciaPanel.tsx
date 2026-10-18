@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AsistenciaTab } from "@/components/AsistenciaTab";
 import { HistorialAsistenciaTab } from "@/components/HistorialAsistenciaTab";
 
-export type VistaAsistencia = "toma" | "resumen";
+type VistaAsistencia = "toma" | "resumen";
 
 export function AsistenciaPanel({ sel, grupoLabel }: { sel: number | null; grupoLabel?: string }) {
   const [vista, setVista] = useState<VistaAsistencia>("toma");
@@ -11,7 +11,6 @@ export function AsistenciaPanel({ sel, grupoLabel }: { sel: number | null; grupo
   const [version, setVersion] = useState(0);
 
   const refrescar = () => setVersion((v) => v + 1);
-  const irResumen = () => setVista("resumen");
 
   function cambiarVista(v: string) {
     if (v === "toma" || v === "resumen") setVista(v);
@@ -34,12 +33,7 @@ export function AsistenciaPanel({ sel, grupoLabel }: { sel: number | null; grupo
         </TabsTrigger>
       </TabsList>
       <TabsContent value="toma">
-        <AsistenciaTab
-          sel={sel}
-          grupoLabel={grupoLabel}
-          onGuardar={refrescar}
-          onIrResumen={irResumen}
-        />
+        <AsistenciaTab sel={sel} grupoLabel={grupoLabel} onGuardar={refrescar} />
       </TabsContent>
       <TabsContent value="resumen">
         <HistorialAsistenciaTab sel={sel} version={version} />

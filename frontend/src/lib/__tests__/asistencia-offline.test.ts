@@ -6,6 +6,7 @@ import {
   contarPendientes,
   sincronizarPendientes,
   hayRed,
+  type PendienteAsistencia,
 } from "@/lib/asistencia-offline";
 
 vi.mock("@/lib/api", () => ({
@@ -14,11 +15,11 @@ vi.mock("@/lib/api", () => ({
 
 import { api } from "@/lib/api";
 
-const base = {
+const base: Omit<PendienteAsistencia, "encolado_en"> = {
   grupo_id: 5,
   fecha: "2026-01-08",
   registros: [{ matricula_id: 1, estado: "presente", observacion: null }],
-} as const;
+};
 
 beforeEach(() => {
   window.localStorage.clear();

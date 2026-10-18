@@ -121,6 +121,7 @@ export function AsistenciaTab({
   const [registros, setRegistros] = useState<RegistroAsistencia[]>([]);
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState<Set<number>>(new Set());
+  const [marcandoTodos, setMarcandoTodos] = useState(false);
   const [modal, setModal] = useState<RegistroAsistencia | null>(null);
   const [archivo, setArchivo] = useState<File | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -252,12 +253,14 @@ export function AsistenciaTab({
   }
 
   async function marcarTodosPresentes() {
-    if (!sel) return;
+    if (!sel || marcandoTodos) return;
     const pendientesMarcado = registros.filter((r) => !r.estado);
     if (pendientesMarcado.length === 0) {
       toast.info("Todos los estudiantes ya tienen marca");
       return;
     }
+    const previos = registros;
+    setMarcandoTodos(true);
     setRegistros((prev) => prev.map((r) => (r.estado ? r : { ...r, estado: "presente" })));
     try {
       if (!online) {
@@ -289,7 +292,10 @@ export function AsistenciaTab({
       onGuardar?.();
       refrescar();
     } catch (err) {
+      setRegistros(previos);
       toast.error(err instanceof Error ? err.message : "Error al marcar todos presentes");
+    } finally {
+      setMarcandoTodos(false);
     }
   }
 
@@ -484,7 +490,7 @@ export function AsistenciaTab({
               label="Sin marcar"
               value={totales.sinMarcar}
               icon={CheckSquare}
-              accent={haySinMarcar ? "amber" : "muted"}
+              accent={haySinMarcar ? "amber" : "emerald"}
             />
           </div>
 
@@ -496,7 +502,7 @@ export function AsistenciaTab({
                 <button
                   type="button"
                   onClick={() => void marcarTodosPresentes()}
-                  disabled={guardando.size > 0}
+                  disabled={guardando.size > 0 || marcandoTodos}
                   className="mx-1 inline-flex items-center gap-1 font-semibold text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CheckSquare className="h-3.5 w-3.5" />

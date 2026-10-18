@@ -29,6 +29,12 @@ coverage/
 .wrangler/
 .dev.vars
 
+# Secretos locales: nunca versionar el .env del backend (JWT_SECRET, SMTP, Gemini).
+# (frontend/.env se versiona a propósito por el VITE_API_URL que usa el SSR.)
+backend/.env
+backend/.env.*
+!backend/.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

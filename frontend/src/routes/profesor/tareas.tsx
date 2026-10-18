@@ -118,7 +118,7 @@ function equivalenciaNota(
   v: string | number | null,
   puntaje: number | string | null,
 ): number | null {
-  const c = num(typeof v === "string" ? v : v);
+  const c = num(v);
   const p = num(puntaje);
   if (c === null || p === null || p <= 0 || !Number.isFinite(c)) return null;
   return Math.round((c / p) * 5 * 100) / 100;

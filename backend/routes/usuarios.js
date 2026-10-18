@@ -231,7 +231,7 @@ r.post(
       insertados: exitosos.length,
       fallidos: fallidos.length,
       exitosos,
-      fallidos,
+      errores: fallidos,
     });
   }),
 );

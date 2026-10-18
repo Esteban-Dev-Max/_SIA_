@@ -273,6 +273,8 @@ function AdminAcademico() {
   const [editandoVinculo, setEditandoVinculo] = useState<Vinculo | null>(null);
   const [vinculoEdit, setVinculoEdit] = useState({ acudiente_id: "", estudiante_id: "" });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  // Evita doble envío en creaciones/eliminaciones (los PUT usan guardandoEdicion).
+  const [enviando, setEnviando] = useState(false);
 
   const load = useCallback(async () => {
     setCargando(true);
@@ -339,23 +341,31 @@ function AdminAcademico() {
     : matriculas;
 
   async function post(path: string, body: unknown, okMsg: string) {
+    if (enviando) return;
+    setEnviando(true);
     try {
       await api(path, { method: "POST", body: JSON.stringify(body) });
       toast.success(okMsg);
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
+    } finally {
+      setEnviando(false);
     }
   }
 
   async function del(path: string, okMsg: string) {
+    if (enviando) return;
     if (!confirm("¿Eliminar? Esta acción no se puede deshacer.")) return;
+    setEnviando(true);
     try {
       await api(path, { method: "DELETE" });
       toast.success(okMsg);
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -511,7 +521,7 @@ function AdminAcademico() {
                   value={gradoForm.orden}
                   onChange={(e) => setGradoForm({ ...gradoForm, orden: e.target.value })}
                 />
-                <Button type="submit" className="gap-1.5">
+                <Button type="submit" disabled={enviando} className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Agregar
                 </Button>
@@ -687,7 +697,7 @@ function AdminAcademico() {
                     </option>
                   ))}
                 </select>
-                <Button type="submit" className="gap-1.5">
+                <Button type="submit" disabled={enviando} className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Agregar
                 </Button>
@@ -907,7 +917,7 @@ function AdminAcademico() {
                   value={cursoForm.ano_lectivo}
                   onChange={(e) => setCursoForm({ ...cursoForm, ano_lectivo: e.target.value })}
                 />
-                <Button type="submit" className="gap-1.5">
+                <Button type="submit" disabled={enviando} className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Crear curso
                 </Button>
@@ -1150,7 +1160,7 @@ function AdminAcademico() {
                     setAsignacionForm({ ...asignacionForm, horario: e.target.value })
                   }
                 />
-                <Button type="submit" className="gap-1.5">
+                <Button type="submit" disabled={enviando} className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Asignar
                 </Button>
@@ -1376,7 +1386,7 @@ function AdminAcademico() {
                     className="absolute h-0 w-0 opacity-0"
                   />
                 </div>
-                <Button type="submit" className="gap-1.5">
+                <Button type="submit" disabled={enviando} className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Matricular
                 </Button>
@@ -1592,7 +1602,11 @@ function AdminAcademico() {
                     className="absolute h-0 w-0 opacity-0"
                   />
                 </div>
-                <Button type="submit" className="gap-1.5 bg-sky-600 hover:bg-sky-700 text-white">
+                <Button
+                  type="submit"
+                  disabled={enviando}
+                  className="gap-1.5 bg-sky-600 hover:bg-sky-700 text-white"
+                >
                   <Link2 className="h-4 w-4" />
                   Vincular
                 </Button>

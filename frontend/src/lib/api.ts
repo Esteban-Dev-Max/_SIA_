@@ -65,6 +65,13 @@ export function getUser(): AuthUser | null {
   }
 }
 
+/** Ante un 401 con sesión iniciada: limpia las credenciales y vuelve al login. */
+function manejarSesionExpirada() {
+  if (typeof window === "undefined") return;
+  clearSession();
+  if (window.location.pathname !== "/login") window.location.assign("/login");
+}
+
 export async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken();
   const isFormData =
@@ -80,6 +87,7 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   const res = await fetch(`${API_URL}${path}`, { ...opts, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    if (res.status === 401 && token) manejarSesionExpirada();
     throw new Error(err.error || `HTTP ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
@@ -100,6 +108,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
   const res = await fetch(apiUrl(path), { ...opts, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    if (res.status === 401 && token) manejarSesionExpirada();
     throw new Error(err.error || `HTTP ${res.status}`);
   }
   return res;

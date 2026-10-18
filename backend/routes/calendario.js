@@ -25,6 +25,12 @@ function parseId(value) {
 r.get(
   "/eventos",
   asyncHandler(async (req, res) => {
+    // La agenda es datos de una institución: el superadmin (sin institución)
+    // no debe ver la de ningún colegio. Sin este guard, al no haber
+    // institucion_id se consultarían eventos y tareas de TODAS las instituciones.
+    if (!req.user.institucion_id) {
+      return res.status(403).json({ error: "Prohibido" });
+    }
     const { rol, id } = req.user;
     const desde = req.query.desde || null;
     const hasta = req.query.hasta || null;

@@ -84,6 +84,10 @@ r.get("/conversacion/:usuario_id/:contacto_id", asyncHandler(async (req, res) =>
 
 // Contactos potenciales: usuarios activos que pueden recibir mensajes (excluye a sí mismo).
 r.get("/contactos", asyncHandler(async (req, res) => {
+  // La mensajería es intra-institucional: el superadmin no tiene institución.
+  if (!req.user.institucion_id) {
+    return res.status(403).json({ error: "Prohibido" });
+  }
   const { q } = req.query;
   const params = [req.user.id];
   let where = "u.estado = 'activo' AND u.id <> ?";
@@ -128,7 +132,12 @@ r.post("/enviar", asyncHandler(async (req, res) => {
     [destinatarioId],
   );
   if (!dest) return res.status(404).json({ error: "Destinatario no encontrado" });
-  if (req.user.institucion_id && dest.institucion_id !== req.user.institucion_id) {
+  // Mensajería solo dentro de la misma institución. El superadmin (sin
+  // institución) no participa de la mensajería académica.
+  if (!req.user.institucion_id) {
+    return res.status(403).json({ error: "Prohibido" });
+  }
+  if (dest.institucion_id !== req.user.institucion_id) {
     return res.status(403).json({ error: "No puedes enviar mensajes a usuarios de otra institución" });
   }
 

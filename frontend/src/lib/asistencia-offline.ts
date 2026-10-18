@@ -45,7 +45,9 @@ function guardar(lista: PendienteAsistencia[]) {
 }
 
 /** Encola o reemplaza la pendiente de un (grupo, fecha): la más reciente gana. */
-export function agregarPendiente(p: PendienteAsistencia): PendienteAsistencia[] {
+export function agregarPendiente(
+  p: Omit<PendienteAsistencia, "encolado_en">,
+): PendienteAsistencia[] {
   const lista = leerPendientes().filter((x) => !(x.grupo_id === p.grupo_id && x.fecha === p.fecha));
   const nueva = [...lista, { ...p, encolado_en: new Date().toISOString() }];
   guardar(nueva);

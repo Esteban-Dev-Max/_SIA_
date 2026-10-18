@@ -1,9 +1,16 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, getUser } from "@/lib/api";
 import { useHashTab } from "@/hooks/use-hash-tab";
 import { StatCard } from "@/components/StatCard";
+import {
+  BoletinAcademico,
+  type BoletinAsistencia,
+  type BoletinCurso,
+  type BoletinInstitucion,
+  type BoletinNota,
+} from "@/components/BoletinAcademico";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -42,43 +49,32 @@ type Hijo = {
   correo: string;
 };
 
-type FilaNota = {
-  grupo_id: number;
-  periodo: string;
-  horario: string | null;
-  materia: string;
-  materia_codigo: string;
-  nota_1: number | null;
-  nota_2: number | null;
-  nota_3: number | null;
-  examen_final: number | null;
-  nota_definitiva: number | null;
-  observaciones: string | null;
-};
-
-type RegistroAsistencia = {
-  fecha: string;
-  estado: "presente" | "ausente" | "tarde" | "excusa";
-  observacion: string | null;
-  materia: string;
-};
-
 type Resumen = {
   estudiante: { id: number; nombre: string; correo: string; foto_url: string | null };
-  notas: FilaNota[];
-  asistencia: RegistroAsistencia[];
+  curso: BoletinCurso | null;
+  institucion: BoletinInstitucion | null;
+  periodos: string[];
+  notas: BoletinNota[];
+  asistencia: BoletinAsistencia[];
+  asistencia_resumen: {
+    total: number;
+    presentes: number;
+    ausentes: number;
+    tardes: number;
+    excusas: number;
+  };
   promedio: number | null;
   materias_cursadas: number;
 };
 
-const estadoAsistencia: Record<RegistroAsistencia["estado"], string> = {
+const estadoAsistencia: Record<BoletinAsistencia["estado"], string> = {
   presente: "border-emerald-200 bg-emerald-500/10 text-emerald-700",
   ausente: "border-rose-200 bg-rose-500/10 text-rose-700",
   tarde: "border-amber-200 bg-amber-500/10 text-amber-700",
   excusa: "border-sky-200 bg-sky-500/10 text-sky-700",
 };
 
-const estadoLabel: Record<RegistroAsistencia["estado"], string> = {
+const estadoLabel: Record<BoletinAsistencia["estado"], string> = {
   presente: "Presente",
   ausente: "Ausente",
   tarde: "Tarde",
@@ -100,6 +96,7 @@ function AcudientePanel() {
   const [hijos, setHijos] = useState<Hijo[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [resumen, setResumen] = useState<Resumen | null>(null);
+  const [periodo, setPeriodo] = useState("");
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
@@ -119,7 +116,9 @@ function AcudientePanel() {
     setCargando(true);
     api<Resumen>(`/api/acudiente/resumen/${sel}`)
       .then((r) => {
-        if (activo) setResumen(r);
+        if (!activo) return;
+        setResumen(r);
+        setPeriodo((p) => (r.periodos.includes(p) ? p : (r.periodos[0] ?? "")));
       })
       .catch((err) => {
         if (activo) toast.error(err instanceof Error ? err.message : "Error al cargar el resumen");
@@ -133,8 +132,9 @@ function AcudientePanel() {
   }, [sel]);
 
   const hijoActual = hijos.find((h) => h.estudiante_id === sel);
-  const presentes = resumen?.asistencia.filter((a) => a.estado === "presente").length ?? 0;
-  const ausencias = resumen?.asistencia.filter((a) => a.estado === "ausente").length ?? 0;
+  const acudienteNombre = getUser()?.nombre ?? "";
+  const presentes = resumen?.asistencia_resumen.presentes ?? 0;
+  const ausencias = resumen?.asistencia_resumen.ausentes ?? 0;
 
   return (
     <>
@@ -167,15 +167,6 @@ function AcudientePanel() {
             {hijoActual && (
               <span className="text-xs text-muted-foreground">{hijoActual.correo}</span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.print()}
-              className="ml-auto gap-1.5"
-            >
-              <Printer className="h-4 w-4" />
-              Imprimir boletín
-            </Button>
           </div>
           {hijos.length === 0 && (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -285,110 +276,49 @@ function AcudientePanel() {
         <TabsContent value="resumen" className="space-y-6">
           {resumen && (
             <>
-              <Card className="mb-6 overflow-hidden border-border/50 shadow-sm rounded-xl">
-                <div className="h-1 bg-gradient-to-r from-primary to-violet-500" />
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <GraduationCap className="h-5 w-5 text-primary" />
-                    Boletín de notas
-                  </CardTitle>
-                </CardHeader>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gradient-to-r from-muted/60 to-muted/30 hover:from-muted/60 hover:to-muted/30">
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Asignatura
-                      </TableHead>
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Periodo
-                      </TableHead>
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Nota 1
-                      </TableHead>
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Nota 2
-                      </TableHead>
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Nota 3
-                      </TableHead>
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Final
-                      </TableHead>
-                      <TableHead className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Definitiva
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {resumen.notas.map((n, i) => {
-                      const def = n.nota_definitiva;
-                      return (
-                        <TableRow
-                          key={`${n.grupo_id}-${n.periodo}`}
-                          className={cn(
-                            "transition-colors hover:bg-muted/30",
-                            i % 2 === 0 ? "bg-transparent" : "bg-muted/10",
-                          )}
-                        >
-                          <TableCell className="px-4 py-3">
-                            <div className="font-medium">{n.materia}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {n.materia_codigo}
-                              {n.horario ? ` · ${n.horario}` : ""}
-                            </div>
-                          </TableCell>
-                          <TableCell className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className="rounded-full px-2.5 text-xs font-normal"
-                            >
-                              {n.periodo}
-                            </Badge>
-                          </TableCell>
-                          {[n.nota_1, n.nota_2, n.nota_3, n.examen_final].map((x, j) => (
-                            <TableCell key={j} className="px-4 py-3">
-                              {x != null ? (
-                                Number(x).toFixed(2)
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                          ))}
-                          <TableCell className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "rounded-full px-2.5 text-xs font-semibold",
-                                def == null
-                                  ? "bg-muted text-muted-foreground"
-                                  : def >= 3
-                                    ? "border-emerald-200 bg-emerald-500/10 text-emerald-700"
-                                    : "border-rose-200 bg-rose-500/10 text-rose-700",
-                              )}
-                            >
-                              {def != null ? Number(def).toFixed(2) : "—"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {resumen.notas.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="h-40 text-center">
-                          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
-                              <Inbox className="h-6 w-6 opacity-40" />
-                            </div>
-                            <span className="text-sm font-medium">
-                              Este estudiante no tiene materias matriculadas.
-                            </span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="periodo" className="text-xs font-medium">
+                    Periodo académico
+                  </Label>
+                  <select
+                    id="periodo"
+                    value={periodo}
+                    onChange={(e) => setPeriodo(e.target.value)}
+                    className="input-field w-52"
+                    disabled={resumen.periodos.length === 0}
+                  >
+                    {resumen.periodos.length === 0 ? (
+                      <option value="">Sin periodos</option>
+                    ) : (
+                      resumen.periodos.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))
                     )}
-                  </TableBody>
-                </Table>
-              </Card>
+                  </select>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="gap-1.5"
+                  disabled={resumen.periodos.length === 0}
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimir boletín
+                </Button>
+              </div>
+
+              <BoletinAcademico
+                estudiante={resumen.estudiante}
+                curso={resumen.curso}
+                institucion={resumen.institucion}
+                notas={resumen.notas}
+                asistencia={resumen.asistencia}
+                periodo={periodo}
+                acudiente={acudienteNombre}
+              />
 
               <Card className="overflow-hidden border-border/50 shadow-sm rounded-xl">
                 <div className="h-1 bg-gradient-to-r from-sky-500 to-blue-600" />

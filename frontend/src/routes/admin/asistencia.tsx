@@ -144,28 +144,29 @@ function AdminAsistencia() {
   const fallas = g.reduce((s, x) => s + x.totales.fallas, 0);
 
   async function alertarTodos() {
-    const enRiesgoPorGrupo: { grupo_id: number; ids: number[] }[] = [];
-    for (const x of g) {
-      const detalle = await api<{
-        estudiantes: {
-          estudiante_id: number;
-          en_riesgo: boolean;
-          fallas_criticas: boolean;
-          nivel: NivelRiesgo;
-        }[];
-      }>(`/api/asistencia/resumen/grupo/${x.id}`).catch(() => null);
-      if (!detalle) continue;
-      const ids = detalle.estudiantes
-        .filter((e) => e.en_riesgo || e.fallas_criticas || e.nivel === "critico")
-        .map((e) => e.estudiante_id);
-      if (ids.length > 0) enRiesgoPorGrupo.push({ grupo_id: x.id, ids });
-    }
-    if (enRiesgoPorGrupo.length === 0) {
-      toast.info("No hay estudiantes en riesgo que notificar");
-      return;
-    }
+    if (alertando) return;
     setAlertando(true);
     try {
+      const enRiesgoPorGrupo: { grupo_id: number; ids: number[] }[] = [];
+      for (const x of g) {
+        const detalle = await api<{
+          estudiantes: {
+            estudiante_id: number;
+            en_riesgo: boolean;
+            fallas_criticas: boolean;
+            nivel: NivelRiesgo;
+          }[];
+        }>(`/api/asistencia/resumen/grupo/${x.id}`).catch(() => null);
+        if (!detalle) continue;
+        const ids = detalle.estudiantes
+          .filter((e) => e.en_riesgo || e.fallas_criticas || e.nivel === "critico")
+          .map((e) => e.estudiante_id);
+        if (ids.length > 0) enRiesgoPorGrupo.push({ grupo_id: x.id, ids });
+      }
+      if (enRiesgoPorGrupo.length === 0) {
+        toast.info("No hay estudiantes en riesgo que notificar");
+        return;
+      }
       let total = 0;
       for (const p of enRiesgoPorGrupo) {
         const d = await api<{ ok: boolean; notificados: number }>(

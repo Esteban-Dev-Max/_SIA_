@@ -69,12 +69,17 @@ const themeOptions: {
 ];
 
 function CampoPerfil({ label, value }: { label: string; value: string }) {
+  const id = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={label} className="text-xs font-medium text-muted-foreground">
+      <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">
         {label}
       </Label>
-      <Input id={label} readOnly value={value} className="bg-muted/40 font-medium" />
+      <Input id={id} readOnly value={value} className="bg-muted/40 font-medium" />
     </div>
   );
 }

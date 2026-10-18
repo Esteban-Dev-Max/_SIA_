@@ -51,23 +51,23 @@ function tiempoRelativo(fecha: string): string {
 }
 
 export function NotificationBell() {
-  const user = getUser();
+  const userId = getUser()?.id ?? null;
   const [notis, setNotis] = useState<Notificacion[]>([]);
   const [pendientes, setPendientes] = useState(0);
   const [abierto, setAbierto] = useState(false);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     try {
       const data = await api<{ pendientes: number; notificaciones: Notificacion[] }>(
-        `/api/notificaciones/${user.id}`,
+        `/api/notificaciones/${userId}`,
       );
       setPendientes(data.pendientes);
       setNotis(data.notificaciones);
     } catch {
       /* silencioso: la cabecera no debe fallar por el estado de alertas */
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     load();
@@ -93,9 +93,9 @@ export function NotificationBell() {
   }
 
   async function marcarTodas() {
-    if (!user || pendientes === 0) return;
+    if (!userId || pendientes === 0) return;
     try {
-      await api(`/api/notificaciones/marcar-todas/${user.id}`, { method: "PUT" });
+      await api(`/api/notificaciones/marcar-todas/${userId}`, { method: "PUT" });
       setNotis((prev) => prev.map((x) => ({ ...x, leida: true })));
       setPendientes(0);
     } catch (err) {
