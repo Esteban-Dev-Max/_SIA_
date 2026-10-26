@@ -103,7 +103,7 @@ async function crearTarea(columna) {
     .send({
       grupo_id: grupoId,
       titulo: "Tarea sync",
-      puntaje_max: 10,
+      puntaje_max: 5,
       columna_nota: columna,
     });
   assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -146,18 +146,18 @@ test("crear tarea con casillero inválido devuelve 400", async () => {
   const res = await request(app)
     .post("/api/tareas")
     .set(auth(profToken))
-    .send({ grupo_id: grupoId, titulo: "Mal", puntaje_max: 10, columna_nota: "rubro_9" });
+    .send({ grupo_id: grupoId, titulo: "Mal", puntaje_max: 5, columna_nota: "rubro_9" });
   assert.equal(res.status, 400);
-  assert.ok(res.body.error);
+  assert.match(res.body.error, /Casillero/);
 });
 
 test("calificar una tarea vinculada actualiza el casillero y notifica al estudiante", async () => {
   const tarea = await crearTarea("nota_1");
   const entrega = await entregar(tarea);
-  await calificar(entrega, 9);
+  await calificar(entrega, 4.5);
 
   const n = await notaActual();
-  assert.equal(n.valor, 4.5, "9/10 reescalado = 4.5");
+  assert.equal(n.valor, 4.5, "4.5/5 reescalado = 4.5");
   assert.equal(n.definitiva, null, "sin las 4 notas no hay definitiva");
 
   const [[{ c }]] = await pool.query(
@@ -172,9 +172,9 @@ test("recalificar sobreescribe el casillero", async () => {
     "SELECT e.id AS entrega_id FROM entregas_tareas e JOIN tareas t ON t.id = e.tarea_id WHERE e.estudiante_id = ? AND t.columna_nota = 'nota_1' ORDER BY e.id DESC LIMIT 1",
     [estudianteId],
   );
-  await calificar(entrega, 5);
+  await calificar(entrega, 2.5);
   const n = await notaActual();
-  assert.equal(n.valor, 2.5, "5/10 = 2.5");
+  assert.equal(n.valor, 2.5, "2.5/5 = 2.5");
 });
 
 test("guardar planilla no pisa el casillero gestionado por tareas", async () => {
@@ -196,7 +196,7 @@ test("guardar planilla no pisa el casillero gestionado por tareas", async () => 
 test("dos tareas en el mismo casillero se promedian", async () => {
   const tarea = await crearTarea("nota_1");
   const entrega = await entregar(tarea);
-  await calificar(entrega, 10); // 10/10 -> 5.0
+  await calificar(entrega, 5); // 5/5 -> 5.0
 
   // Promedio: (2.5 + 5.0) / 2 = 3.75
   const n = await notaActual();
@@ -206,7 +206,7 @@ test("dos tareas en el mismo casillero se promedian", async () => {
 test("tarea sin casillero no toca la planilla", async () => {
   const tarea = await crearTarea(null);
   const entrega = await entregar(tarea);
-  await calificar(entrega, 8);
+  await calificar(entrega, 4);
 
   const n = await notaActual();
   assert.equal(n.valor, 3.75, "se conserva el promedio de las tareas vinculadas");
@@ -237,4 +237,27 @@ test("GET planilla del grupo reporta las columnas gestionadas por tareas", async
   assert.equal(res.status, 200);
   assert.deepEqual(res.body.columnas_tareas, ["nota_1"]);
   assert.ok(Array.isArray(res.body.filas));
+});
+
+test("rechaza un puntaje máximo mayor a 5", async () => {
+  const res = await request(app)
+    .post("/api/tareas")
+    .set(auth(profToken))
+    .send({ grupo_id: grupoId, titulo: "Puntaje alto", puntaje_max: 5.5 });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /no puede superar 5/);
+
+  const [[{ c }]] = await pool.query(
+    "SELECT COUNT(*) AS c FROM tareas WHERE asignacion_id = ? AND titulo = ?",
+    [grupoId, "Puntaje alto"],
+  );
+  assert.equal(c, 0, "no debe crear la tarea");
+});
+
+test("acepta el puntaje máximo de 5", async () => {
+  const res = await request(app)
+    .post("/api/tareas")
+    .set(auth(profToken))
+    .send({ grupo_id: grupoId, titulo: "Puntaje límite", puntaje_max: 5 });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
 });

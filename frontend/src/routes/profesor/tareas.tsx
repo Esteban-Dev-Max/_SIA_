@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, descargarArchivo, vistaArchivo } from "@/lib/api";
+import { PUNTAJE_MAX_TAREA, PUNTAJE_MIN_TAREA, validarPuntajeMaximo } from "@/lib/tareas";
 import { DataTable } from "@/components/DataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
   Users,
   FileText,
   Clock,
+  Download,
 } from "lucide-react";
 
 export const Route = createFileRoute("/profesor/tareas")({
@@ -65,6 +67,11 @@ type Entrega = {
   estudiante: string;
   correo: string;
   archivo_url: string | null;
+  archivo_nombre: string | null;
+  archivo_mime: string | null;
+  archivo_tamano: number | null;
+  archivo_subido: number | boolean | null;
+  tardia: number | boolean | null;
   fecha_entrega: string | null;
   calificacion: number | string | null;
   comentario: string | null;
@@ -113,6 +120,27 @@ function num(v: number | string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function archivoSubido(e: Entrega): boolean {
+  return Number(e.archivo_subido) === 1;
+}
+
+function verArchivoEntrega(e: Entrega) {
+  if (archivoSubido(e)) {
+    vistaArchivo(`/api/tareas/entrega/${e.entrega_id}/archivo`).catch((err) =>
+      toast.error(err instanceof Error ? err.message : "Error al abrir el archivo"),
+    );
+    return;
+  }
+  if (e.archivo_url) window.open(e.archivo_url, "_blank", "noopener,noreferrer");
+}
+
+function bajarArchivoEntrega(e: Entrega) {
+  descargarArchivo(
+    `/api/tareas/entrega/${e.entrega_id}/archivo?descargar=1`,
+    e.archivo_nombre || "entrega",
+  ).catch((err) => toast.error(err instanceof Error ? err.message : "Error al descargar"));
+}
+
 // Reescala una calificación de tarea a la escala 0.0–5.0 de la planilla.
 function equivalenciaNota(
   v: string | number | null,
@@ -136,7 +164,7 @@ function ProfesorTareas() {
     titulo: "",
     descripcion: "",
     fecha_entrega: "",
-    puntaje_max: "10",
+    puntaje_max: String(PUNTAJE_MAX_TAREA),
     columna_nota: "",
   });
 
@@ -178,6 +206,11 @@ function ProfesorTareas() {
       toast.error("El título es obligatorio");
       return;
     }
+    const errorPuntaje = validarPuntajeMaximo(form.puntaje_max);
+    if (errorPuntaje) {
+      toast.error(errorPuntaje);
+      return;
+    }
     setCreando(true);
     try {
       await api("/api/tareas", {
@@ -187,7 +220,7 @@ function ProfesorTareas() {
           titulo: form.titulo,
           descripcion: form.descripcion,
           fecha_entrega: form.fecha_entrega || null,
-          puntaje_max: form.puntaje_max || "10",
+          puntaje_max: form.puntaje_max || String(PUNTAJE_MAX_TAREA),
           columna_nota: form.columna_nota || null,
         }),
       });
@@ -197,7 +230,7 @@ function ProfesorTareas() {
         titulo: "",
         descripcion: "",
         fecha_entrega: "",
-        puntaje_max: "10",
+        puntaje_max: String(PUNTAJE_MAX_TAREA),
         columna_nota: "",
       });
       cargarTareas();
@@ -418,12 +451,18 @@ function ProfesorTareas() {
                 <Input
                   id="puntaje"
                   type="number"
-                  min={1}
+                  min={PUNTAJE_MIN_TAREA}
+                  max={PUNTAJE_MAX_TAREA}
                   step="0.5"
                   value={form.puntaje_max}
                   onChange={(e) => setForm((f) => ({ ...f, puntaje_max: e.target.value }))}
+                  aria-describedby="puntaje-ayuda"
                   className="rounded-lg border-border/60"
                 />
+                <p id="puntaje-ayuda" className="text-xs text-muted-foreground">
+                  Entre {PUNTAJE_MIN_TAREA} y {PUNTAJE_MAX_TAREA}. Se reescala a la escala 0.0–5.0
+                  de la planilla.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
@@ -518,8 +557,29 @@ function ProfesorTareas() {
                         <p className="font-medium text-sm">{e.estudiante}</p>
                         <p className="text-xs text-muted-foreground">{e.correo}</p>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {e.archivo_url && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        {archivoSubido(e) ? (
+                          <span className="inline-flex min-w-0 items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => verArchivoEntrega(e)}
+                              className="inline-flex min-w-0 items-center gap-1 text-primary hover:underline"
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                              <span className="max-w-[160px] truncate">
+                                {e.archivo_nombre || "Ver archivo"}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => bajarArchivoEntrega(e)}
+                              title="Descargar archivo"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
+                          </span>
+                        ) : e.archivo_url ? (
                           <a
                             href={e.archivo_url}
                             target="_blank"
@@ -527,8 +587,16 @@ function ProfesorTareas() {
                             className="inline-flex items-center gap-1 text-primary hover:underline"
                           >
                             <FileText className="h-3.5 w-3.5" />
-                            Ver archivo
+                            Ver enlace
                           </a>
+                        ) : null}
+                        {Number(e.tardia) === 1 && (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-rose-200 bg-rose-500/10 px-2 py-0 text-[11px] font-medium text-rose-700"
+                          >
+                            Tardía
+                          </Badge>
                         )}
                         <span>· {fmtFecha(e.fecha_entrega)}</span>
                       </div>

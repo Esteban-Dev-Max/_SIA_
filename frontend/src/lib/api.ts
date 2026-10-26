@@ -94,6 +94,52 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   return res.json();
 }
 
+/** Porcentaje (0–100) del progreso de subida. */
+export type ProgresoSubida = (porcentaje: number) => void;
+
+/** Sube un FormData informando el progreso real (fetch no expone el avance).
+ * Usa XHR porque es la única API que reporta el progreso de subida. */
+export function apiSubir<T = unknown>(
+  path: string,
+  formData: FormData,
+  onProgress?: ProgresoSubida,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || typeof XMLHttpRequest === "undefined") {
+      reject(new Error("La subida de archivos requiere un navegador"));
+      return;
+    }
+    const token = getToken();
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", apiUrl(path));
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    if (onProgress) {
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) onProgress(Math.round((ev.loaded / ev.total) * 100));
+      };
+      xhr.upload.onload = () => onProgress(100);
+    }
+    xhr.onerror = () => reject(new Error("No se pudo conectar con el servidor"));
+    xhr.onabort = () => reject(new Error("Subida cancelada"));
+    xhr.onload = () => {
+      let data: unknown = null;
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        data = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data as T);
+        return;
+      }
+      if (xhr.status === 401 && token) manejarSesionExpirada();
+      const mensaje = (data as { error?: string } | null)?.error || `HTTP ${xhr.status}`;
+      reject(new Error(mensaje));
+    };
+    xhr.send(formData);
+  });
+}
+
 function apiUrl(path: string): string {
   return `${API_URL}${path}`;
 }

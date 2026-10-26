@@ -35,6 +35,9 @@ backend/.env
 backend/.env.*
 !backend/.env.example
 
+# Documentos subidos por estudiantes (entregas de tareas): no versionar.
+backend/uploads/entregas/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

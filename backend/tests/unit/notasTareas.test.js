@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { reescalarNota, promedioNotas } from "../../lib/notasTareas.js";
+import {
+  PUNTAJE_MAX_TAREA,
+  reescalarNota,
+  promedioNotas,
+} from "../../lib/notasTareas.js";
+
+test("el puntaje máximo de una tarea es 5", () => {
+  assert.equal(PUNTAJE_MAX_TAREA, 5);
+});
 
 test("reescalarNota convierte de la escala de tarea a 0.0–5.0", () => {
   assert.equal(reescalarNota(9, 10), 4.5);

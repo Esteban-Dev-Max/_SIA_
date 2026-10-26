@@ -1,14 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, apiSubir, descargarArchivo, vistaArchivo } from "@/lib/api";
+import { formatearBytes } from "@/lib/archivos";
 import { StatCard } from "@/components/StatCard";
+import { FileDropzone } from "@/components/FileDropzone";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +32,8 @@ import {
   Loader2,
   Send,
   AlertTriangle,
+  Download,
+  Link2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/estudiante/tareas")({
@@ -47,11 +52,20 @@ type TareaEstudiante = {
   grupo_id: number;
   entrega_id: number | null;
   archivo_url: string | null;
+  archivo_nombre: string | null;
+  archivo_mime: string | null;
+  archivo_tamano: number | null;
+  archivo_subido: number | boolean | null;
+  tardia: number | boolean | null;
   fecha_entrega_entrega: string | null;
   calificacion: number | string | null;
   comentario: string | null;
   retroalimentacion: string | null;
 };
+
+type ModoEntrega = "archivo" | "enlace";
+
+type RespuestaEntrega = { ok: boolean; tardia?: boolean };
 
 function num(v: number | string | null): number | null {
   if (v === null || v === "") return null;
@@ -116,8 +130,14 @@ function EstudianteTareas() {
   const [cargando, setCargando] = useState(true);
 
   const [entregando, setEntregando] = useState<TareaEstudiante | null>(null);
-  const [envio, setEnvio] = useState({ archivo_url: "", comentario: "" });
+  const [modo, setModo] = useState<ModoEntrega>("archivo");
+  const [envio, setEnvio] = useState<{
+    archivo: File | null;
+    archivo_url: string;
+    comentario: string;
+  }>({ archivo: null, archivo_url: "", comentario: "" });
   const [guardando, setGuardando] = useState(false);
+  const [progreso, setProgreso] = useState<number | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -140,30 +160,90 @@ function EstudianteTareas() {
 
   function abrirEntrega(t: TareaEstudiante) {
     setEntregando(t);
-    setEnvio({ archivo_url: t.archivo_url ?? "", comentario: t.comentario ?? "" });
+    setModo(t.archivo_subido ? "archivo" : t.archivo_url ? "enlace" : "archivo");
+    setProgreso(null);
+    setEnvio({ archivo: null, archivo_url: t.archivo_url ?? "", comentario: t.comentario ?? "" });
+  }
+
+  function cerrarEntrega() {
+    setEntregando(null);
+    setProgreso(null);
+    setEnvio({ archivo: null, archivo_url: "", comentario: "" });
+  }
+
+  function archivoSubido(t: TareaEstudiante | null): boolean {
+    return !!t && Number(t.archivo_subido) === 1;
+  }
+
+  function verEntrega(t: TareaEstudiante) {
+    if (!t.entrega_id) return;
+    if (archivoSubido(t)) {
+      vistaArchivo(`/api/tareas/entrega/${t.entrega_id}/archivo`).catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Error al abrir el archivo"),
+      );
+      return;
+    }
+    if (t.archivo_url) window.open(t.archivo_url, "_blank", "noopener,noreferrer");
+  }
+
+  function bajarEntrega(t: TareaEstudiante) {
+    if (!t.entrega_id) return;
+    descargarArchivo(
+      `/api/tareas/entrega/${t.entrega_id}/archivo?descargar=1`,
+      t.archivo_nombre || "entrega",
+    ).catch((err) => toast.error(err instanceof Error ? err.message : "Error al descargar"));
   }
 
   async function enviarEntrega() {
-    if (!entregando || !envio.archivo_url.trim()) {
-      toast.error("Adjunta un enlace o archivo para entregar");
+    if (!entregando) return;
+    const url = envio.archivo_url.trim();
+    const tieneArchivoPrevio = archivoSubido(entregando);
+
+    if (modo === "archivo" && !envio.archivo && !tieneArchivoPrevio) {
+      toast.error("Adjunta un archivo para entregar");
       return;
     }
+    if (modo === "enlace" && !url) {
+      toast.error("Pega el enlace de tu trabajo para entregar");
+      return;
+    }
+
     setGuardando(true);
     try {
-      await api(`/api/tareas/${entregando.tarea_id}/entregar`, {
-        method: "POST",
-        body: JSON.stringify({
-          archivo_url: envio.archivo_url,
-          comentario: envio.comentario,
-        }),
-      });
-      toast.success("Entrega registrada correctamente");
-      setEntregando(null);
+      let respuesta: RespuestaEntrega;
+      if (modo === "archivo" && envio.archivo) {
+        setProgreso(0);
+        const data = new FormData();
+        data.append("archivo", envio.archivo);
+        if (envio.comentario.trim()) data.append("comentario", envio.comentario.trim());
+        respuesta = await apiSubir<RespuestaEntrega>(
+          `/api/tareas/${entregando.tarea_id}/entregar`,
+          data,
+          setProgreso,
+        );
+      } else {
+        respuesta = await api<RespuestaEntrega>(`/api/tareas/${entregando.tarea_id}/entregar`, {
+          method: "POST",
+          body: JSON.stringify(
+            modo === "enlace"
+              ? { archivo_url: url, comentario: envio.comentario }
+              : { comentario: envio.comentario },
+          ),
+        });
+      }
+
+      if (respuesta?.tardia) {
+        toast.warning("Entrega registrada. Quedó marcada como tardía.");
+      } else {
+        toast.success("Entrega registrada correctamente");
+      }
+      cerrarEntrega();
       cargar();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al entregar");
     } finally {
       setGuardando(false);
+      setProgreso(null);
     }
   }
 
@@ -320,8 +400,16 @@ function EstudianteTareas() {
                           )}
                         </div>
                         <h3 className="font-semibold leading-snug">{t.titulo}</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Entregada el {fmtFecha(t.fecha_entrega_entrega)}
+                        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>Entregada el {fmtFecha(t.fecha_entrega_entrega)}</span>
+                          {Number(t.tardia) === 1 && (
+                            <Badge
+                              variant="outline"
+                              className="rounded-full border-rose-200 bg-rose-500/10 px-2 py-0 text-[11px] font-medium text-rose-700"
+                            >
+                              Tardía
+                            </Badge>
+                          )}
                         </p>
                         {t.retroalimentacion && (
                           <p className="mt-2 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
@@ -330,7 +418,28 @@ function EstudianteTareas() {
                           </p>
                         )}
                         <div className="mt-3 flex items-center justify-between gap-2">
-                          {t.archivo_url ? (
+                          {archivoSubido(t) ? (
+                            <span className="flex min-w-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => verEntrega(t)}
+                                className="inline-flex min-w-0 items-center gap-1 text-xs text-primary hover:underline"
+                              >
+                                <FileText className="h-3.5 w-3.5 shrink-0" />
+                                <span className="max-w-[160px] truncate">
+                                  {t.archivo_nombre || "Ver entrega"}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => bajarEntrega(t)}
+                                title="Descargar archivo"
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          ) : t.archivo_url ? (
                             <a
                               href={t.archivo_url}
                               target="_blank"
@@ -338,7 +447,7 @@ function EstudianteTareas() {
                               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                             >
                               <FileText className="h-3.5 w-3.5" />
-                              Ver entrega
+                              Ver enlace
                             </a>
                           ) : (
                             <span />
@@ -364,7 +473,12 @@ function EstudianteTareas() {
       )}
 
       {/* Modal de entrega */}
-      <Dialog open={entregando !== null} onOpenChange={(v) => !v && setEntregando(null)}>
+      <Dialog
+        open={entregando !== null}
+        onOpenChange={(v) => {
+          if (!v) cerrarEntrega();
+        }}
+      >
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -378,16 +492,122 @@ function EstudianteTareas() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="archivo">Enlace del archivo / trabajo</Label>
-              <Input
-                id="archivo"
-                value={envio.archivo_url}
-                onChange={(e) => setEnvio((s) => ({ ...s, archivo_url: e.target.value }))}
-                placeholder="https://drive.google.com/… o ruta del archivo"
-                className="rounded-lg border-border/60"
-              />
+            {entregando?.fecha_entrega &&
+              new Date(entregando.fecha_entrega).getTime() < Date.now() && (
+                <p className="flex items-start gap-1.5 rounded-lg border border-rose-200 bg-rose-500/5 px-3 py-2 text-xs text-rose-700">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Esta tarea ya venció; la entrega quedará marcada como tardía.
+                </p>
+              )}
+
+            <div
+              role="tablist"
+              aria-label="Forma de entrega"
+              className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={modo === "archivo"}
+                disabled={guardando}
+                onClick={() => {
+                  setModo("archivo");
+                  setEnvio((s) => ({ ...s, archivo_url: "" }));
+                }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  modo === "archivo"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Subir archivo
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={modo === "enlace"}
+                disabled={guardando}
+                onClick={() => {
+                  setModo("enlace");
+                  setEnvio((s) => ({ ...s, archivo: null }));
+                }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  modo === "enlace"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Pegar enlace
+              </button>
             </div>
+
+            {modo === "archivo" ? (
+              <div className="space-y-2">
+                {archivoSubido(entregando) && !envio.archivo && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="truncate">
+                        Archivo actual: {entregando?.archivo_nombre || "entrega adjunta"}
+                      </span>
+                      {entregando?.archivo_tamano ? (
+                        <span className="shrink-0 text-muted-foreground">
+                          ({formatearBytes(entregando.archivo_tamano)})
+                        </span>
+                      ) : null}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => entregando && verEntrega(entregando)}
+                        className="text-primary hover:underline"
+                      >
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => entregando && bajarEntrega(entregando)}
+                        className="text-muted-foreground hover:text-foreground"
+                        title="Descargar archivo"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <FileDropzone
+                  id="archivo"
+                  archivo={envio.archivo}
+                  onArchivo={(archivo) => setEnvio((s) => ({ ...s, archivo }))}
+                  disabled={guardando}
+                />
+                {archivoSubido(entregando) && !envio.archivo && (
+                  <p className="text-xs text-muted-foreground">
+                    Se conservará el archivo actual si no eliges otro.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="archivo_url">Enlace del trabajo</Label>
+                <Input
+                  id="archivo_url"
+                  value={envio.archivo_url}
+                  onChange={(e) => setEnvio((s) => ({ ...s, archivo_url: e.target.value }))}
+                  placeholder="https://drive.google.com/…"
+                  className="rounded-lg border-border/60"
+                  disabled={guardando}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usa esta opción si tu trabajo está en Drive u otra plataforma.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="comentario">Comentario (opcional)</Label>
               <Textarea
@@ -396,18 +616,23 @@ function EstudianteTareas() {
                 onChange={(e) => setEnvio((s) => ({ ...s, comentario: e.target.value }))}
                 placeholder="Notas para el docente sobre tu entrega…"
                 className="rounded-lg border-border/60"
+                maxLength={255}
+                disabled={guardando}
               />
             </div>
-            {entregando?.fecha_entrega &&
-              new Date(entregando.fecha_entrega).getTime() < Date.now() && (
-                <p className="flex items-start gap-1.5 text-xs text-rose-600">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Esta tarea ya venció; la entrega quedará marcada como tardía.
-                </p>
-              )}
+
+            {progreso !== null && (
+              <div className="space-y-1.5" aria-live="polite">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Subiendo archivo…</span>
+                  <span>{progreso}%</span>
+                </div>
+                <Progress value={progreso} />
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEntregando(null)}>
+            <Button variant="outline" onClick={cerrarEntrega} disabled={guardando}>
               Cancelar
             </Button>
             <Button onClick={enviarEntrega} disabled={guardando} className="gap-1.5 rounded-lg">
@@ -416,7 +641,11 @@ function EstudianteTareas() {
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              Enviar entrega
+              {guardando
+                ? progreso !== null
+                  ? `Subiendo ${progreso}%`
+                  : "Enviando…"
+                : "Enviar entrega"}
             </Button>
           </DialogFooter>
         </DialogContent>

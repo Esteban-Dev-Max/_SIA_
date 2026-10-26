@@ -182,12 +182,12 @@ const userIds = {};
   const tareaId = await insert(
     `INSERT INTO tareas (asignacion_id, titulo, descripcion, fecha_entrega, puntaje_max, institucion_id)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [asigMat, "Taller 1: Fracciones", "Resolver los ejercicios 1 al 20 de la guía", "2026-02-28 23:59:00", 10, institucionId],
+    [asigMat, "Taller 1: Fracciones", "Resolver los ejercicios 1 al 20 de la guía", "2026-02-28 23:59:00", 5, institucionId],
   );
   await insert(
     `INSERT INTO entregas_tareas (tarea_id, estudiante_id, archivo_url, calificacion, comentario)
      VALUES (?, ?, ?, ?, ?)`,
-    [tareaId, userIds.estudiante, "https://storage.sia.edu.co/demo/taller1.pdf", 9.0, "Muy completo"],
+    [tareaId, userIds.estudiante, "https://storage.sia.edu.co/demo/taller1.pdf", 4.5, "Muy completo"],
   );
 
   // 12) Evento de calendario de ejemplo.

@@ -14,6 +14,10 @@ import { calcularDefinitiva, CAMPOS_NOTA } from "./notas.js";
 /** Rubros de la planilla a los que puede apuntar una tarea (ENUM de la BD). */
 export const COLUMNAS_NOTA = ["nota_1", "nota_2", "nota_3", "examen_final"];
 
+/** Puntaje máximo permitido al crear o editar una tarea.
+ * Debe coincidir con frontend/src/lib/tareas.ts (PUNTAJE_MAX_TAREA). */
+export const PUNTAJE_MAX_TAREA = 5;
+
 const ETIQUETA = {
   nota_1: "Nota 1",
   nota_2: "Nota 2",
