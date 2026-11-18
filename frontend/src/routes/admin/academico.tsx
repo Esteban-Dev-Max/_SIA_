@@ -252,7 +252,11 @@ function AdminAcademico() {
     periodo: PERIODO_ACTUAL,
     horario: "",
   });
-  const [matriculaForm, setMatriculaForm] = useState({ estudiante_id: "", curso_id: "" });
+  const [matriculaForm, setMatriculaForm] = useState({
+    estudiante_id: "",
+    curso_id: "",
+    ano_lectivo: "",
+  });
   const [vincularForm, setVincularForm] = useState({ acudiente_id: "", estudiante_id: "" });
 
   // edición: un Dialog por sección, con estados separados de los formularios de crear
@@ -339,6 +343,26 @@ function AdminAcademico() {
         [m.estudiante, m.correo, m.curso].some((s) => s.toLowerCase().includes(qMatricula)),
       )
     : matriculas;
+
+  // --- Matrícula anual única: año lectivo seleccionado + estudiantes ocupados ---
+  const anosLectivos = Array.from(new Set(cursos.map((c) => c.ano_lectivo))).sort((a, b) => b - a);
+
+  useEffect(() => {
+    if (!matriculaForm.ano_lectivo && cursos.length > 0) {
+      const anos = [...new Set(cursos.map((c) => c.ano_lectivo))].sort((a, b) => b - a);
+      setMatriculaForm((f) => ({ ...f, ano_lectivo: String(anos[0]) }));
+    }
+  }, [cursos, matriculaForm.ano_lectivo]);
+
+  const anoMatriculaSel = matriculaForm.ano_lectivo ? Number(matriculaForm.ano_lectivo) : null;
+  const cursosDelAno = anoMatriculaSel
+    ? cursos.filter((c) => c.ano_lectivo === anoMatriculaSel)
+    : cursos;
+  const estudiantesMatriculadosAno = new Set(
+    matriculas.filter((m) => m.ano_lectivo === anoMatriculaSel).map((m) => m.estudiante_id),
+  );
+  const estudiantesDisponibles = estudiantes.filter((u) => !estudiantesMatriculadosAno.has(u.id));
+  const ocultosMatricula = estudiantes.length - estudiantesDisponibles.length;
 
   async function post(path: string, body: unknown, okMsg: string) {
     if (enviando) return;
@@ -1332,44 +1356,62 @@ function AdminAcademico() {
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
+                  const estSel = Number(matriculaForm.estudiante_id);
+                  const cursoSel = cursosDelAno.find(
+                    (c) => String(c.id) === matriculaForm.curso_id,
+                  );
+                  const ano = cursoSel?.ano_lectivo ?? anoMatriculaSel;
+                  if (
+                    ano != null &&
+                    matriculas.some((m) => m.estudiante_id === estSel && m.ano_lectivo === ano)
+                  ) {
+                    toast.error(
+                      "El estudiante ya se encuentra matriculado en un curso para este año lectivo",
+                    );
+                    return;
+                  }
                   await post(
                     "/api/admin/matriculas",
                     {
-                      estudiante_id: Number(matriculaForm.estudiante_id),
+                      estudiante_id: estSel,
                       curso_id: Number(matriculaForm.curso_id),
                     },
                     "Estudiante matriculado",
                   );
-                  setMatriculaForm({ estudiante_id: "", curso_id: "" });
+                  setMatriculaForm({
+                    estudiante_id: "",
+                    curso_id: "",
+                    ano_lectivo: matriculaForm.ano_lectivo,
+                  });
                 }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
               >
                 <div className="relative">
-                  <ComboboxBusqueda
-                    value={matriculaForm.estudiante_id}
-                    onChange={(v) => setMatriculaForm({ ...matriculaForm, estudiante_id: v })}
-                    options={estudiantes.map((u) => ({
-                      value: String(u.id),
-                      label: u.nombre_completo,
-                      sublabel: u.correo,
-                    }))}
-                    placeholder="— Estudiante —"
-                    busquedaPlaceholder="Buscar por nombre o correo..."
-                  />
-                  <input
+                  <select
                     required
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    value={matriculaForm.estudiante_id}
-                    onChange={() => {}}
-                    className="absolute h-0 w-0 opacity-0"
-                  />
+                    value={matriculaForm.ano_lectivo}
+                    onChange={(e) =>
+                      setMatriculaForm({
+                        estudiante_id: "",
+                        curso_id: "",
+                        ano_lectivo: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                  >
+                    <option value="">— Año lectivo —</option>
+                    {anosLectivos.map((a) => (
+                      <option key={a} value={String(a)}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="relative">
                   <ComboboxBusqueda
                     value={matriculaForm.curso_id}
                     onChange={(v) => setMatriculaForm({ ...matriculaForm, curso_id: v })}
-                    options={cursos.map((c) => ({
+                    options={cursosDelAno.map((c) => ({
                       value: String(c.id),
                       label: `${c.grado_nombre} ${c.nombre}`,
                       sublabel: `${c.ano_lectivo}${c.director ? ` · Dir. ${c.director}` : ""}`,
@@ -1386,6 +1428,27 @@ function AdminAcademico() {
                     className="absolute h-0 w-0 opacity-0"
                   />
                 </div>
+                <div className="relative">
+                  <ComboboxBusqueda
+                    value={matriculaForm.estudiante_id}
+                    onChange={(v) => setMatriculaForm({ ...matriculaForm, estudiante_id: v })}
+                    options={estudiantesDisponibles.map((u) => ({
+                      value: String(u.id),
+                      label: u.nombre_completo,
+                      sublabel: u.correo,
+                    }))}
+                    placeholder="— Estudiante —"
+                    busquedaPlaceholder="Buscar por nombre o correo..."
+                  />
+                  <input
+                    required
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    value={matriculaForm.estudiante_id}
+                    onChange={() => {}}
+                    className="absolute h-0 w-0 opacity-0"
+                  />
+                </div>
                 <Button type="submit" disabled={enviando} className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Matricular
@@ -1393,8 +1456,14 @@ function AdminAcademico() {
               </form>
               <p className="mt-3 text-xs text-muted-foreground">
                 Al matricular, el estudiante queda inscrito automáticamente en las asignaturas
-                asignadas a ese curso.
+                asignadas a ese curso. Solo se permite una matrícula por estudiante y año lectivo.
               </p>
+              {matriculaForm.ano_lectivo && ocultosMatricula > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {ocultosMatricula} estudiante(s) oculto(s): ya matriculado(s) en{" "}
+                  {matriculaForm.ano_lectivo}.
+                </p>
+              )}
             </CardContent>
           </Card>
           <div className="mb-3">

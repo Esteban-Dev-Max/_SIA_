@@ -22,6 +22,7 @@ const MIGRACIONES = [
   "007_quitar_creditos.sql",
   "008_colegios.sql",
   "009_entregas_archivo.sql",
+  "010_matricula_unica_ano.sql",
 ];
 
 const leer = (file) =>

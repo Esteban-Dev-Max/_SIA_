@@ -17,7 +17,9 @@ const leer = (file) =>
 // 007 elimina la columna creditos de materias (función retirada),
 // 008 adapta el modelo de instituto al de colegio (grados, asignaturas,
 // cursos, asignaciones y matrícula anual),
-// 009 agrega los adjuntos y la marca de entrega tardía en entregas_tareas.
+// 009 agrega los adjuntos y la marca de entrega tardía en entregas_tareas,
+// 010 impone una matrícula anual única por estudiante (limpia duplicados y
+// agrega el índice único).
 const migraciones = [
   "001_init.sql",
   "002_multi_tenant.sql",
@@ -28,6 +30,7 @@ const migraciones = [
   "007_quitar_creditos.sql",
   "008_colegios.sql",
   "009_entregas_archivo.sql",
+  "010_matricula_unica_ano.sql",
 ];
 
 const conn = await mysql.createConnection({

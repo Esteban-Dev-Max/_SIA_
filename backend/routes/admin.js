@@ -930,21 +930,33 @@ r.post(
       [cursoId, institucion_id],
     );
     if (!cur) return res.status(400).json({ error: "El curso no existe" });
-    // Un estudiante no se matricula dos veces al mismo curso.
-    const [[dup]] = await pool.query(
-      "SELECT id FROM matriculas_curso WHERE estudiante_id = ? AND curso_id = ? AND institucion_id = ?",
-      [estudianteId, cursoId, institucion_id],
+    // Un estudiante solo puede tener una matrícula anual (un curso por año).
+    const [[yaMatriculado]] = await pool.query(
+      "SELECT id FROM matriculas_curso WHERE estudiante_id = ? AND ano_lectivo = ? AND institucion_id = ?",
+      [estudianteId, cur.ano_lectivo, institucion_id],
     );
-    if (dup) {
+    if (yaMatriculado) {
       return res.status(400).json({
-        error: "El estudiante ya está matriculado en ese curso",
+        error:
+          "El estudiante ya se encuentra matriculado en un curso para este año lectivo",
       });
     }
     const fecha = fecha_matricula || new Date().toISOString().slice(0, 10);
-    const [result] = await pool.query(
-      `INSERT INTO matriculas_curso (estudiante_id, curso_id, ano_lectivo, fecha_matricula, institucion_id) VALUES (?, ?, ?, ?, ?)`,
-      [estudianteId, cursoId, cur.ano_lectivo, fecha, institucion_id],
-    );
+    let result;
+    try {
+      [result] = await pool.query(
+        `INSERT INTO matriculas_curso (estudiante_id, curso_id, ano_lectivo, fecha_matricula, institucion_id) VALUES (?, ?, ?, ?, ?)`,
+        [estudianteId, cursoId, cur.ano_lectivo, fecha, institucion_id],
+      );
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({
+          error:
+            "El estudiante ya se encuentra matriculado en un curso para este año lectivo",
+        });
+      }
+      throw e;
+    }
     const heredadas = await heredarAsignaciones(estudianteId, cursoId, fecha, institucion_id);
     res.json({ ok: true, id: result.insertId, asignaturas: heredadas });
   }),
@@ -976,13 +988,16 @@ r.put(
     );
     if (!cur) return res.status(400).json({ error: "El curso no existe" });
     if (cur.id !== mc.curso_id) {
+      // Solo puede existir una matrícula anual por estudiante: si ya tiene
+      // otra matrícula en el año destino (distinta de esta), se rechaza.
       const [[dup]] = await pool.query(
-        "SELECT id FROM matriculas_curso WHERE estudiante_id = ? AND curso_id = ? AND id <> ? AND institucion_id = ?",
-        [mc.estudiante_id, cursoId, id, institucion_id],
+        "SELECT id FROM matriculas_curso WHERE estudiante_id = ? AND ano_lectivo = ? AND id <> ? AND institucion_id = ?",
+        [mc.estudiante_id, cur.ano_lectivo, id, institucion_id],
       );
       if (dup) {
         return res.status(400).json({
-          error: "El estudiante ya está matriculado en ese curso",
+          error:
+            "El estudiante ya se encuentra matriculado en un curso para este año lectivo",
         });
       }
       const anteriores = await matriculasDeCurso(mc.estudiante_id, mc.curso_id, institucion_id);
@@ -1000,10 +1015,20 @@ r.put(
           [...anteriores, institucion_id],
         );
       }
-      await pool.query(
-        "UPDATE matriculas_curso SET curso_id = ?, ano_lectivo = ? WHERE id = ? AND institucion_id = ?",
-        [cursoId, cur.ano_lectivo, id, institucion_id],
-      );
+      try {
+        await pool.query(
+          "UPDATE matriculas_curso SET curso_id = ?, ano_lectivo = ? WHERE id = ? AND institucion_id = ?",
+          [cursoId, cur.ano_lectivo, id, institucion_id],
+        );
+      } catch (e) {
+        if (e.code === "ER_DUP_ENTRY") {
+          return res.status(400).json({
+            error:
+              "El estudiante ya se encuentra matriculado en un curso para este año lectivo",
+          });
+        }
+        throw e;
+      }
       await heredarAsignaciones(
         mc.estudiante_id,
         cursoId,

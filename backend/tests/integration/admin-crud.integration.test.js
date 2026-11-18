@@ -301,6 +301,54 @@ describe("matrículas", () => {
       .set(auth(adminToken));
     assert.equal(del.status, 200);
   });
+
+  test("no permite dos matrículas del mismo estudiante en el mismo año lectivo", async () => {
+    const cursoA = await crearCurso(await crearGrado());
+    const cursoB = await crearCurso(await crearGrado());
+
+    const primero = await request(app)
+      .post("/api/admin/matriculas")
+      .set(auth(adminToken))
+      .send({ estudiante_id: estId, curso_id: cursoA });
+    assert.equal(primero.status, 200, JSON.stringify(primero.body));
+
+    const segundo = await request(app)
+      .post("/api/admin/matriculas")
+      .set(auth(adminToken))
+      .send({ estudiante_id: estId, curso_id: cursoB });
+    assert.equal(segundo.status, 400, JSON.stringify(segundo.body));
+    assert.match(
+      segundo.body.error,
+      /ya se encuentra matriculado en un curso para este año lectivo/,
+    );
+
+    const del = await request(app)
+      .delete(`/api/admin/matriculas/${primero.body.id}`)
+      .set(auth(adminToken));
+    assert.equal(del.status, 200);
+  });
+
+  test("el índice único impide un INSERT duplicado por año a nivel de esquema", async () => {
+    const estudianteId = estId;
+    const cursoId = await crearCurso(await crearGrado());
+    const [[curso]] = await pool.query("SELECT ano_lectivo FROM cursos WHERE id = ?", [cursoId]);
+    await pool.query(
+      `INSERT INTO matriculas_curso (estudiante_id, curso_id, ano_lectivo, fecha_matricula, institucion_id) VALUES (?, ?, ?, CURDATE(), ?)`,
+      [estudianteId, cursoId, curso.ano_lectivo, instId],
+    );
+    await assert.rejects(
+      () =>
+        pool.query(
+          `INSERT INTO matriculas_curso (estudiante_id, curso_id, ano_lectivo, fecha_matricula, institucion_id) VALUES (?, ?, ?, CURDATE(), ?)`,
+          [estudianteId, cursoId, curso.ano_lectivo, instId],
+        ),
+      (e) => e.code === "ER_DUP_ENTRY",
+    );
+    await pool.query(
+      "DELETE FROM matriculas_curso WHERE estudiante_id = ? AND curso_id = ? AND institucion_id = ?",
+      [estudianteId, cursoId, instId],
+    );
+  });
 });
 
 describe("vinculación acudiente-estudiante", () => {
