@@ -123,14 +123,15 @@ SIA/
 │   ├── index.js                 # Entrada: arranca el listener y chequea MySQL
 │   ├── app.js                   # App Express: CORS, estáticos (uploads/), rutas y errores
 │   ├── db.js                    # Pool de MySQL (decimalNumbers: true)
-│   ├── migrate.js               # Ejecuta migrations/001-009 en orden
+│   ├── migrate.js               # Ejecuta migrations/001-010 en orden
 │   ├── seed.js                  # Datos demo de colegio (idempotente)
 │   ├── .env.example             # Plantilla de variables de entorno
 │   ├── migrations/              # 001_init.sql, 002_multi_tenant.sql,
 │   │                            # 003_institucion_logo.sql, 004_password_reset.sql,
 │   │                            # 005_tareas_columna_nota.sql,
 │   │                            # 006_trazabilidad_asistencia.sql, 007_quitar_creditos.sql,
-│   │                            # 008_colegios.sql, 009_entregas_archivo.sql
+│   │                            # 008_colegios.sql, 009_entregas_archivo.sql,
+│   │                            # 010_matricula_unica_ano.sql
 │   ├── routes/                  # auth (incluye recuperación de contraseña),
 │   │                            # admin, profesor, acudiente, notas, asistencia,
 │   │                            # tareas, calendario, chatbot, mensajes, notificaciones,
